@@ -29,7 +29,7 @@ signal.signal(signal.SIGHUP, killbuffer)
 
 fqueue = queue.Queue()
 ALIVE.set()
-fipbuffer = FIPBuffer(alive, fqueue, TMPDIR)
+fipbuffer = FIPBuffer(ALIVE, fqueue, TMPDIR)
 fipbuffer.start()
 
 try:
