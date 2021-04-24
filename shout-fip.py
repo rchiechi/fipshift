@@ -10,7 +10,7 @@ import shout
 from fipbuffer import FIPBuffer
 
 TMPDIR='/tmp/fipshift'
-buffertime = 60
+buffertime = 60*60
 
 t_start = time.time()
 
