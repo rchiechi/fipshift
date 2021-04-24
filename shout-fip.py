@@ -34,7 +34,7 @@ fipbuffer.start()
 
 try:
     while time.time() - t_start < buffertime:
-        print("Buffering for %0.0f more minutes." % (buffertime - (time.time() - t_start))/60 )
+        print("Buffering for %0.0f more minutes." % ((buffertime - (time.time() - t_start))/60) )
         time.sleep(60)
 except KeyboardInterrupt:
     print("Killing %s" % fipbuffer.getName())
