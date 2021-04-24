@@ -4,13 +4,18 @@
 import os
 import sys
 import threading
+import signal
 import queue
 import time
 import shout
 from fipbuffer import FIPBuffer
 
 TMPDIR='/tmp/fipshift'
+ALIVE = threading.Event()
 buffertime = 60*60
+
+def killbuffer(signum, frame):
+    ALIVE.clear()
 
 t_start = time.time()
 
@@ -20,19 +25,20 @@ for tmpfn in os.listdir(TMPDIR):
     print("Clearning %s" % os.path.join(TMPDIR,tmpfn))
     os.remove(os.path.join(TMPDIR,tmpfn))
 
-alive = threading.Event()
+signal.signal(signal.SIGHUP, killbuffer)
+
 fqueue = queue.Queue()
-alive.set()
+ALIVE.set()
 fipbuffer = FIPBuffer(alive, fqueue, TMPDIR)
 fipbuffer.start()
 
 try:
     while time.time() - t_start < buffertime:
-        print("Buffering for %0.0f more seconds." % (buffertime - (time.time() - t_start)) )
-        time.sleep(1)
+        print("Buffering for %0.0f more minutes." % (buffertime - (time.time() - t_start))/60 )
+        time.sleep(60)
 except KeyboardInterrupt:
     print("Killing %s" % fipbuffer.getName())
-    alive.clear()
+    killbuffer(None,None)
     fipbuffer.join()
     sys.exit()
 
@@ -60,11 +66,12 @@ s.open()
 total = 0
 st = time.time()
 
-while True:
+while not fqueue.empty():
     try:
-        _f = fqueue.get()
+        _f = fqueue.get(timeout=10)
         fa = _f[1]
-        print("opening file %s" % fa)
+        sys.stdout.write("\rOpening %s                " % fa)
+        sys.stdout.flush()
         with open(fa, 'rb') as fh:
             #TODO: can we extract this from metadata?
             s.set_metadata({'song': fa})
@@ -77,14 +84,19 @@ while True:
                     break
                 s.send(buf)
                 s.sync()
-        print("Deleting %s" % _f[1])
+        sys.stdout.write("\rDeleting %s                " % _f[1])
+        sys.stdout.flush()
         os.remove(os.path.join(TMPDIR, _f[1]))
     except KeyboardInterrupt:
-        print("Killing %s" % fipbuffer.getName())
-        alive.clear()
-        fipbuffer.join()
+        print("Caught SIGINT, exiting.")
         break
+    except queue.Empty:
+        print("Queue is empty, exiting.")
+        
+killbuffer(None,None)
+fipbuffer.join()
 et = time.time()
 br = total*0.008/(et-st)
 print("Sent %d bytes in %d seconds (%f kbps)" % (total, et-st, br))
 s.close()
+

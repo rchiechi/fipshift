@@ -31,12 +31,12 @@ class FIPBuffer(threading.Thread):
                 print("%s: emtpy block, dying." % self.getName())
                 self.alive.clear()
                 break
-            print("%s: fetching block" % self.getName())
+            #print("%s: fetching block" % self.getName())
             fn = os.path.join(self.tmpdir, self.getfn())
             with open(fn, 'wb') as fh:
                 fh.write(buff)
                 self.fqueue.put( (time.time(), fn) )
-                print("%s: wrote %s" % (self.getName(), fn))
+                #print("\r%s: wrote %s" % (self.getName(), fn))
             self.f_counter += 1
             if not self.alive.is_set():
                 print("%s: dying." % self.getName())
