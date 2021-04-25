@@ -100,9 +100,15 @@ class FIPMetadata(threading.Thread):
         print("%s: dying." % self.getName())
 
     def getcurrent(self):
+        track =  self.metadata['now']['secondLine']
+        artist = self.metadata['now']['thirdLine']
+        if not isinstance(track, str):
+            track = 'Error fetching track'
+        if not isinstance(artist, str):
+            artist = 'Error fetching artist'
         return {
-            'track': self.metadata['now']['secondLine'],
-            'artist': self.metadata['now']['thirdLine']
+            'track': track,
+            'artist': artist
         }
 
     def getcurrenttrack(self):
