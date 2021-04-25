@@ -4,14 +4,12 @@ import os
 import urllib.request
 import json
 import threading
-import queue
 import time
 
+# pylint: disable=missing-class-docstring, missing-function-docstring
 
 FIPURL='http://icecast.radiofrance.fr/fip-midfi.mp3'
-#FIPURL='https://icecast.radiofrance.fr/fip-hifi.aac'
 BLOCKSIZE=1024*128
-# pylint: disable=missing-class-docstring, missing-function-docstring
 
 class FIPBuffer(threading.Thread):
 
@@ -123,4 +121,3 @@ class FIPMetadata(threading.Thread):
             self.metadata = {}
         if 'now' not in self.metadata:
             self.metadata = FIPMetadata.metadata
-
