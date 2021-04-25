@@ -100,7 +100,7 @@ while not fqueue.empty():
         sys.stdout.write("\033[F\033[F\033[2K\rOpening %s (%0.0fh:%0.0fm) %0.2f MB \n" % (
             fa, _h, _m, _mb ) )
         sys.stdout.write("\033[2K\rTrack: %s \n" % _f[2]['track'])
-        sys.stdout.write("\033[2K\rrArtist: %s " % _f[2]['artist'])
+        sys.stdout.write("\033[2K\rArtist: %s " % _f[2]['artist'])
         sys.stdout.flush()
         with open(fa, 'rb') as fh:
             s.set_metadata({'song': _f[2]['track'],
