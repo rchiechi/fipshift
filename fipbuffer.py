@@ -40,6 +40,8 @@ class FIPBuffer(threading.Thread):
                     (time.time(), fn, self.fipmetadata.getcurrent())
                     )
             self.f_counter += 1
+            if self.getruntime() > 24*3600:
+                self.fipmetadata = 0
         print("%s: dying." % self.getName())
         self.fipmetadata.join()
 
