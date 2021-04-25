@@ -22,6 +22,8 @@ if len(sys.argv) > 1:
 if buffertime < 60:
     print("Delay must be more than 60 sec.")
     sys.exit()
+if len(sys.argv) > 1:
+    TMPDIR = sys.argv[2]
 
 def killbuffer(signum, frame): # pylint: disable=unused-argument
     print("Received %s, killing buffer thread." % signum)
