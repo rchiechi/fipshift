@@ -124,35 +124,3 @@ class FIPMetadata(threading.Thread):
         if 'now' not in self.metadata:
             self.metadata = FIPMetadata.metadata
 
-
-if __name__ == "__main__":
-    TMPDIR='/tmp/fipshift'
-    buffertime = 30
-    if not os.path.exists(TMPDIR):
-        os.mkdir(TMPDIR)
-    for tmpfn in os.listdir(TMPDIR):
-        print(os.path.join(TMPDIR,tmpfn))
-        os.remove(os.path.join(TMPDIR,tmpfn))
-    alive = threading.Event()
-    fqueue = queue.Queue()
-    alive.set()
-    fipbuffer = FIPBuffer(alive, fqueue, TMPDIR)
-    fipbuffer.start()
-    time.sleep(1)
-    while True:
-        try:
-            print("Thread running for %0.1f seconds" % fipbuffer.getruntime())
-            print("Wrote %s files (%s kb)" % (
-                int(fipbuffer.getfn()), int(fipbuffer.getfn())*BLOCKSIZE) )
-            if time.time() - fipbuffer.getruntime() > buffertime:
-                _f = fqueue.get()
-                while time.time() - _f[0] < buffertime:
-                    time.sleep(0.1)
-                print("Deleting %s" % _f[1])
-                os.remove(os.path.join(TMPDIR, _f[1]))
-            time.sleep(3)
-        except KeyboardInterrupt:
-            print("Killing %s" % fipbuffer.getName())
-            alive.clear()
-            fipbuffer.join()
-            break
