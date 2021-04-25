@@ -26,7 +26,7 @@ def cleantmpdir(tmpdir):
         sys.stdout.flush()
         os.remove(os.path.join(tmpdir,tmpfn))
         n += 1
-    print("\rCleaned: %s files.                                   " % n)
+    print("\033[2K\rCleaned: %s files. " % n)
 
 def timeinhours(sec):
     sec_value = sec % (24 * 3600)
@@ -97,10 +97,10 @@ while not fqueue.empty():
         fa = _f[1]
         _h, _m = timeinhours( time.time()-_f[0] )
         _mb = (fqueue.qsize()*128)/1024
-        sys.stdout.write("\033[F\033[F\rOpening %s (%0.0fh:%0.0fm) %0.2f MB \n" % (
+        sys.stdout.write("\033[F\033[F\033[2K\rOpening %s (%0.0fh:%0.0fm) %0.2f MB \n" % (
             fa, _h, _m, _mb ) )
-        sys.stdout.write("\rTrack: %s \n" % _f[2]['track'])
-        sys.stdout.write("\rArtist: %s " % _f[2]['artist'])
+        sys.stdout.write("\033[2K\rTrack: %s \n" % _f[2]['track'])
+        sys.stdout.write("\033[2K\rrArtist: %s " % _f[2]['artist'])
         sys.stdout.flush()
         with open(fa, 'rb') as fh:
             s.set_metadata({'song': _f[2]['track'],
