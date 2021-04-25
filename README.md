@@ -8,6 +8,8 @@ The first time you run the script it will create a file called `fipshift.conf` i
 Edit that file to set the server, user, password, etc.
 Note that the stream will not start until the delay time has passed.
 
+You can send `SIGHUP` to kill the file buffer, but leave the stream going until it streams the entire buffer.
+
 # requirements
 [python-shout](https://pypi.org/project/python-shout/)
 
