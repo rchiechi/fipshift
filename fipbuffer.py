@@ -1,7 +1,6 @@
 '''Open FIP MP3 url and buffer it to disk for time-shifted re-streaming.'''
 
 import os
-import sys
 import urllib.request
 import json
 import threading
@@ -19,42 +18,42 @@ class FIPBuffer(threading.Thread):
     def __init__(self, _alive, _fqueue, _tmpdir):
         threading.Thread.__init__(self)
         self.setName('File Buffer Thread')
-        self.fipmetadata = FIPMetadata()
         self.alive = _alive
         self.fqueue = _fqueue
         self.tmpdir = _tmpdir
         self.f_counter=0
         self.t_start = time.time()
+        self.fipmetadata = FIPMetadata(_alive)
 
     def run(self):
         print("Starting %s" % self.getName())
+        self.fipmetadata.start()
         req = urllib.request.urlopen(FIPURL, timeout=10)
-        while True:
+        while self.alive.is_set():
             buff = req.read(BLOCKSIZE)
             if not buff:
                 print("%s: emtpy block, dying." % self.getName())
                 self.alive.clear()
                 break
-            #print("%s: fetching block" % self.getName())
             fn = os.path.join(self.tmpdir, self.getfn())
             with open(fn, 'wb') as fh:
                 fh.write(buff)
-                self.fqueue.put( 
-                    (time.time(), fn, self.fipmetadata.getcurrent()) 
+                self.fqueue.put(
+                    (time.time(), fn, self.fipmetadata.getcurrent())
                     )
-                #print("\r%s: wrote %s" % (self.getName(), fn))
             self.f_counter += 1
-            if not self.alive.is_set():
-                print("%s: dying." % self.getName())
-                break
+        print("%s: dying." % self.getName())
+        self.fipmetadata.join()
 
     def getfn(self):
         return str(self.f_counter).zfill(16)
     def getruntime(self):
         return time.time() - self.t_start
+    def getstarttime(self):
+        return self.t_start
 
 
-class FIPMetadata():
+class FIPMetadata(threading.Thread):
 
     metadata={"prev":
         [{"firstLine":"FIP",
@@ -89,14 +88,20 @@ class FIPMetadata():
                 "endTime":9}],
             "delayToRefresh":220000}
 
-    def __init__(self):
+    def __init__(self, _alive):
+        threading.Thread.__init__(self)
+        self.setName('Metadata Thread')
+        self.alive = _alive
         self.metaurl = 'https://api.radiofrance.fr/livemeta/live/7/fip_player'
-        self.metadata = {}
-        self.__updatemetadata()
+
+    def run(self):
+        print("Starting %s" % self.getName())
+        while self.alive.is_set():
+            self.__updatemetadata()
+            time.sleep(3)
+        print("%s: dying." % self.getName())
 
     def getcurrent(self):
-        if time.time() > self.metadata['now']['endTime']:
-            self.__updatemetadata()
         return {
             'track': self.metadata['now']['secondLine'],
             'artist': self.metadata['now']['thirdLine']
@@ -108,6 +113,9 @@ class FIPMetadata():
         return self.getcurrent()['artist']
 
     def __updatemetadata(self):
+        endtime = self.metadata['now']['endTime'] or 0
+        if time.time() < endtime:
+            return
         r = urllib.request.urlopen(self.metaurl, timeout=5)
         try:
             self.metadata = json.loads(r.read())
@@ -118,13 +126,8 @@ class FIPMetadata():
 
 
 if __name__ == "__main__":
-
-    fipmeta = FIPMetadata()
-    print(fipmeta.getcurrent())
-    sys.exit()
-
     TMPDIR='/tmp/fipshift'
-    buffertime = 60
+    buffertime = 30
     if not os.path.exists(TMPDIR):
         os.mkdir(TMPDIR)
     for tmpfn in os.listdir(TMPDIR):

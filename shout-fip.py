@@ -8,7 +8,6 @@ import signal
 import queue
 import time
 import shout
-# import eyed3
 from fipbuffer import FIPBuffer
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
@@ -25,6 +24,7 @@ if buffertime < 60:
     sys.exit()
 
 def killbuffer(signum, frame): # pylint: disable=unused-argument
+    print("Received %s, killing buffer thread." % signum)
     ALIVE.clear()
 
 def timeinhours(sec):
@@ -35,7 +35,7 @@ def timeinhours(sec):
     sec_value %= 60
     return hour_value, mins
 
-t_start = time.time()
+##### MAIN() ######
 
 if not os.path.exists(TMPDIR):
     os.mkdir(TMPDIR)
@@ -44,21 +44,21 @@ for tmpfn in os.listdir(TMPDIR):
     os.remove(os.path.join(TMPDIR,tmpfn))
 
 signal.signal(signal.SIGHUP, killbuffer)
-
 fqueue = queue.Queue()
 ALIVE.set()
 fipbuffer = FIPBuffer(ALIVE, fqueue, TMPDIR)
 fipbuffer.start()
+time.sleep(3)
 
 try:
-    while time.time() - t_start < buffertime:
-        _remains = (buffertime - (time.time() - t_start))/60
-        sys.stdout.write("\rBuffering for %0.0f min." % _remains)
+    while fipbuffer.getruntime() < buffertime:
+        _remains = (buffertime - fipbuffer.getruntime())/60
+        sys.stdout.write("\rBuffering for %0.0f min. " % _remains)
         sys.stdout.flush()
-        time.sleep(60)
+        time.sleep(10)
 except KeyboardInterrupt:
     print("Killing %s" % fipbuffer.getName())
-    killbuffer(None,None)
+    killbuffer('KEYBOARDINTERRUPT', None)
     fipbuffer.join()
     sys.exit()
 
@@ -66,70 +66,52 @@ s = shout.Shout()
 print("Using libshout version %s" % shout.version())
 
 s.host = '10.9.8.13'
-# s.port = 8000
-# s.user = 'source'
+s.port = 8000
+s.user = 'source'
 s.password = 'im08en'
 s.mount = "/fip.mp3"
-# s.format = 'mp3'
-# s.protocol = 'icy'
-# s.format = 'vorbis' | 'mp3'
-# s.protocol = 'http' | 'xaudiocast' | 'icy'
+s.format = 'mp3'
+s.protocol = 'http'
 s.name = 'Time-shifted FIP Radio'
-# s.genre = ''
-# s.url = ''
+s.genre = 'ecletic'
+s.url = 'https://www.fip.fr'
 s.public = 0
-
 s.audio_info = {shout.SHOUT_AI_SAMPLERATE: '48000',
                 shout.SHOUT_AI_CHANNELS: '2',
                 shout.SHOUT_AI_BITRATE: '128'}
-
-# s.audio_info = { 'key': 'val', ... }
-#  (keys are shout.SHOUT_AI_BITRATE, shout.SHOUT_AI_SAMPLERATE,
-#   shout.SHOUT_AI_CHANNELS, shout.SHOUT_AI_QUALITY)
 try:
     s.open()
 except shout.ShoutException as msg:
     print("Error connecting to icy server: %s" % str(msg))
-    killbuffer(None,None)
+    killbuffer('SHOUTERROR',None)
     sys.exit(1)
-
-total = 0
-st = time.time()
 
 while not fqueue.empty():
     try:
         _f = fqueue.get(timeout=10)
         fa = _f[1]
         _h, _m = timeinhours( time.time()-_f[0] )
-        sys.stdout.write("\rOpening %s (%0.0fh:%0.0fm)  " % (fa, _h, _m) )
+        sys.stdout.write("\rOpening %s (%0.0fh:%0.0fm) \"%s\"  " % (
+            fa, _h, _m, _f[2]['track']) )
         sys.stdout.flush()
-        # _af = eyed3.load(fa)
-        # if _af.tag is not None:
-        #     print(_af.tag)
         with open(fa, 'rb') as fh:
-            #TODO: can we extract this from metadata?
-            #s.set_metadata({'song': fa})
+            s.set_metadata({'song': _f[2]['track'],
+                            'artist': _f[2]['artist']}) # only 'song' does anything
             nbuf = fh.read(4096)
             while True:
                 buf = nbuf
                 nbuf = fh.read(4096)
-                total = total + len(buf)
                 if len(buf) == 0:
                     break
                 s.send(buf)
                 s.sync()
-        #sys.stdout.write("\rDeleting %s  " % _f[1])
-        #sys.stdout.flush()
         os.remove(os.path.join(TMPDIR, _f[1]))
     except KeyboardInterrupt:
-        print("Caught SIGINT, exiting.")
+        print("\nCaught SIGINT, exiting.")
         break
     except queue.Empty:
-        print("Queue is empty, exiting.")
+        print("\nQueue is empty, exiting.")
 
-killbuffer(None,None)
+killbuffer('EMPTYQUEUE',None)
 fipbuffer.join()
-et = time.time()
-br = total*0.008/(et-st)
-print("Sent %d bytes in %d seconds (%f kbps)" % (total, et-st, br))
 s.close()
