@@ -5,11 +5,12 @@ import urllib.request
 import json
 import threading
 import time
+from socket import timeout as socket_timeout
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
 
-FIPURL='http://icecast.radiofrance.fr/fip-midfi.mp3'
-BLOCKSIZE=1024*128
+FIPURL = 'http://icecast.radiofrance.fr/fip-midfi.mp3'
+BLOCKSIZE = 1024*128
 
 class FIPBuffer(threading.Thread):
 
@@ -19,7 +20,7 @@ class FIPBuffer(threading.Thread):
         self.alive = _alive
         self.fqueue = _fqueue
         self.tmpdir = _tmpdir
-        self.f_counter=0
+        self.f_counter = 0
         self.t_start = time.time()
         self.fipmetadata = FIPMetadata(_alive)
 
@@ -27,8 +28,16 @@ class FIPBuffer(threading.Thread):
         print("Starting %s" % self.getName())
         self.fipmetadata.start()
         req = urllib.request.urlopen(FIPURL, timeout=10)
+        retries = 0
         while self.alive.is_set():
-            buff = req.read(BLOCKSIZE)
+            try:
+                buff = req.read(BLOCKSIZE)
+            except socket_timeout:
+                retries += 1
+                if retries > 9:
+                    buff = ''
+                else:
+                    continue
             if not buff:
                 print("%s: emtpy block, dying." % self.getName())
                 self.alive.clear()
@@ -38,7 +47,7 @@ class FIPBuffer(threading.Thread):
                 fh.write(buff)
                 self.fqueue.put(
                     (time.time(), fn, self.fipmetadata.getcurrent())
-                    )
+                )
             self.f_counter += 1
             if self.getruntime() > 24*3600:
                 self.fipmetadata = 0
@@ -47,8 +56,10 @@ class FIPBuffer(threading.Thread):
 
     def getfn(self):
         return str(self.f_counter).zfill(16)
+
     def getruntime(self):
         return time.time() - self.t_start
+
     def getstarttime(self):
         return self.t_start
 
@@ -102,7 +113,7 @@ class FIPMetadata(threading.Thread):
         print("%s: dying." % self.getName())
 
     def getcurrent(self):
-        track =  self.metadata['now']['secondLine']
+        track = self.metadata['now']['secondLine']
         artist = self.metadata['now']['thirdLine']
         if not isinstance(track, str):
             track = 'Error fetching track'
@@ -115,6 +126,7 @@ class FIPMetadata(threading.Thread):
 
     def getcurrenttrack(self):
         return self.getcurrent()['track']
+
     def getcurrentartist(self):
         return self.getcurrent()['artist']
 
