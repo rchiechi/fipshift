@@ -32,6 +32,7 @@ class FIPBuffer(threading.Thread):
         while self.alive.is_set():
             try:
                 buff = req.read(BLOCKSIZE)
+                retries = 0
             except socket_timeout:
                 retries += 1
                 if retries > 9:
