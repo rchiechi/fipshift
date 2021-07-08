@@ -67,38 +67,38 @@ class FIPBuffer(threading.Thread):
 
 class FIPMetadata(threading.Thread):
 
-    metadata={"prev":
-        [{"firstLine":"FIP",
-          "secondLine":"Previous Track",
-          "thirdLine":"Previous Artist",
-          "cover":"Previous Cover",
-          "startTime":0,"endTime":1},
-          {"firstLine":"FIP",
-          "secondLine":"Previous Track",
-          "thirdLine":"Previous Artist",
-          "cover":"Previous Cover",
-          "startTime":2,
-          "endTime":3},
-          {"firstLine":"FIP",
-           "secondLine":"Previous Track",
-           "thirdLine":"Previous Artist",
-           "cover":"Previous Cover",
-           "startTime":4,
-           "endTime":5}],
-           "now":{
-               "firstLine":"FIP",
-               "secondLine":"Current Track",
-               "thirdLine":"Current Artist",
-               "cover":"Current Cover",
-               "startTime":6,"endTime":7},
-            "next":
+    metadata = {"prev":[
+               {"firstLine":"FIP",
+                "secondLine":"Previous Track",
+                "thirdLine":"Previous Artist",
+                "cover":"Previous Cover",
+                "startTime":0,"endTime":1},
+               {"firstLine":"FIP",
+                "secondLine":"Previous Track",
+                "thirdLine":"Previous Artist",
+                "cover":"Previous Cover",
+                "startTime":2,
+                "endTime":3},
+               {"firstLine":"FIP",
+                "secondLine":"Previous Track",
+                "thirdLine":"Previous Artist",
+                "cover":"Previous Cover",
+                "startTime":4,
+                "endTime":5}],
+                "now":
+                {"firstLine":"FIP",
+                 "secondLine":"Current Track",
+                 "thirdLine":"Current Artist",
+                 "cover":"Current Cover",
+                 "startTime":6,"endTime":7},
+                "next":
                 [{"firstLine":"FIP",
-                "secondLine":"Next Track",
-                "thirdLine":"Next Artist",
-                "cover":"Next Cover",
-                "startTime":8,
-                "endTime":9}],
-            "delayToRefresh":220000}
+                  "secondLine":"Next Track",
+                  "thirdLine":"Next Artist",
+                  "cover":"Next Cover",
+                  "startTime":8,
+                  "endTime":9}],
+                "delayToRefresh":220000}
 
     def __init__(self, _alive):
         threading.Thread.__init__(self)
