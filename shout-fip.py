@@ -15,7 +15,7 @@ from options import parseopts
 
 ALIVE = threading.Event()
 
-def killbuffer(signum, frame): # pylint: disable=unused-argument
+def killbuffer(signum, frame):  # pylint: disable=unused-argument
     print("\nReceived %s, killing buffer thread." % signum)
     ALIVE.clear()
 
@@ -36,7 +36,8 @@ def timeinhours(sec):
     sec_value %= 60
     return hour_value, mins
 
-##### MAIN() ######
+# # # # # MAIN () # # # # # #
+
 
 opts, config = parseopts()
 
@@ -95,16 +96,16 @@ while not fqueue.empty():
     try:
         _f = fqueue.get(timeout=10)
         fa = _f[1]
-        _h, _m = timeinhours( time.time()-_f[0] )
+        _h, _m = timeinhours(time.time() - _f[0])
         _mb = (fqueue.qsize()*128)/1024
         sys.stdout.write("\033[F\033[F\033[2K\rOpening %s (%0.0fh:%0.0fm) %0.2f MB \n" % (
-            fa, _h, _m, _mb ) )
+            fa, _h, _m, _mb))
         sys.stdout.write("\033[2K\rTrack: %s \n" % _f[2]['track'])
         sys.stdout.write("\033[2K\rArtist: %s " % _f[2]['artist'])
         sys.stdout.flush()
         with open(fa, 'rb') as fh:
             s.set_metadata({'song': _f[2]['track'],
-                            'artist': _f[2]['artist']}) # only 'song' does anything
+                            'artist': _f[2]['artist']})  # only 'song' does anything
             nbuf = fh.read(4096)
             while True:
                 buf = nbuf

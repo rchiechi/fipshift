@@ -7,24 +7,24 @@ import shutil
 def parseopts():
     '''Parse commandline arguments and config file and return opts, config'''
 
-    desc='''Create an shoutcast client that time-shifts
+    desc = '''Create an shoutcast client that time-shifts
             FIP for listening in a different timezone.'''
     parser = argparse.ArgumentParser(description=desc,
-                                  formatter_class=argparse
-                                  .ArgumentDefaultsHelpFormatter)
+                                     formatter_class=argparse
+                                     .ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('-d','--delay', action="store", default=15*3600,
-         type=int,
-         help="Delay time in seconds.")
+                        type=int,
+                        help="Delay time in seconds.")
 
     parser.add_argument('--configdir', action="store",
-         default=os.path.join(os.path.expanduser('~'),'.config'),
-         help="Set the dir to look for the config file.")
+                        default=os.path.join(os.path.expanduser('~'),'.config'),
+                        help="Set the dir to look for the config file.")
 
-    opts=parser.parse_args()
+    opts = parser.parse_args()
     config = doconfig(os.path.join(opts.configdir,
-          'fipshift.conf')
-          )
+                      'fipshift.conf')
+                      )
     return opts,config
 
 def doconfig(config_file):
