@@ -38,9 +38,10 @@ class FIPBuffer(threading.Thread):
                 if retries > 9:
                     buff = ''
                 else:
+                    req = urllib.request.urlopen(FIPURL, timeout=10)
                     continue
             if not buff:
-                print("%s: emtpy block, dying." % self.getName())
+                print("%s: emtpy block after %s retries, dying." % retries, self.getName())
                 self.alive.clear()
                 break
             fn = os.path.join(self.tmpdir, self.getfn())
