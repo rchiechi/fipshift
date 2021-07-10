@@ -136,10 +136,15 @@ class FIPMetadata(threading.Thread):
         endtime = self.metadata['now']['endTime'] or 0
         if time.time() < endtime:
             return
-        r = urllib.request.urlopen(self.metaurl, timeout=5)
+        self.metadata = {}
         try:
+            r = urllib.request.urlopen(self.metaurl, timeout=5)
             self.metadata = json.loads(r.read())
         except json.decoder.JSONDecodeError:
-            self.metadata = {}
+            pass
+        except urllib.error.URLError:
+            pass
+        except socket_timeout:
+            pass
         if 'now' not in self.metadata:
             self.metadata = FIPMetadata.metadata
