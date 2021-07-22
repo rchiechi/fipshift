@@ -41,7 +41,7 @@ class FIPBuffer(threading.Thread):
                     req = urllib.request.urlopen(FIPURL, timeout=10)
                     continue
             if not buff:
-                print("%s: emtpy block after %s retries, dying." % retries, self.getName())
+                print("\n%s: emtpy block after %s retries, dying.\n" % retries, self.getName())
                 self.alive.clear()
                 break
             fn = os.path.join(self.tmpdir, self.getfn())
@@ -52,8 +52,12 @@ class FIPBuffer(threading.Thread):
                         (time.time(), fn, self.fipmetadata.getcurrent())
                     )
                 except Exception as msg: #Temporary means to catch error that is covered up in stdout
-                    with open('/tmp/fip.err', 'at') as eh:
+                    with open('/tmp/fip.err', 'a') as eh:
+                        eh.write(str(time.time()+'\n')
                         eh.write(str(msg))
+                        eh.write(traceback.format_exc())
+                        eh.write('\n')
+                    print(msg)
             self.f_counter += 1
             if self.getruntime() > 24*3600:
                 self.fipmetadata = 0
