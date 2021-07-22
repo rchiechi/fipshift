@@ -47,9 +47,13 @@ class FIPBuffer(threading.Thread):
             fn = os.path.join(self.tmpdir, self.getfn())
             with open(fn, 'wb') as fh:
                 fh.write(buff)
-                self.fqueue.put(
-                    (time.time(), fn, self.fipmetadata.getcurrent())
-                )
+                try:
+                    self.fqueue.put(
+                        (time.time(), fn, self.fipmetadata.getcurrent())
+                    )
+                except Exception as msg: #Temporary means to catch error that is covered up in stdout
+                    with open('/tmp/fip.err', 'at') as eh:
+                        eh.write(str(msg))
             self.f_counter += 1
             if self.getruntime() > 24*3600:
                 self.fipmetadata = 0
