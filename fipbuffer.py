@@ -53,7 +53,7 @@ class FIPBuffer(threading.Thread):
                     )
                 except Exception as msg: #Temporary means to catch error that is covered up in stdout
                     with open('/tmp/fip.err', 'a') as eh:
-                        eh.write(str(time.time()+'\n')
+                        eh.write(str(time.time()+'\n'))
                         eh.write(str(msg))
                         eh.write(traceback.format_exc())
                         eh.write('\n')
