@@ -13,7 +13,7 @@ def parseopts():
                                      formatter_class=argparse
                                      .ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('-d','--delay', action="store", default=15*3600,
+    parser.add_argument('-d','--delay', action="store", default=9*3600,
                         type=int,
                         help="Delay time in seconds.")
 
