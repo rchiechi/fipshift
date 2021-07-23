@@ -47,20 +47,20 @@ class FIPBuffer(threading.Thread):
             fn = os.path.join(self.tmpdir, self.getfn())
             with open(fn, 'wb') as fh:
                 fh.write(buff)
-                try:
-                    self.fqueue.put(
-                        (time.time(), fn, self.fipmetadata.getcurrent())
-                    )
-                except Exception as msg: #Temporary means to catch error that is covered up in stdout
-                    with open('/tmp/fip.err', 'a') as eh:
-                        eh.write(str(time.time()+'\n'))
-                        eh.write(str(msg))
-                        eh.write(traceback.format_exc())
-                        eh.write('\n')
-                    print(msg)
+                # try:
+                self.fqueue.put(
+                    (time.time(), fn, self.fipmetadata.getcurrent())
+                )
+                # except Exception as msg:  # Temporary means to catch error that is covered up in stdout
+                #     with open('/tmp/fip.err', 'a') as eh:
+                #         eh.write(str(time.time()+'\n'))
+                #         eh.write(str(msg))
+                #         # eh.write(traceback.format_exc())
+                #         eh.write('\n')
+                #     print(msg)
             self.f_counter += 1
             if self.getruntime() > 24*3600:
-                self.fipmetadata = 0
+                self.f_counter = 0  # Reset file counter every 24 hours
         print("%s: dying." % self.getName())
         self.fipmetadata.join()
 
