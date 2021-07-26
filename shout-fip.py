@@ -41,6 +41,10 @@ def timeinhours(sec):
 
 opts, config = parseopts()
 
+if opts.delay < 10:
+    print("The delay is too short to fill the buffer, please try again with a larger delay.")
+    sys.exit()
+
 TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
 
 if not os.path.exists(TMPDIR):
@@ -85,6 +89,7 @@ s.audio_info = {shout.SHOUT_AI_SAMPLERATE: '48000',
                 shout.SHOUT_AI_CHANNELS: '2',
                 shout.SHOUT_AI_BITRATE: '128'}
 try:
+    print("Starting icy server http://%s:%s%s" % (s.host, s.port, s.mount))
     s.open()
 except shout.ShoutException as msg:
     print("Error connecting to icy server: %s" % str(msg))
