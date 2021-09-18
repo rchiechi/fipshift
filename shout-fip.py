@@ -59,18 +59,6 @@ fipbuffer = FIPBuffer(ALIVE, fqueue, TMPDIR)
 fipbuffer.start()
 time.sleep(3)
 
-try:
-    while fipbuffer.getruntime() < opts.delay:
-        _remains = (opts.delay - fipbuffer.getruntime())/60 or 1
-        sys.stdout.write("\rBuffering for %0.0f min. " % _remains)
-        sys.stdout.flush()
-        time.sleep(10)
-except KeyboardInterrupt:
-    print("Killing %s" % fipbuffer.getName())
-    killbuffer('KEYBOARDINTERRUPT', None)
-    fipbuffer.join()
-    sys.exit()
-
 s = shout.Shout()
 print("Using libshout version %s" % shout.version())
 
@@ -94,7 +82,45 @@ try:
 except shout.ShoutException as msg:
     print("Error connecting to icy server: %s" % str(msg))
     killbuffer('SHOUTERROR',None)
+    fipbuffer.join()
     sys.exit(1)
+
+try:
+    while fipbuffer.getruntime() < opts.delay:
+        _remains = (opts.delay - fipbuffer.getruntime())/60 or 1
+        sys.stdout.write("\rBuffering for %0.0f min. " % _remains)
+        sys.stdout.flush()
+        time.sleep(10)
+except KeyboardInterrupt:
+    print("Killing %s" % fipbuffer.getName())
+    killbuffer('KEYBOARDINTERRUPT', None)
+    fipbuffer.join()
+    sys.exit()
+
+# s = shout.Shout()
+# print("Using libshout version %s" % shout.version())
+# 
+# s.host = config['USEROPTS']['HOST']
+# s.port = int(config['USEROPTS']['PORT'])
+# s.user = config['USEROPTS']['USER']
+# s.password = config['USEROPTS']['PASSWORD']
+# s.mount = config['USEROPTS']['MOUNT']
+# s.name = config['USEROPTS']['NAME']
+# s.genre = config['USEROPTS']['GENRE']
+# s.url = config['USEROPTS']['URL']
+# s.public = int(config['USEROPTS']['PUBLIC'])
+# s.format = 'mp3'
+# s.protocol = 'http'
+# s.audio_info = {shout.SHOUT_AI_SAMPLERATE: '48000',
+#                 shout.SHOUT_AI_CHANNELS: '2',
+#                 shout.SHOUT_AI_BITRATE: '128'}
+# try:
+#     print("Starting icy server http://%s:%s%s" % (s.host, s.port, s.mount))
+#     s.open()
+# except shout.ShoutException as msg:
+#     print("Error connecting to icy server: %s" % str(msg))
+#     killbuffer('SHOUTERROR',None)
+#     sys.exit(1)
 
 sys.stdout.write("\n\n\n")
 while not fqueue.empty():
