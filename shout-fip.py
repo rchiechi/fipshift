@@ -79,6 +79,7 @@ s.audio_info = {shout.SHOUT_AI_SAMPLERATE: '48000',
 try:
     print("Starting icy server http://%s:%s%s" % (s.host, s.port, s.mount))
     s.open()
+    print("Done.")
 except shout.ShoutException as msg:
     print("Error connecting to icy server: %s" % str(msg))
     killbuffer('SHOUTERROR',None)
