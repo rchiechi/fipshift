@@ -9,6 +9,7 @@ import queue
 import time
 import subprocess
 # import shout
+import pydub
 from fipbuffer import FIPBuffer
 from options import parseopts
 
@@ -142,7 +143,11 @@ while not fqueue.empty():
         sys.stdout.write("\033[2K\rArtist: %s " % _f[2]['artist'])
         sys.stdout.flush()
         # TODO: Somehow figure out what ices is playing
-
+        # data = urlopen('https://sample-videos.com/audio/mp3/crowd-cheering.mp3').read()
+        # f = tempfile.NamedTemporaryFile(delete=False)
+        # f.write(data)
+        # AudioSegment.from_mp3(f.name).export('result.ogg', format='ogg')
+        # f.close()
         # with open(fa, 'rb') as fh:
         #     s.set_metadata({'song': _f[2]['track'],
         #                     'artist': _f[2]['artist']})  # only 'song' does anything
