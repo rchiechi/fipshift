@@ -143,6 +143,7 @@ while not fqueue.empty():
         sys.stdout.write("\033[2K\rArtist: %s " % _f[2]['artist'])
         sys.stdout.flush()
         # TODO: Somehow figure out what ices is playing
+        # TODO: Need to parse '[2021-09-19  16:22:06] INFO playlist-builtin/playlist_read Currently playing "0000000000000005"'
         # data = urlopen('https://sample-videos.com/audio/mp3/crowd-cheering.mp3').read()
         # f = tempfile.NamedTemporaryFile(delete=False)
         # f.write(data)
