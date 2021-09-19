@@ -67,6 +67,13 @@ class FIPBuffer(threading.Thread):
     def getstarttime(self):
         return self.t_start
 
+    @classmethod
+    def generateplaylist(self):
+        _playlist = []
+        for i in range(0,9999999999999999):
+            _playlist.append(i.zfill(16))
+        return _playlist
+
 
 class FIPMetadata(threading.Thread):
 

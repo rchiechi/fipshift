@@ -3,7 +3,7 @@
     <!-- run in background -->
     <background>0</background>
     <!-- where logs, etc go. -->
-    <logpath>/var/log/ices</logpath>
+    <logpath>/tmp/fipshift</logpath>
     <logfile>ices.log</logfile>
     <!-- 1=error,2=warn,3=info,4=debug -->
     <loglevel>4</loglevel>

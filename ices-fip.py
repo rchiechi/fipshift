@@ -7,7 +7,8 @@ import threading
 import signal
 import queue
 import time
-import shout
+import subprocess
+# import shout
 from fipbuffer import FIPBuffer
 from options import parseopts
 
@@ -59,32 +60,33 @@ fipbuffer = FIPBuffer(ALIVE, fqueue, TMPDIR)
 fipbuffer.start()
 time.sleep(3)
 
-s = shout.Shout()
-print("Using libshout version %s" % shout.version())
-
-s.host = config['USEROPTS']['HOST']
-s.port = int(config['USEROPTS']['PORT'])
-s.user = config['USEROPTS']['USER']
-s.password = config['USEROPTS']['PASSWORD']
-s.mount = config['USEROPTS']['MOUNT']
-s.name = config['USEROPTS']['NAME']
-s.genre = config['USEROPTS']['GENRE']
-s.url = config['USEROPTS']['URL']
-s.public = int(config['USEROPTS']['PUBLIC'])
-s.format = 'mp3'
-s.protocol = 'http'
-s.audio_info = {shout.SHOUT_AI_SAMPLERATE: '48000',
-                shout.SHOUT_AI_CHANNELS: '2',
-                shout.SHOUT_AI_BITRATE: '128'}
-try:
-    print("Starting icy server http://%s:%s%s" % (s.host, s.port, s.mount))
-    s.open()
-    print("Done.")
-except shout.ShoutException as msg:
-    print("Error connecting to icy server: %s" % str(msg))
-    killbuffer('SHOUTERROR',None)
-    fipbuffer.join()
-    sys.exit(1)
+PLAYLIST = os.path.join(config['USEROPTS']['TMPDIR'],'playlist.txt')
+# s = shout.Shout()
+# print("Using libshout version %s" % shout.version())
+#
+# s.host = config['USEROPTS']['HOST']
+# s.port = int(config['USEROPTS']['PORT'])
+# s.user = config['USEROPTS']['USER']
+# s.password = config['USEROPTS']['PASSWORD']
+# s.mount = config['USEROPTS']['MOUNT']
+# s.name = config['USEROPTS']['NAME']
+# s.genre = config['USEROPTS']['GENRE']
+# s.url = config['USEROPTS']['URL']
+# s.public = int(config['USEROPTS']['PUBLIC'])
+# s.format = 'ogg'
+# s.protocol = 'http'
+# s.audio_info = {shout.SHOUT_AI_SAMPLERATE: '48000',
+#                 shout.SHOUT_AI_CHANNELS: '2',
+#                 shout.SHOUT_AI_BITRATE: '128'}
+# try:
+#     print("Starting icy server http://%s:%s%s" % (s.host, s.port, s.mount))
+#     s.open()
+#     print("Done.")
+# except shout.ShoutException as msg:
+#     print("Error connecting to icy server: %s" % str(msg))
+#     killbuffer('SHOUTERROR',None)
+#     fipbuffer.join()
+#     sys.exit(1)
 
 try:
     while fipbuffer.getruntime() < opts.delay:
@@ -123,6 +125,10 @@ except KeyboardInterrupt:
 #     killbuffer('SHOUTERROR',None)
 #     sys.exit(1)
 
+sys.stdout.write("Writing to %s" % PLAYLIST)
+with open(PLAYLIST, 'wt') as fh:
+    fh.write('\n'.join(FIPBuffer.generateplaylist()))
+
 sys.stdout.write("\n\n\n")
 while not fqueue.empty():
     try:
@@ -135,18 +141,20 @@ while not fqueue.empty():
         sys.stdout.write("\033[2K\rTrack: %s \n" % _f[2]['track'])
         sys.stdout.write("\033[2K\rArtist: %s " % _f[2]['artist'])
         sys.stdout.flush()
-        with open(fa, 'rb') as fh:
-            s.set_metadata({'song': _f[2]['track'],
-                            'artist': _f[2]['artist']})  # only 'song' does anything
-            nbuf = fh.read(4096)
-            while True:
-                buf = nbuf
-                nbuf = fh.read(4096)
-                if len(buf) == 0:
-                    break
-                s.send(buf)
-                s.sync()
-        os.remove(os.path.join(TMPDIR, _f[1]))
+        # TODO: Somehow figure out what ices is playing
+
+        # with open(fa, 'rb') as fh:
+        #     s.set_metadata({'song': _f[2]['track'],
+        #                     'artist': _f[2]['artist']})  # only 'song' does anything
+        #     nbuf = fh.read(4096)
+        #     while True:
+        #         buf = nbuf
+        #         nbuf = fh.read(4096)
+        #         if len(buf) == 0:
+        #             break
+        #         s.send(buf)
+        #         s.sync()
+        # os.remove(os.path.join(TMPDIR, _f[1]))
     except KeyboardInterrupt:
         print("\nCaught SIGINT, exiting.")
         break
@@ -155,5 +163,5 @@ while not fqueue.empty():
 
 killbuffer('EMPTYQUEUE',None)
 fipbuffer.join()
-s.close()
+# s.close()
 cleantmpdir(TMPDIR)
