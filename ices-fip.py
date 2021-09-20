@@ -86,9 +86,8 @@ fqueue = queue.Queue()
 ALIVE.set()
 fipbuffer = FIPBuffer(ALIVE, fqueue, TMPDIR, ICESTMPDIR)
 fipbuffer.start()
-time.sleep(3)
-
 print("\n\n")
+time.sleep(3)
 
 try:
     while fipbuffer.getruntime() < opts.delay:
