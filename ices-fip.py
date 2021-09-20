@@ -59,13 +59,12 @@ ICESCONFIG = os.path.join(ICESTMPDIR,'ices-playlist.xml')
 
 if not os.path.exists(TMPDIR):
     os.mkdir(TMPDIR)
-print("Saving files to %s" % TMPDIR)
 cleantmpdir(TMPDIR)
 
 if not os.path.exists(ICESTMPDIR):
     os.mkdir(ICESTMPDIR)
 cleantmpdir(ICESTMPDIR)
-
+print("Saving files to %s" % ICESTMPDIR)
 
 with open(os.path.join(os.path.dirname(
           os.path.realpath(__file__)), 'ices-playlist.xml'), 'rt') as fr:
