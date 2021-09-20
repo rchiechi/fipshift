@@ -1,11 +1,14 @@
 '''Open FIP MP3 url and buffer it to disk for time-shifted re-streaming.'''
 
 import os
+import sys
 import urllib.request
 import json
 import threading
 import time
+import queue
 from socket import timeout as socket_timeout
+from pydub import AudioSegment
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
 
@@ -14,7 +17,7 @@ BLOCKSIZE = 1024*128
 
 class FIPBuffer(threading.Thread):
 
-    def __init__(self, _alive, _fqueue, _tmpdir):
+    def __init__(self, _alive, _fqueue, _tmpdir, _icestmpdir=''):
         threading.Thread.__init__(self)
         self.setName('File Buffer Thread')
         self.alive = _alive
@@ -22,11 +25,17 @@ class FIPBuffer(threading.Thread):
         self.tmpdir = _tmpdir
         self.f_counter = 0
         self.t_start = time.time()
+        if _icestmpdir:
+            self.oggconverter = OGGconverter(_alive, _fqueue, _icestmpdir)
+        else:
+            self.oggconverter = None
         self.fipmetadata = FIPMetadata(_alive)
 
     def run(self):
         print("Starting %s" % self.getName())
         self.fipmetadata.start()
+        if self.oggconverter is not None:
+            self.oggconverter.start()
         req = urllib.request.urlopen(FIPURL, timeout=10)
         retries = 0
         while self.alive.is_set():
@@ -158,8 +167,49 @@ class FIPMetadata(threading.Thread):
         if 'now' not in self.metadata:
             self.metadata = FIPMetadata.metadata
 
+class OGGconverter(threading.Thread):
+
+    def __init__(self, _alive, _fqueue, _tmpdir):
+        threading.Thread.__init__(self)
+        self.setName('OGG Converter Thread')
+        self.alive = _alive
+        self.fqueue = _fqueue
+        self.tmpdir = _tmpdir
+        self.f_counter = 0
+        self.t_start = time.time()
+
+    def run(self):
+        print("Starting %s" % self.getName())
+        while self.alive.is_set():
+            try:
+                _f = self.fqueue.get(timeout=10)
+                fa = _f[1]
+                _h, _m = OGGconverter.timeinhours(time.time() - _f[0])
+                _mb = (self.fqueue.qsize()*128)/1024
+                sys.stdout.write("\033[F\033[F\033[2K\rOpening %s (%0.0fh:%0.0fm) %0.2f MB \n" % (
+                    fa, _h, _m, _mb))
+                sys.stdout.write("\033[2K\rTrack: %s \n" % _f[2]['track'])
+                sys.stdout.write("\033[2K\rArtist: %s " % _f[2]['artist'])
+                sys.stdout.flush()
+                AudioSegment.from_mp3(fa).export(
+                    os.path.join(self.tmpdir,os.path.basename(fa)),
+                    format='ogg', codec='libvorbis', bitrate="192k")
+                os.unlink(fa)
+            except queue.Empty:
+                time.sleep(10)
+        print("%s: dying." % self.getName())
+
+        @classmethod
+        def timeinhours(self, sec):
+            sec_value = sec % (24 * 3600)
+            hour_value = sec_value // 3600
+            sec_value %= 3600
+            mins = sec_value // 60
+            sec_value %= 60
+            return hour_value, mins
+
 # class IcesLogParser(threading.Thread):
-# 
+#
 #     def __init__(self, _alive, _fqueue, _tmpdir):
 #         threading.Thread.__init__(self)
 #         self.setName('File Buffer Thread')

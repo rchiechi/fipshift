@@ -8,9 +8,9 @@ import signal
 import queue
 import time
 import subprocess
-import shutil
+# import shutil
 # import shout
-import pydub
+# import pydub
 from fipbuffer import FIPBuffer
 from options import parseopts
 
@@ -39,13 +39,13 @@ def cleantmpdir(tmpdir):
         n += 1
     print("\033[2K\rCleaned: %s files. " % n)
 
-def timeinhours(sec):
-    sec_value = sec % (24 * 3600)
-    hour_value = sec_value // 3600
-    sec_value %= 3600
-    mins = sec_value // 60
-    sec_value %= 60
-    return hour_value, mins
+# def timeinhours(sec):
+#     sec_value = sec % (24 * 3600)
+#     hour_value = sec_value // 3600
+#     sec_value %= 3600
+#     mins = sec_value // 60
+#     sec_value %= 60
+#     return hour_value, mins
 
 # # # # # MAIN () # # # # # #
 
@@ -77,44 +77,16 @@ with open(os.path.join(os.path.dirname(
     with open(ICESCONFIG, 'wt') as fw:
         fw.write(xml)
 
-# shutil.copy2(os.path.join(
-#     os.path.dirname(
-#         os.path.realpath(__file__)), 'ices-playlist.xml'), ICESTMPDIR)
+sys.stdout.write("Writing to %s" % PLAYLIST)
+with open(PLAYLIST, 'wt') as fh:
+    fh.write('\n'.join(FIPBuffer.generateplaylist()))
 
 signal.signal(signal.SIGHUP, killbuffer)
 fqueue = queue.Queue()
 ALIVE.set()
-fipbuffer = FIPBuffer(ALIVE, fqueue, TMPDIR)
+fipbuffer = FIPBuffer(ALIVE, fqueue, TMPDIR, ICESTMPDIR)
 fipbuffer.start()
 time.sleep(3)
-
-
-# s = shout.Shout()
-# print("Using libshout version %s" % shout.version())
-#
-# s.host = config['USEROPTS']['HOST']
-# s.port = int(config['USEROPTS']['PORT'])
-# s.user = config['USEROPTS']['USER']
-# s.password = config['USEROPTS']['PASSWORD']
-# s.mount = config['USEROPTS']['MOUNT']
-# s.name = config['USEROPTS']['NAME']
-# s.genre = config['USEROPTS']['GENRE']
-# s.url = config['USEROPTS']['URL']
-# s.public = int(config['USEROPTS']['PUBLIC'])
-# s.format = 'ogg'
-# s.protocol = 'http'
-# s.audio_info = {shout.SHOUT_AI_SAMPLERATE: '48000',
-#                 shout.SHOUT_AI_CHANNELS: '2',
-#                 shout.SHOUT_AI_BITRATE: '128'}
-# try:
-#     print("Starting icy server http://%s:%s%s" % (s.host, s.port, s.mount))
-#     s.open()
-#     print("Done.")
-# except shout.ShoutException as msg:
-#     print("Error connecting to icy server: %s" % str(msg))
-#     killbuffer('SHOUTERROR',None)
-#     fipbuffer.join()
-#     sys.exit(1)
 
 try:
     while fipbuffer.getruntime() < opts.delay:
@@ -128,73 +100,14 @@ except KeyboardInterrupt:
     fipbuffer.join()
     sys.exit()
 
-# s = shout.Shout()
-# print("Using libshout version %s" % shout.version())
-#
-# s.host = config['USEROPTS']['HOST']
-# s.port = int(config['USEROPTS']['PORT'])
-# s.user = config['USEROPTS']['USER']
-# s.password = config['USEROPTS']['PASSWORD']
-# s.mount = config['USEROPTS']['MOUNT']
-# s.name = config['USEROPTS']['NAME']
-# s.genre = config['USEROPTS']['GENRE']
-# s.url = config['USEROPTS']['URL']
-# s.public = int(config['USEROPTS']['PUBLIC'])
-# s.format = 'mp3'
-# s.protocol = 'http'
-# s.audio_info = {shout.SHOUT_AI_SAMPLERATE: '48000',
-#                 shout.SHOUT_AI_CHANNELS: '2',
-#                 shout.SHOUT_AI_BITRATE: '128'}
-# try:
-#     print("Starting icy server http://%s:%s%s" % (s.host, s.port, s.mount))
-#     s.open()
-# except shout.ShoutException as msg:
-#     print("Error connecting to icy server: %s" % str(msg))
-#     killbuffer('SHOUTERROR',None)
-#     sys.exit(1)
-
-sys.stdout.write("Writing to %s" % PLAYLIST)
-with open(PLAYLIST, 'wt') as fh:
-    fh.write('\n'.join(FIPBuffer.generateplaylist()))
-
-sys.stdout.write("\n\n\n")
-while not fqueue.empty():
-    try:
-        _f = fqueue.get(timeout=10)
-        fa = _f[1]
-        _h, _m = timeinhours(time.time() - _f[0])
-        _mb = (fqueue.qsize()*128)/1024
-        sys.stdout.write("\033[F\033[F\033[2K\rOpening %s (%0.0fh:%0.0fm) %0.2f MB \n" % (
-            fa, _h, _m, _mb))
-        sys.stdout.write("\033[2K\rTrack: %s \n" % _f[2]['track'])
-        sys.stdout.write("\033[2K\rArtist: %s " % _f[2]['artist'])
-        sys.stdout.flush()
-        # TODO: Somehow figure out what ices is playing
-        # TODO: Need to parse '[2021-09-19  16:22:06] INFO playlist-builtin/playlist_read Currently playing "0000000000000005"'
-        # data = urlopen('https://sample-videos.com/audio/mp3/crowd-cheering.mp3').read()
-        # f = tempfile.NamedTemporaryFile(delete=False)
-        # f.write(data)
-        # AudioSegment.from_mp3(f.name).export('result.ogg', format='ogg')
-        # f.close()
-        # with open(fa, 'rb') as fh:
-        #     s.set_metadata({'song': _f[2]['track'],
-        #                     'artist': _f[2]['artist']})  # only 'song' does anything
-        #     nbuf = fh.read(4096)
-        #     while True:
-        #         buf = nbuf
-        #         nbuf = fh.read(4096)
-        #         if len(buf) == 0:
-        #             break
-        #         s.send(buf)
-        #         s.sync()
-        # os.remove(os.path.join(TMPDIR, _f[1]))
-    except KeyboardInterrupt:
-        print("\nCaught SIGINT, exiting.")
-        break
-    except queue.Empty:
-        print("\nQueue is empty, exiting.")
+try:
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    killbuffer('KEYBOARDINTERRUPT', None)
+    fipbuffer.join()
+    sys.exit()
 
 killbuffer('EMPTYQUEUE',None)
 fipbuffer.join()
-# s.close()
 cleantmpdir(TMPDIR)
