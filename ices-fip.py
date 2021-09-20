@@ -86,7 +86,7 @@ time.sleep(3)
 try:
     while fipbuffer.getruntime() < opts.delay:
         _remains = (opts.delay - fipbuffer.getruntime())/60 or 1
-        sys.stdout.write("\r\033[2KBuffering for %0.0f min. " % _remains)
+        sys.stdout.write("\033[2K\rBuffering for %0.0f min. " % _remains)
         sys.stdout.flush()
         time.sleep(10)
 except KeyboardInterrupt:
