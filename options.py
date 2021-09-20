@@ -35,7 +35,7 @@ def doconfig(config_file):
         return None
     config = configparser.ConfigParser(allow_no_value=False)
     config.read(config_file)
-    if 'USEROPTS' not in config:
+    if 'USEROPTS' not in config or 'ICES' not in config:
         config = configparser.ConfigParser(allow_no_value=False)
         config.read(os.path.basename(config_file))
     return config
