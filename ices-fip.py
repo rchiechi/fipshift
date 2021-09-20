@@ -106,7 +106,8 @@ try:
     while ices.poll() is None:
         played = []
         with open(ICESPLAYLIST, 'rb') as fh:
-            fh.seek(-524288, 2)
+            if os.path.getsize(ICESPLAYLIST) >= 524288:
+                fh.seek(-524288, 2)
             for _l in fh:
                 # [2021-09-20  13:44:15] INFO playlist-builtin/playlist_read Currently playing "/tmp/fipshift/ices/0000000000000021"
                 if 'Currently playing' not in _l:
