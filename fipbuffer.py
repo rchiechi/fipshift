@@ -157,3 +157,16 @@ class FIPMetadata(threading.Thread):
             pass
         if 'now' not in self.metadata:
             self.metadata = FIPMetadata.metadata
+
+# class IcesLogParser(threading.Thread):
+# 
+#     def __init__(self, _alive, _fqueue, _tmpdir):
+#         threading.Thread.__init__(self)
+#         self.setName('File Buffer Thread')
+#         self.alive = _alive
+#         self.fqueue = _fqueue
+#         self.tmpdir = _tmpdir
+#         self.f_counter = 0
+#         self.t_start = time.time()
+#         self.fipmetadata = FIPMetadata(_alive)
+

@@ -8,12 +8,21 @@ import signal
 import queue
 import time
 import subprocess
+import shutil
 # import shout
 import pydub
 from fipbuffer import FIPBuffer
 from options import parseopts
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
+
+p = subprocess.run(['which', 'ices'], capture_output=True)
+if p == 0:
+    ICES = p.strip()
+else:
+    print("I could not locate the ices binary in the PATH.")
+    sys.exit()
+
 
 ALIVE = threading.Event()
 
@@ -47,12 +56,30 @@ if opts.delay < 10:
     print("The delay is too short to fill the buffer, please try again with a larger delay.")
     sys.exit()
 
+ICESTMPDIR = os.path.join(config['ICES']['tmpdir'],'fipshift','ices')
 TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
+PLAYLIST = os.path.join(ICESTMPDIR,'playlist.txt')
+ICESCONFIG = os.path.join(ICESTMPDIR,'ices-playlist.xml')
 
 if not os.path.exists(TMPDIR):
     os.mkdir(TMPDIR)
 print("Saving files to %s" % TMPDIR)
 cleantmpdir(TMPDIR)
+
+if not os.path.exists(ICESTMPDIR):
+    os.mkdir(ICESTMPDIR)
+cleantmpdir(ICESTMPDIR)
+
+
+with open(os.path.join(os.path.dirname(
+          os.path.realpath(__file__)), 'ices-playlist.xml'), 'rt') as fr:
+    xml = fr.read().replace('%ICESTMPDIR%', ICESTMPDIR)
+    with open(ICESCONFIG, 'wt') as fw:
+        fw.write(xml)
+
+# shutil.copy2(os.path.join(
+#     os.path.dirname(
+#         os.path.realpath(__file__)), 'ices-playlist.xml'), ICESTMPDIR)
 
 signal.signal(signal.SIGHUP, killbuffer)
 fqueue = queue.Queue()
@@ -61,7 +88,7 @@ fipbuffer = FIPBuffer(ALIVE, fqueue, TMPDIR)
 fipbuffer.start()
 time.sleep(3)
 
-PLAYLIST = os.path.join(config['USEROPTS']['TMPDIR'],'playlist.txt')
+
 # s = shout.Shout()
 # print("Using libshout version %s" % shout.version())
 #
@@ -103,7 +130,7 @@ except KeyboardInterrupt:
 
 # s = shout.Shout()
 # print("Using libshout version %s" % shout.version())
-# 
+#
 # s.host = config['USEROPTS']['HOST']
 # s.port = int(config['USEROPTS']['PORT'])
 # s.user = config['USEROPTS']['USER']
