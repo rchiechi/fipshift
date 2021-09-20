@@ -68,7 +68,12 @@ print("Saving files to %s" % ICESTMPDIR)
 
 with open(os.path.join(os.path.dirname(
           os.path.realpath(__file__)), 'ices-playlist.xml'), 'rt') as fr:
-    xml = fr.read().replace('%ICESTMPDIR%', ICESTMPDIR)
+    xml = fr.read().replace(
+        '%ICESTMPDIR%', ICESTMPDIR).replace(
+            '%HOST%', config['ICES']['HOST']).replace(
+                '%PORT%', config['ICES']['PORT']).replace(
+                    '%PASSWORD%', config['ICES']['PASSWORD']).replace(
+                        '%MOUNT%', config['ICES']['MOUNT'])
     with open(ICESCONFIG, 'wt') as fw:
         fw.write(xml)
 
