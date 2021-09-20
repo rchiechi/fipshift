@@ -86,7 +86,6 @@ fqueue = queue.Queue()
 ALIVE.set()
 fipbuffer = FIPBuffer(ALIVE, fqueue, TMPDIR, ICESTMPDIR)
 fipbuffer.start()
-print("\n\n")
 time.sleep(3)
 
 try:
@@ -113,10 +112,11 @@ try:
                 # [2021-09-20  13:44:15] INFO playlist-builtin/playlist_read Currently playing "/tmp/fipshift/ices/0000000000000021"
                 if b'Currently playing' in _l:
                     played.append(_l.split(b'"')[-2])
-        played.pop()
-        for _p in played:
-            if os.path.exists(_p):
-                os.unlink(_p)
+        if played:
+            played.pop()
+            for _p in played:
+                if os.path.exists(_p):
+                    os.unlink(_p)
 
         time.sleep(1)
 except KeyboardInterrupt:
