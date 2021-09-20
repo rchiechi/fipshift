@@ -33,7 +33,7 @@ def killbuffer(signum, frame):  # pylint: disable=unused-argument
 def cleantmpdir(tmpdir):
     n = 0
     for tmpfn in os.listdir(tmpdir):
-        if os.path.isdir(tmpfn):
+        if os.path.isdir(os.path.join(tmpdir,tmpfn)):
             sys.stdout.write("\nNot removing directory %s " % os.path.join(tmpdir,tmpfn))
             continue
         sys.stdout.write("\rClearning %s " % os.path.join(tmpdir,tmpfn))
