@@ -40,7 +40,7 @@ def cleantmpdir(tmpdir):
         sys.stdout.flush()
         os.remove(os.path.join(tmpdir,tmpfn))
         n += 1
-    print("\033[2K\rCleaned: %s files. " % n)
+    print("\033[2K\rCleaned: %s files in %s. " % (n, tmpdir))
 
 
 # # # # # MAIN () # # # # # #

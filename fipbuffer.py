@@ -79,7 +79,7 @@ class FIPBuffer(threading.Thread):
     @classmethod
     def generateplaylist(self):
         _playlist = []
-        for i in range(0,9999999999999999):
+        for i in range(0,99999999):
             _playlist.append(str(i).zfill(16))
         return _playlist
 
