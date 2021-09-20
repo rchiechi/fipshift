@@ -17,7 +17,7 @@ from options import parseopts
 # pylint: disable=missing-class-docstring, missing-function-docstring
 
 p = subprocess.run(['which', 'ices'], capture_output=True)
-if p == 0:
+if p.returncode == 0:
     ICES = p.strip()
 else:
     print("I could not locate the ices binary in the PATH.")
