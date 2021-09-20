@@ -15,7 +15,7 @@ from pydub import AudioSegment
 FIPURL = 'http://icecast.radiofrance.fr/fip-midfi.mp3'
 BLOCKSIZE = 1024*128
 
-def timeinhours(self, sec):
+def timeinhours(sec):
     sec_value = sec % (24 * 3600)
     hour_value = sec_value // 3600
     sec_value %= 3600
@@ -85,7 +85,7 @@ class FIPBuffer(threading.Thread):
         return self.t_start
 
     @classmethod
-    def generateplaylist(self):
+    def generateplaylist(cls):
         _playlist = []
         for i in range(0,99999999):
             _playlist.append(str(i).zfill(16))
