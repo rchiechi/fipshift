@@ -95,10 +95,13 @@ except KeyboardInterrupt:
     fipbuffer.join()
     sys.exit()
 
+ices = subprocess.Popen([ICES, ICESCONFIG])
+
 try:
-    while True:
+    while ices.poll() is None:
         time.sleep(1)
 except KeyboardInterrupt:
+    ices.terminate()
     killbuffer('KEYBOARDINTERRUPT', None)
     fipbuffer.join()
     sys.exit()
