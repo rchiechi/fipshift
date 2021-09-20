@@ -183,8 +183,7 @@ class OGGconverter(threading.Thread):
         self.alive = _alive
         self.fqueue = _fqueue
         self.tmpdir = _tmpdir
-        self.f_counter = 0
-        self.t_start = time.time()
+        self.playlist = os.path.join(self.tmpdir,'playlist.txt')
 
     def run(self):
         print("Starting %s" % self.getName())
@@ -199,16 +198,16 @@ class OGGconverter(threading.Thread):
                 sys.stdout.write("\033[2K\rTrack: %s \n" % _f[2]['track'])
                 sys.stdout.write("\033[2K\rArtist: %s " % _f[2]['artist'])
                 sys.stdout.flush()
+                _ogg = os.path.join(self.tmpdir,os.path.basename(fa))
                 AudioSegment.from_mp3(fa).export(
-                    os.path.join(self.tmpdir,os.path.basename(fa)),
+                    _ogg,
                     format='ogg', codec='libvorbis', bitrate="192k")
                 os.unlink(fa)
+                with open(self.playlist, 'at') as fh:
+                    fh.write(_ogg+"\n")
             except queue.Empty:
                 time.sleep(10)
         print("%s: dying." % self.getName())
-
-
-
 
 # class IcesLogParser(threading.Thread):
 #

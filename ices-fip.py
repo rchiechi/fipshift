@@ -54,7 +54,7 @@ if opts.delay < 10:
 
 ICESTMPDIR = os.path.join(config['ICES']['tmpdir'],'fipshift','ices')
 TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
-PLAYLIST = os.path.join(ICESTMPDIR,'playlist.txt')
+# PLAYLIST = os.path.join(ICESTMPDIR,'playlist.txt')
 ICESCONFIG = os.path.join(ICESTMPDIR,'ices-playlist.xml')
 
 if not os.path.exists(TMPDIR):
@@ -73,9 +73,9 @@ with open(os.path.join(os.path.dirname(
     with open(ICESCONFIG, 'wt') as fw:
         fw.write(xml)
 
-sys.stdout.write("Writing to %s" % PLAYLIST)
-with open(PLAYLIST, 'wt') as fh:
-    fh.write('\n'.join(FIPBuffer.generateplaylist()))
+# sys.stdout.write("Writing to %s" % PLAYLIST)
+# with open(PLAYLIST, 'wt') as fh:
+#     fh.write('\n'.join(FIPBuffer.generateplaylist()))
 
 signal.signal(signal.SIGHUP, killbuffer)
 fqueue = queue.Queue()
