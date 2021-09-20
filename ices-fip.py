@@ -18,7 +18,7 @@ from options import parseopts
 
 p = subprocess.run(['which', 'ices'], capture_output=True)
 if p.returncode == 0:
-    ICES = p.strip()
+    ICES = p.stdout.strip()
 else:
     print("I could not locate the ices binary in the PATH.")
     sys.exit()
