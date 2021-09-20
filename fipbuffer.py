@@ -15,6 +15,14 @@ from pydub import AudioSegment
 FIPURL = 'http://icecast.radiofrance.fr/fip-midfi.mp3'
 BLOCKSIZE = 1024*128
 
+def timeinhours(self, sec):
+    sec_value = sec % (24 * 3600)
+    hour_value = sec_value // 3600
+    sec_value %= 3600
+    mins = sec_value // 60
+    sec_value %= 60
+    return hour_value, mins
+
 class FIPBuffer(threading.Thread):
 
     def __init__(self, _alive, _fqueue, _tmpdir, _icestmpdir=''):
@@ -184,7 +192,7 @@ class OGGconverter(threading.Thread):
             try:
                 _f = self.fqueue.get(timeout=10)
                 fa = _f[1]
-                _h, _m = OGGconverter.timeinhours(time.time() - _f[0])
+                _h, _m = timeinhours(time.time() - _f[0])
                 _mb = (self.fqueue.qsize()*128)/1024
                 sys.stdout.write("\033[F\033[F\033[2K\rOpening %s (%0.0fh:%0.0fm) %0.2f MB \n" % (
                     fa, _h, _m, _mb))
@@ -199,14 +207,8 @@ class OGGconverter(threading.Thread):
                 time.sleep(10)
         print("%s: dying." % self.getName())
 
-        @classmethod
-        def timeinhours(self, sec):
-            sec_value = sec % (24 * 3600)
-            hour_value = sec_value // 3600
-            sec_value %= 3600
-            mins = sec_value // 60
-            sec_value %= 60
-            return hour_value, mins
+
+
 
 # class IcesLogParser(threading.Thread):
 #
