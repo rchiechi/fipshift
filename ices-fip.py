@@ -54,7 +54,7 @@ if opts.delay < 10:
 
 ICESTMPDIR = os.path.join(config['ICES']['tmpdir'],'fipshift','ices')
 TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
-# PLAYLIST = os.path.join(ICESTMPDIR,'playlist.txt')
+ICESPLAYLIST = os.path.join(ICESTMPDIR,'playlist.txt')
 ICESCONFIG = os.path.join(ICESTMPDIR,'ices-playlist.xml')
 
 if not os.path.exists(TMPDIR):
@@ -104,6 +104,19 @@ ices = subprocess.Popen([ICES, ICESCONFIG])
 
 try:
     while ices.poll() is None:
+        played = []
+        with open(ICESPLAYLIST, 'rt') as fh:
+            fh.seek(-100, 2)
+            for _l in fh:
+                # [2021-09-20  13:44:15] INFO playlist-builtin/playlist_read Currently playing "/tmp/fipshift/ices/0000000000000021"
+                if 'Currently playing' not in _l:
+                    continue
+                played.append(_l.strip().split('"')[-2])
+        played.pop()
+        for _p in played:
+            if os.path.exists(_p):
+                os.unlink(_p)
+
         time.sleep(1)
 except KeyboardInterrupt:
     ices.terminate()

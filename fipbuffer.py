@@ -210,7 +210,7 @@ class OGGconverter(threading.Thread):
         print("%s: dying." % self.getName())
 
 # class IcesLogParser(threading.Thread):
-#
+# [2021-09-20  13:44:15] INFO playlist-builtin/playlist_read Currently playing "/tmp/fipshift/ices/0000000000000021"
 #     def __init__(self, _alive, _fqueue, _tmpdir):
 #         threading.Thread.__init__(self)
 #         self.setName('File Buffer Thread')
