@@ -33,19 +33,15 @@ def killbuffer(signum, frame):  # pylint: disable=unused-argument
 def cleantmpdir(tmpdir):
     n = 0
     for tmpfn in os.listdir(tmpdir):
+        if os.path.isdir(tmpfn):
+            sys.stdout.write("\nNot removing directory %s " % os.path.join(tmpdir,tmpfn))
+            continue
         sys.stdout.write("\rClearning %s " % os.path.join(tmpdir,tmpfn))
         sys.stdout.flush()
         os.remove(os.path.join(tmpdir,tmpfn))
         n += 1
     print("\033[2K\rCleaned: %s files. " % n)
 
-# def timeinhours(sec):
-#     sec_value = sec % (24 * 3600)
-#     hour_value = sec_value // 3600
-#     sec_value %= 3600
-#     mins = sec_value // 60
-#     sec_value %= 60
-#     return hour_value, mins
 
 # # # # # MAIN () # # # # # #
 
