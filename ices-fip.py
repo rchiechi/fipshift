@@ -88,6 +88,8 @@ fipbuffer = FIPBuffer(ALIVE, fqueue, TMPDIR, ICESTMPDIR)
 fipbuffer.start()
 time.sleep(3)
 
+print("\n\n")
+
 try:
     while fipbuffer.getruntime() < opts.delay:
         _remains = (opts.delay - fipbuffer.getruntime())/60 or 1
@@ -110,9 +112,8 @@ try:
                 fh.seek(-524288, 2)
             for _l in fh:
                 # [2021-09-20  13:44:15] INFO playlist-builtin/playlist_read Currently playing "/tmp/fipshift/ices/0000000000000021"
-                if b'Currently playing' not in _l:
-                    continue
-                played.append(_l.split(b'"')[-2])
+                if b'Currently playing' in _l:
+                    played.append(_l.split(b'"')[-2])
         played.pop()
         for _p in played:
             if os.path.exists(_p):
