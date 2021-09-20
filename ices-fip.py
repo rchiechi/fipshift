@@ -105,13 +105,13 @@ ices = subprocess.Popen([ICES, ICESCONFIG])
 try:
     while ices.poll() is None:
         played = []
-        with open(ICESPLAYLIST, 'rt') as fh:
-            fh.seek(-100, 2)
+        with open(ICESPLAYLIST, 'rb') as fh:
+            fh.seek(-524288, 2)
             for _l in fh:
                 # [2021-09-20  13:44:15] INFO playlist-builtin/playlist_read Currently playing "/tmp/fipshift/ices/0000000000000021"
                 if 'Currently playing' not in _l:
                     continue
-                played.append(_l.strip().split('"')[-2])
+                played.append(_l.split(b'"')[-2])
         played.pop()
         for _p in played:
             if os.path.exists(_p):
