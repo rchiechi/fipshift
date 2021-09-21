@@ -197,6 +197,8 @@ class OGGconverter(threading.Thread):
                 os.unlink(fa)
                 with open(self.playlist, 'at') as fh:
                     fh.write(_ogg+"\n")
+            except pydub.exceptions.CouldntDecodeError as msg:
+                sys.stdout.write("Error decoding fip stream at %s" % fa)
             except queue.Empty:
                 time.sleep(10)
         print("%s: dying." % self.getName())
