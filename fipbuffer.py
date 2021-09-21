@@ -9,6 +9,7 @@ import time
 import queue
 from socket import timeout as socket_timeout
 from pydub import AudioSegment
+from pydub.exceptions import CouldntDecodeError
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
 
@@ -181,7 +182,7 @@ class OGGconverter(threading.Thread):
         print("Starting %s" % self.getName())
         while self.alive.is_set():
             try:
-                _f = self.fqueue.get(timeout=10)
+                _f = self.fqueue.get(timeout=5)
                 fa = _f[1]
                 _h, _m = timeinhours(time.time() - _f[0])
                 _mb = (self.fqueue.qsize()*128)/1024
@@ -197,10 +198,10 @@ class OGGconverter(threading.Thread):
                 os.unlink(fa)
                 with open(self.playlist, 'at') as fh:
                     fh.write(_ogg+"\n")
-            except pydub.exceptions.CouldntDecodeError as msg:
+            except CouldntDecodeError:
                 sys.stdout.write("Error decoding fip stream at %s" % fa)
             except queue.Empty:
-                time.sleep(10)
+                time.sleep(5)
         print("%s: dying." % self.getName())
 
 # class IcesLogParser(threading.Thread):
