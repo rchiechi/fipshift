@@ -194,7 +194,9 @@ class OGGconverter(threading.Thread):
                 _ogg = os.path.join(self.tmpdir,os.path.basename(fa))
                 AudioSegment.from_mp3(fa).export(
                     _ogg,
-                    format='ogg', codec='libvorbis', bitrate="192k")
+                    format='ogg', codec='libvorbis', bitrate="192k",
+                    tags={'artist': _f[2]['artist'],
+                          'track': _f[2]['track']})
                 os.unlink(fa)
                 with open(self.playlist, 'at') as fh:
                     fh.write(_ogg+"\n")
