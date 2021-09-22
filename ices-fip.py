@@ -103,7 +103,10 @@ except KeyboardInterrupt:
 ices = subprocess.Popen([ICES, ICESCONFIG])
 
 try:
-    while ices.poll() is None:
+    while True:
+        if ices.poll() is None:
+            ices = subprocess.Popen([ICES, ICESCONFIG])
+            time.sleep(1)
         played = []
         with open(ICESPLAYLIST, 'rb') as fh:
             if os.path.getsize(ICESPLAYLIST) >= 524288:
@@ -117,14 +120,10 @@ try:
             for _p in played:
                 if os.path.exists(_p):
                     os.unlink(_p)
-
         time.sleep(1)
 except KeyboardInterrupt:
     ices.terminate()
-    killbuffer('KEYBOARDINTERRUPT', None)
-    fipbuffer.join()
-    sys.exit()
 
-killbuffer('EMPTYQUEUE',None)
+killbuffer('ICESDIED',None)
 fipbuffer.join()
 cleantmpdir(TMPDIR)
