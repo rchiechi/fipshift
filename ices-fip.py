@@ -81,9 +81,11 @@ cleantmpdir(ICESTMPDIR)
 print("Saving files to %s" % ICESTMPDIR)
 
 logger = logging.getLogger(__package__)
-logger.setLevel(logging.DEBUG)
+# NOTE: Setting DEBUG fills log with subprocess ffmpeg output
+# logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 loghandler = logging.FileHandler(os.path.join(TMPDIR,
-                                 os.path.basename(sys.argv[0]).split('.')[0]+'.txt'))
+                                 os.path.basename(sys.argv[0]).split('.')[0]+'.log'))
 loghandler.setFormatter(logging.Formatter('%(asctime)s %(process)d %(levelname)s %(message)s'))
 logger.addHandler(loghandler)
 

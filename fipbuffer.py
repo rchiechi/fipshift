@@ -190,15 +190,16 @@ class OGGconverter(threading.Thread):
         print("Starting %s" % self.getName())
         while self.alive.is_set():
             try:
-                _f = self.fqueue.get(timeout=5)
+                _f = self.fqueue.get(timeout=1)
                 fa = _f[1]
                 # _h, _m = timeinhours(time.time() - _f[0])
                 # _mb = (self.fqueue.qsize()*128)/1024
-                sys.stdout.write("\033[A\033[F\033[2K\rOpening %s \n" % fa)
+                _ogg = os.path.join(self.tmpdir,os.path.basename(fa+'.ogg'))
+                sys.stdout.write("\033[A\033[F\033[2K\rConverting %s -> %s \n" % fa, _ogg)
                 sys.stdout.write("\033[2K\rTrack: %s \n" % _f[2]['track'])
                 sys.stdout.write("\033[2K\rArtist: %s " % _f[2]['artist'])
                 sys.stdout.flush()
-                _ogg = os.path.join(self.tmpdir,os.path.basename(fa+'.ogg'))
+
                 with self.lock:
                     AudioSegment.from_mp3(fa).export(
                         _ogg,
