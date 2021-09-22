@@ -106,6 +106,7 @@ ices = subprocess.Popen([ICES, ICESCONFIG])
 try:
     while True:
         if ices.poll() is None:
+            # TODO: somehow clean the playlist so ices restarts with the correct delay
             # with LOCK:
             #    os.unlink(ICESPLAYLIST)
             ices = subprocess.Popen([ICES, ICESCONFIG])
