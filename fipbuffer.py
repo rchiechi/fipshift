@@ -63,7 +63,7 @@ class FIPBuffer(threading.Thread):
                     req = urllib.request.urlopen(FIPURL, timeout=10)
                     continue
             if not buff:
-                print("\n%s: emtpy block after %s retries, dying.\n" % retries, self.getName())
+                print("\n%s: emtpy block after %s retries, dying.\n" % (retries, self.getName()))
                 logger.error("%s: emtpy block after %s retries, dying.", retries, self.getName())
                 self.alive.clear()
                 break
@@ -195,7 +195,7 @@ class OGGconverter(threading.Thread):
                 # _h, _m = timeinhours(time.time() - _f[0])
                 # _mb = (self.fqueue.qsize()*128)/1024
                 _ogg = os.path.join(self.tmpdir,os.path.basename(fa+'.ogg'))
-                sys.stdout.write("\033[A\033[F\033[2K\rConverting %s -> %s \n" % fa, _ogg)
+                sys.stdout.write("\033[A\033[F\033[2K\rConverting %s -> %s \n" % (fa, _ogg))
                 sys.stdout.write("\033[2K\rTrack: %s \n" % _f[2]['track'])
                 sys.stdout.write("\033[2K\rArtist: %s " % _f[2]['artist'])
                 sys.stdout.flush()
