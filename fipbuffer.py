@@ -214,7 +214,7 @@ class OGGconverter(threading.Thread):
                 sys.stdout.write("Error decoding fip stream at %s" % fa)
                 logger.warn("Error decoding fip stream at %s", fa)
             except queue.Empty:
-                logger.info("%s: Queue empty, going to sleep.", self.getName())
+                logger.debug("%s: Queue empty, going to sleep.", self.getName())
                 time.sleep(5)
         print("%s: dying." % self.getName())
         logger.info("%s: dying.", self.getName())
