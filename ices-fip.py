@@ -104,6 +104,8 @@ with open(os.path.join(os.path.dirname(
 # with open(PLAYLIST, 'wt') as fh:
 #     fh.write('\n'.join(FIPBuffer.generateplaylist()))
 
+logger.info("Starting buffer threads.")
+
 signal.signal(signal.SIGHUP, killbuffer)
 fqueue = queue.Queue()
 ALIVE.set()
