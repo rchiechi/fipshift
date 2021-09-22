@@ -5,6 +5,7 @@ import sys
 import urllib.request
 import json
 import threading
+import logging
 import time
 import queue
 from socket import timeout as socket_timeout
@@ -15,6 +16,8 @@ from pydub.exceptions import CouldntDecodeError
 
 FIPURL = 'http://icecast.radiofrance.fr/fip-midfi.mp3'
 BLOCKSIZE = 1024*128
+
+logger = logging.getLogger(__name__)
 
 def timeinhours(sec):
     sec_value = sec % (24 * 3600)
@@ -61,6 +64,7 @@ class FIPBuffer(threading.Thread):
                     continue
             if not buff:
                 print("\n%s: emtpy block after %s retries, dying.\n" % retries, self.getName())
+                logger.error("%s: emtpy block after %s retries, dying.", retries, self.getName())
                 self.alive.clear()
                 break
             fn = os.path.join(self.tmpdir, self.getfn())
@@ -75,6 +79,7 @@ class FIPBuffer(threading.Thread):
             # if self.getruntime() > 24*3600:
             #     self.f_counter = 0  # Reset file counter every 24 hours
         print("%s: dying." % self.getName())
+        logger.info("%s: dying.", self.getName())
         self.fipmetadata.join()
 
     def getfn(self):
@@ -133,6 +138,7 @@ class FIPMetadata(threading.Thread):
             self.__updatemetadata()
             time.sleep(3)
         print("%s: dying." % self.getName())
+        logger.info("%s: dying.", self.getName())
 
     def getcurrent(self):
         track = self.metadata['now']['secondLine']
@@ -186,9 +192,9 @@ class OGGconverter(threading.Thread):
             try:
                 _f = self.fqueue.get(timeout=5)
                 fa = _f[1]
-                _h, _m = timeinhours(time.time() - _f[0])
-                _mb = (self.fqueue.qsize()*128)/1024
-                sys.stdout.write("\033[A\033[F\033[2K\rOpening %s \n" % fa, _h, _m, _mb)
+                # _h, _m = timeinhours(time.time() - _f[0])
+                # _mb = (self.fqueue.qsize()*128)/1024
+                sys.stdout.write("\033[A\033[F\033[2K\rOpening %s \n" % fa)
                 sys.stdout.write("\033[2K\rTrack: %s \n" % _f[2]['track'])
                 sys.stdout.write("\033[2K\rArtist: %s " % _f[2]['artist'])
                 sys.stdout.flush()
@@ -205,9 +211,12 @@ class OGGconverter(threading.Thread):
                         fh.write(_ogg+"\n")
             except CouldntDecodeError:
                 sys.stdout.write("Error decoding fip stream at %s" % fa)
+                logger.warn("Error decoding fip stream at %s", fa)
             except queue.Empty:
+                logger.info("%s: Queue empty, going to sleep.", self.getName())
                 time.sleep(5)
         print("%s: dying." % self.getName())
+        logger.info("%s: dying.", self.getName())
 
 # class IcesLogParser(threading.Thread):
 # [2021-09-20  13:44:15] INFO playlist-builtin/playlist_read Currently playing "/tmp/fipshift/ices/0000000000000021"
