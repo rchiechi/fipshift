@@ -126,6 +126,7 @@ except KeyboardInterrupt:
     sys.exit()
 
 ices = subprocess.Popen([ICES, ICESCONFIG])
+logger.info("Started ices with pid %s", ices.pid)
 
 try:
     while True:
@@ -147,6 +148,7 @@ try:
             # TODO: This just truncates the playlist to however many files are in a 524288 log file.
             # Maybe we can just read the timestamps of the files?
             ices = subprocess.Popen([ICES, ICESCONFIG])
+            logger.info("Restarted ices with pid %s", ices.pid)
             # time.sleep(1)
         played = getplayed()
         # played = []
