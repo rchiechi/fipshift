@@ -26,16 +26,17 @@ def timeinhours(sec):
 
 class FIPBuffer(threading.Thread):
 
-    def __init__(self, _alive, _fqueue, _tmpdir, _icestmpdir=''):
+    def __init__(self, _alive, _lock, _fqueue, _tmpdir, _icestmpdir=''):
         threading.Thread.__init__(self)
         self.setName('File Buffer Thread')
         self.alive = _alive
+        self.lock = _lock
         self.fqueue = _fqueue
         self.tmpdir = _tmpdir
         self.f_counter = 0
         self.t_start = time.time()
         if _icestmpdir:
-            self.oggconverter = OGGconverter(_alive, _fqueue, _icestmpdir)
+            self.oggconverter = OGGconverter(_alive, _lock, _fqueue, _icestmpdir)
         else:
             self.oggconverter = None
         self.fipmetadata = FIPMetadata(_alive)
@@ -170,10 +171,11 @@ class FIPMetadata(threading.Thread):
 
 class OGGconverter(threading.Thread):
 
-    def __init__(self, _alive, _fqueue, _tmpdir):
+    def __init__(self, _alive, _lock, _fqueue, _tmpdir):
         threading.Thread.__init__(self)
         self.setName('OGG Converter Thread')
         self.alive = _alive
+        self.lock = _lock
         self.fqueue = _fqueue
         self.tmpdir = _tmpdir
         self.playlist = os.path.join(self.tmpdir,'playlist.txt')
@@ -192,14 +194,16 @@ class OGGconverter(threading.Thread):
                 sys.stdout.write("\033[2K\rArtist: %s " % _f[2]['artist'])
                 sys.stdout.flush()
                 _ogg = os.path.join(self.tmpdir,os.path.basename(fa))
-                AudioSegment.from_mp3(fa).export(
-                    _ogg,
-                    format='ogg', codec='libvorbis', bitrate="192k",
-                    tags={'artist': _f[2]['artist'],
-                          'track': _f[2]['track']})
+                with self.lock:
+                    AudioSegment.from_mp3(fa).export(
+                        _ogg,
+                        format='ogg', codec='libvorbis', bitrate="192k",
+                        tags={'artist': _f[2]['artist'],
+                              'track': _f[2]['track']})
                 os.unlink(fa)
-                with open(self.playlist, 'at') as fh:
-                    fh.write(_ogg+"\n")
+                with self.lock:
+                    with open(self.playlist, 'at') as fh:
+                        fh.write(_ogg+"\n")
             except CouldntDecodeError:
                 sys.stdout.write("Error decoding fip stream at %s" % fa)
             except queue.Empty:

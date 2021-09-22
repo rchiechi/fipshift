@@ -14,6 +14,7 @@ from options import parseopts
 # pylint: disable=missing-class-docstring, missing-function-docstring
 
 ALIVE = threading.Event()
+LOCK = threading.Lock()
 
 def killbuffer(signum, frame):  # pylint: disable=unused-argument
     print("\nReceived %s, killing buffer thread." % signum)
@@ -58,7 +59,7 @@ cleantmpdir(TMPDIR)
 signal.signal(signal.SIGHUP, killbuffer)
 fqueue = queue.Queue()
 ALIVE.set()
-fipbuffer = FIPBuffer(ALIVE, fqueue, TMPDIR)
+fipbuffer = FIPBuffer(ALIVE, LOCK, fqueue, TMPDIR)
 fipbuffer.start()
 time.sleep(3)
 

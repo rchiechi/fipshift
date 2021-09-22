@@ -25,6 +25,7 @@ else:
 
 
 ALIVE = threading.Event()
+LOCK = threading.Lock()
 
 def killbuffer(signum, frame):  # pylint: disable=unused-argument
     print("\nReceived %s, killing buffer thread." % signum)
@@ -84,7 +85,7 @@ with open(os.path.join(os.path.dirname(
 signal.signal(signal.SIGHUP, killbuffer)
 fqueue = queue.Queue()
 ALIVE.set()
-fipbuffer = FIPBuffer(ALIVE, fqueue, TMPDIR, ICESTMPDIR)
+fipbuffer = FIPBuffer(ALIVE, LOCK, fqueue, TMPDIR, ICESTMPDIR)
 fipbuffer.start()
 time.sleep(3)
 
@@ -105,6 +106,8 @@ ices = subprocess.Popen([ICES, ICESCONFIG])
 try:
     while True:
         if ices.poll() is None:
+            # with LOCK:
+            #    os.unlink(ICESPLAYLIST)
             ices = subprocess.Popen([ICES, ICESCONFIG])
             time.sleep(1)
         played = []
@@ -119,7 +122,8 @@ try:
             played.pop()
             for _p in played:
                 if os.path.exists(_p):
-                    os.unlink(_p)
+                    with LOCK:
+                        os.unlink(_p)
         time.sleep(1)
 except KeyboardInterrupt:
     ices.terminate()
