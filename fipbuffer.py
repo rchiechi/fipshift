@@ -193,7 +193,7 @@ class OGGconverter(threading.Thread):
                 sys.stdout.write("\033[2K\rTrack: %s \n" % _f[2]['track'])
                 sys.stdout.write("\033[2K\rArtist: %s " % _f[2]['artist'])
                 sys.stdout.flush()
-                _ogg = os.path.join(self.tmpdir,os.path.basename(fa))
+                _ogg = os.path.join(self.tmpdir,os.path.basename(fa+'.ogg'))
                 with self.lock:
                     AudioSegment.from_mp3(fa).export(
                         _ogg,

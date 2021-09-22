@@ -107,8 +107,15 @@ try:
     while True:
         if ices.poll() is None:
             # TODO: somehow clean the playlist so ices restarts with the correct delay
-            # with LOCK:
-            #    os.unlink(ICESPLAYLIST)
+            oggs = []
+            for _fn in os.listdir(ICESTMPDIR):
+                if _fn[-4:] == '.ogg':
+                    oggs.append(os.path.join(ICESTMPDIR,_fn))
+            with LOCK:
+                with open(ICESPLAYLIST, 'wt') as fh:
+                    fh.write("\n".join(oggs))
+            # TODO: This just truncates the playlist to however many files are in a 524288 log file.
+            # Maybe we can just read the timestamps of the files?
             ices = subprocess.Popen([ICES, ICESCONFIG])
             time.sleep(1)
         played = []
