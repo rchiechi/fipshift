@@ -131,10 +131,10 @@ logger.info("Started ices with pid %s", ices.pid)
 try:
     while True:
         if ices.poll() is not None:
-            logger.warn("ices process died")
+            logger.warning("ices process died")
             played = getplayed()
             with LOCK:
-                with open(ICESPLAYLIST, 'wt') as fh:
+                with open(ICESPLAYLIST, 'w') as fh:
                     fh.write(str(played[-1],encoding='UTF-8')+"\n")
                     logger.info("Resuming playback at %s", str(played[-1],encoding='UTF-8'))
             # TODO: somehow clean the playlist so ices restarts with the correct delay
