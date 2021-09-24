@@ -146,6 +146,7 @@ except KeyboardInterrupt:
 
 ices = subprocess.Popen([ICES, ICESCONFIG])
 logger.info("Started ices with pid %s", ices.pid)
+time.sleep(5)
 
 try:
     while True:
@@ -157,6 +158,7 @@ try:
             if played and playlist:
                 for _e in enumerate(playlist):
                     if _e[1] != played[-1]:
+                        logger.info("Resuming playback from %s", played[-1])
                         with LOCK:
                             with open(ICESPLAYLIST, 'wb') as fh:
                                 for _ogg in playlist[_e[0]:]:
@@ -169,7 +171,6 @@ try:
             logger.info("Restarted ices with pid %s", ices.pid)
 
         played = getplayed()
-
         if played:
             played.pop()
             for _p in played:
@@ -177,6 +178,7 @@ try:
                     with LOCK:
                         os.unlink(_p)
         time.sleep(1)
+
 except KeyboardInterrupt:
     ices.terminate()
 
