@@ -48,13 +48,17 @@ def cleantmpdir(tmpdir):
 
 def getplayed():
     _played = []
-    with open(ICESPLAYLIST, 'rb') as fh:
-        if os.path.getsize(ICESPLAYLIST) >= 524288:
+    if not os.path.exists(ICESTMPFILE):
+        logger.warning("%s does not exist, cannot parse playlist.", ICESTMPFILE)
+        return _played
+    with open(ICESTMPFILE, 'rb') as fh:
+        if os.path.getsize(ICESTMPFILE) >= 524288:
             fh.seek(-524288, 2)
         for _l in fh:
             # [2021-09-20  13:44:15] INFO playlist-builtin/playlist_read Currently playing "/tmp/fipshift/ices/0000000000000021"
             if b'Currently playing' in _l:
                 _played.append(_l.split(b'"')[-2])
+    logger.warning('Did not any entries in %s', ICESTMPFILE)
     return _played
 
 # # # # # MAIN () # # # # # #
@@ -66,8 +70,9 @@ if opts.delay < 10:
     print("The delay is too short to fill the buffer, please try again with a larger delay.")
     sys.exit()
 
-ICESTMPDIR = os.path.join(config['ICES']['tmpdir'],'fipshift','ices')
 TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
+ICESTMPDIR = os.path.join(config['ICES']['tmpdir'],'fipshift','ices')
+ICESTMPFILE = os.path.join(ICESTMPDIR, 'ices.log')
 ICESPLAYLIST = os.path.join(ICESTMPDIR,'playlist.txt')
 ICESCONFIG = os.path.join(ICESTMPDIR,'ices-playlist.xml')
 
@@ -136,30 +141,17 @@ try:
             if played:
                 with LOCK:
                     with open(ICESPLAYLIST, 'w') as fh:
-                        fh.write(str(played[-1],encoding='UTF-8')+"\n")
-                        logger.info("Resuming playback at %s", str(played[-1],encoding='UTF-8'))
+                        fh.write(played[-1]+"\n")
+                        logger.info("Resuming playback at %s", played[-1])
+
             # TODO: somehow clean the playlist so ices restarts with the correct delay
-            # oggs = []
-            # for _fn in os.listdir(ICESTMPDIR):
-            #     if _fn[-4:] == '.ogg':
-            #         oggs.append(os.path.join(ICESTMPDIR,_fn))
-            # with LOCK:
-            #     with open(ICESPLAYLIST, 'wt') as fh:
-            #         fh.write("\n".join(oggs))
             # TODO: This just truncates the playlist to however many files are in a 524288 log file.
             # Maybe we can just read the timestamps of the files?
             ices = subprocess.Popen([ICES, ICESCONFIG])
             logger.info("Restarted ices with pid %s", ices.pid)
-            # time.sleep(1)
+
         played = getplayed()
-        # played = []
-        # with open(ICESPLAYLIST, 'rb') as fh:
-        #     if os.path.getsize(ICESPLAYLIST) >= 524288:
-        #         fh.seek(-524288, 2)
-        #     for _l in fh:
-        #         # [2021-09-20  13:44:15] INFO playlist-builtin/playlist_read Currently playing "/tmp/fipshift/ices/0000000000000021"
-        #         if b'Currently playing' in _l:
-        #             played.append(_l.split(b'"')[-2])
+
         if played:
             played.pop()
             for _p in played:
