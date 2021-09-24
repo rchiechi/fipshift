@@ -154,7 +154,6 @@ try:
             logger.warning("ices process died")
             played = getplayed()
             playlist = getplaylist()
-            # new_playlist = []
             if played and playlist:
                 for _e in enumerate(playlist):
                     if _e[1] != played[-1]:
@@ -169,13 +168,10 @@ try:
                                     else:
                                         logger.warning("%s does not exist, not writing to playlist.", _ogg)
                         break
+            ices = subprocess.Popen([ICES, ICESCONFIG])
+            logger.info("Restarted ices with pid %s.", ices.pid)
             time.sleep(5)
             continue
-            # TODO: somehow clean the playlist so ices restarts with the correct delay
-            # TODO: This just truncates the playlist to however many files are in a 524288 log file.
-            # Maybe we can just read the timestamps of the files?
-            ices = subprocess.Popen([ICES, ICESCONFIG])
-            logger.info("Restarted ices with pid %s", ices.pid)
 
         played = getplayed()
         if played:
