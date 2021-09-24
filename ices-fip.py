@@ -158,7 +158,7 @@ try:
             if played and playlist:
                 for _e in enumerate(playlist):
                     if _e[1] != played[-1]:
-                        logger.info("-->(%s, %s)", _e[0], _e[1])
+                        logger.info("-->(%s, %s); %s", _e[0], _e[1], played[-1])
                         with LOCK:
                             with open(ICESPLAYLIST, 'wb') as fh:
                                 logger.info("Resuming playback from %s", playlist[_e[0]])
@@ -169,7 +169,8 @@ try:
                                     else:
                                         logger.warning("%s does not exist, not writing to playlist.", _ogg)
                         break
-
+            time.sleep(5)
+            continue
             # TODO: somehow clean the playlist so ices restarts with the correct delay
             # TODO: This just truncates the playlist to however many files are in a 524288 log file.
             # Maybe we can just read the timestamps of the files?
