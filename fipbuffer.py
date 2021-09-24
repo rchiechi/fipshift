@@ -210,7 +210,7 @@ class OGGconverter(threading.Thread):
                 os.unlink(fa)
                 with self.lock:
                     with open(self.playlist, 'ab') as fh:
-                        fh.write(_ogg+b'\n')
+                        fh.write(bytes(_ogg,encoding='UTF-8')+b'\n')
             except CouldntDecodeError:
                 sys.stdout.write("Error decoding fip stream at %s" % fa)
                 logger.warn("Error decoding fip stream at %s", fa)
