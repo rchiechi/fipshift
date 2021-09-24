@@ -162,7 +162,10 @@ try:
                             with open(ICESPLAYLIST, 'wb') as fh:
                                 logger.info("Resuming playback from %s", playlist[_e[0]])
                                 for _ogg in playlist[_e[0]:]:
-                                    fh.write(_ogg+b'\n')
+                                    if os.path.exists(_ogg):
+                                        fh.write(_ogg+b'\n')
+                                    else:
+                                        logger.warning("%s does not exist, not writing to playlist.", _ogg)
                         break
 
             # TODO: somehow clean the playlist so ices restarts with the correct delay
