@@ -49,7 +49,7 @@ def cleantmpdir(tmpdir):
 def getplayed():
     _played = []
     if not os.path.exists(ICESTMPFILE):
-        logger.warning("%s does not exist, cannot parse playlist.", ICESTMPFILE)
+        logger.warning("%s does not exist, cannot parse log.", ICESTMPFILE)
         return _played
     with open(ICESTMPFILE, 'rb') as fh:
         if os.path.getsize(ICESTMPFILE) >= 524288:
@@ -58,8 +58,22 @@ def getplayed():
             # [2021-09-20  13:44:15] INFO playlist-builtin/playlist_read Currently playing "/tmp/fipshift/ices/0000000000000021"
             if b'Currently playing' in _l:
                 _played.append(_l.split(b'"')[-2])
-    logger.warning('Did not any entries in %s', ICESTMPFILE)
+    if not _played:
+        logger.warning('Did not any entries in %s', ICESTMPFILE)
     return _played
+
+def getplaylist():
+    _playlist = []
+    if not os.path.exists(ICESPLAYLIST):
+        logger.warning("%s does not exist, cannot parse playlist.", ICESPLAYLIST)
+        return _playlist
+    with open(ICESPLAYLIST, 'rb') as fh:
+        for _l in fh:
+            _playlist.append(_l.strip())
+    if not _playlist:
+        logger.warning('Did not any entries in %s', ICESPLAYLIST)
+    return _playlist
+
 
 # # # # # MAIN () # # # # # #
 
@@ -138,11 +152,15 @@ try:
         if ices.poll() is not None:
             logger.warning("ices process died")
             played = getplayed()
-            if played:
-                with LOCK:
-                    with open(ICESPLAYLIST, 'w') as fh:
-                        fh.write(played[-1]+"\n")
-                        logger.info("Resuming playback at %s", played[-1])
+            playlist = getplaylist()
+            # new_playlist = []
+            if played and playlist:
+                for _e in enumerate(playlist):
+                    if _e[1] != played[-1]:
+                        with LOCK:
+                            with open(ICESPLAYLIST, 'w') as fh:
+                                for _ogg in playlist[_e[0]:]:
+                                    fh.write(_ogg+"\n")
 
             # TODO: somehow clean the playlist so ices restarts with the correct delay
             # TODO: This just truncates the playlist to however many files are in a 524288 log file.
