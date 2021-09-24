@@ -150,14 +150,12 @@ time.sleep(5)
 
 try:
     while True:
-        time.sleep(1)
         if ices.poll() is not None:
             logger.warning("ices process died")
             played = getplayed()
             playlist = getplaylist()
             if played and playlist:
                 for _e in enumerate(playlist):
-                    print(str(_e)+"\n\n\n")
                     if _e[1] == played[-1]:
                         with LOCK:
                             with open(ICESPLAYLIST, 'wb') as fh:
@@ -172,7 +170,7 @@ try:
             logger.info("Restarted ices with pid %s.", ices.pid)
             time.sleep(5)
             continue
-
+        time.sleep(1)
         played = getplayed()
         if played:
             played.pop()
