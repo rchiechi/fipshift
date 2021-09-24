@@ -163,6 +163,7 @@ try:
                             with open(ICESPLAYLIST, 'wb') as fh:
                                 for _ogg in playlist[_e[0]:]:
                                     fh.write(_ogg+b'\n')
+                        break
 
             # TODO: somehow clean the playlist so ices restarts with the correct delay
             # TODO: This just truncates the playlist to however many files are in a 524288 log file.
