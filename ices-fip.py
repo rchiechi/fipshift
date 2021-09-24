@@ -159,7 +159,7 @@ try:
                 for _e in enumerate(playlist):
                     print(str(_e)+"\n\n\n")
                     if _e[1] != played[-1]:
-                        print(str(_e[1])+"\n\n\n")
+                        print(str(_e[1])+"="+str(played[-1],encoding='UTF-8')+"\n\n\n")
                         logger.info("-->(%s, %s); %s", _e[0], _e[1], played[-1])
                         with LOCK:
                             with open(ICESPLAYLIST, 'wb') as fh:
