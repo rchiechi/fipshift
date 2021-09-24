@@ -158,6 +158,7 @@ try:
             if played and playlist:
                 for _e in enumerate(playlist):
                     if _e[1] != played[-1]:
+                        logger.info("-->(%s, %s)", _e[0], _e[1])
                         with LOCK:
                             with open(ICESPLAYLIST, 'wb') as fh:
                                 logger.info("Resuming playback from %s", playlist[_e[0]])
