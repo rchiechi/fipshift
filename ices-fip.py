@@ -158,13 +158,10 @@ try:
             if played and playlist:
                 for _e in enumerate(playlist):
                     print(str(_e)+"\n\n\n")
-                    if _e[1] != played[-1]:
-                        print(str(_e[1])+"="+str(played[-1],encoding='UTF-8')+"\n\n\n")
-                        logger.info("-->(%s, %s); %s", _e[0], _e[1], played[-1])
+                    if _e[1] == played[-1]:
                         with LOCK:
                             with open(ICESPLAYLIST, 'wb') as fh:
                                 logger.info("Resuming playback from %s", playlist[_e[0]])
-                                logger.info("(%s, %s)", _e[0], _e[1])
                                 for _ogg in playlist[_e[0]:]:
                                     if os.path.exists(_ogg):
                                         fh.write(_ogg+b'\n')
