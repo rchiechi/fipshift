@@ -150,6 +150,7 @@ time.sleep(5)
 
 try:
     while True:
+        time.sleep(1)
         if ices.poll() is not None:
             logger.warning("ices process died")
             played = getplayed()
@@ -180,7 +181,6 @@ try:
                 if os.path.exists(_p):
                     with LOCK:
                         os.unlink(_p)
-        time.sleep(1)
 
 except KeyboardInterrupt:
     ices.terminate()
