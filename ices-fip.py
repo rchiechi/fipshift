@@ -161,6 +161,7 @@ try:
                         with LOCK:
                             with open(ICESPLAYLIST, 'wb') as fh:
                                 logger.info("Resuming playback from %s", playlist[_e[0]])
+                                logger.info("(%s, %s)", _e[0], _e[1])
                                 for _ogg in playlist[_e[0]:]:
                                     if os.path.exists(_ogg):
                                         fh.write(_ogg+b'\n')
