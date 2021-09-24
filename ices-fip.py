@@ -157,7 +157,9 @@ try:
             playlist = getplaylist()
             if played and playlist:
                 for _e in enumerate(playlist):
+                    print(_e+"\n\n\n")
                     if _e[1] != played[-1]:
+                        print(_e[1]+"\n\n\n")
                         logger.info("-->(%s, %s); %s", _e[0], _e[1], played[-1])
                         with LOCK:
                             with open(ICESPLAYLIST, 'wb') as fh:
