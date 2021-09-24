@@ -158,9 +158,9 @@ try:
                 for _e in enumerate(playlist):
                     if _e[1] != played[-1]:
                         with LOCK:
-                            with open(ICESPLAYLIST, 'w') as fh:
+                            with open(ICESPLAYLIST, 'wb') as fh:
                                 for _ogg in playlist[_e[0]:]:
-                                    fh.write(_ogg+"\n")
+                                    fh.write(_ogg+b'\n')
 
             # TODO: somehow clean the playlist so ices restarts with the correct delay
             # TODO: This just truncates the playlist to however many files are in a 524288 log file.
