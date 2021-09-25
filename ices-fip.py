@@ -59,7 +59,7 @@ def getplayed():
             if b'Currently playing' in _l:
                 _played.append(_l.split(b'"')[-2])
     if not _played:
-        logger.warning('Did not any entries in %s', ICESTMPFILE)
+        logger.warning('Did not find any entries in %s', ICESTMPFILE)
     return _played
 
 def getplaylist():
@@ -71,7 +71,7 @@ def getplaylist():
         for _l in fh:
             _playlist.append(_l.strip())
     if not _playlist:
-        logger.warning('Did not any entries in %s', ICESPLAYLIST)
+        logger.warning('Did not find any entries in %s', ICESPLAYLIST)
     return _playlist
 
 
