@@ -52,21 +52,30 @@ class FIPBuffer(threading.Thread):
             self.oggconverter.start()
         req = urllib.request.urlopen(FIPURL, timeout=10)
         retries = 0
+        fip_error = False
         while self.alive.is_set():
             try:
                 buff = req.read(BLOCKSIZE)
                 retries = 0
             except URLError as error:
-                if isinstance(error.reason, socket_timeout):
-                    retries += 1
-                    if retries > 9:
-                        buff = ''
-                    else:
-                        req = urllib.request.urlopen(FIPURL, timeout=10)
-                        continue
+                fip_error = True
+                logger.warning("A URLError has occured: %s", error)
             except HTTPError as error:
-                logger.error("An HTTPerror has occured: %s", error)
-                buff = ''
+                fip_error = True
+                logger.warning("An HTTPerror has occured: %s", error)
+            except socket_timeout as error:
+                fip_error = True
+                logger.warning("Socket timeout: %s", error)
+            if fip_error:
+                retries += 1
+                fip_error = False
+                if retries > 9:
+                    logger.error("Maximum retries reached, bailing.")
+                    buff = ''
+                else:
+                    logger.warning("Fip stream error, retrying (%s)", retries)
+                    req = urllib.request.urlopen(FIPURL, timeout=10)
+                    continue
             if not buff:
                 print("\n%s: emtpy block after %s retries, dying.\n" % (retries, self.getName()))
                 logger.error("%s: emtpy block after %s retries, dying.", retries, self.getName())
