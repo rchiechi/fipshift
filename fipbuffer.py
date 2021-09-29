@@ -16,7 +16,7 @@ from pydub.exceptions import CouldntDecodeError
 # pylint: disable=missing-class-docstring, missing-function-docstring
 
 FIPURL = 'http://icecast.radiofrance.fr/fip-midfi.mp3'
-BLOCKSIZE = 1024*128
+BLOCKSIZE = 1024*512
 
 logger = logging.getLogger(__name__)
 
