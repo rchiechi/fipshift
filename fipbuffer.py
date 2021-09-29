@@ -8,6 +8,7 @@ import threading
 import logging
 import time
 import queue
+from urllib.error import HTTPError, URLError
 from socket import timeout as socket_timeout
 from pydub import AudioSegment
 from pydub.exceptions import CouldntDecodeError
@@ -55,13 +56,17 @@ class FIPBuffer(threading.Thread):
             try:
                 buff = req.read(BLOCKSIZE)
                 retries = 0
-            except socket_timeout:
-                retries += 1
-                if retries > 9:
-                    buff = ''
-                else:
-                    req = urllib.request.urlopen(FIPURL, timeout=10)
-                    continue
+            except URLError as error:
+                if isinstance(error.reason, socket_timeout):
+                    retries += 1
+                    if retries > 9:
+                        buff = ''
+                    else:
+                        req = urllib.request.urlopen(FIPURL, timeout=10)
+                        continue
+            except HTTPError as error:
+                logger.error("An HTTPerror as occured: %s", error)
+                buff = ''
             if not buff:
                 print("\n%s: emtpy block after %s retries, dying.\n" % (retries, self.getName()))
                 logger.error("%s: emtpy block after %s retries, dying.", retries, self.getName())
