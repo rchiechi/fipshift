@@ -65,7 +65,7 @@ class FIPBuffer(threading.Thread):
                         req = urllib.request.urlopen(FIPURL, timeout=10)
                         continue
             except HTTPError as error:
-                logger.error("An HTTPerror as occured: %s", error)
+                logger.error("An HTTPerror has occured: %s", error)
                 buff = ''
             if not buff:
                 print("\n%s: emtpy block after %s retries, dying.\n" % (retries, self.getName()))
