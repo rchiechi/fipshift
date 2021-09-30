@@ -11,13 +11,13 @@ Note that the stream will not start until the delay time has passed.
 You can send `SIGHUP` to kill the file buffer, but leave the stream going until it streams the entire buffer.
 
 `shout-fip.py` uses python-shout to start a Shoutcast mp3 server, but is really flaky.
+
 `ices-fip.py` launches ices2 and streams to an icecast2 server, but it only streams ogg/vorbis.
 
 # requirements
 
 `shout-fip.py`
 - [python-shout](https://pypi.org/project/python-shout/)
-
 
 `ices-fip.py`
 - [ices2](https://icecast.org/ices/)
