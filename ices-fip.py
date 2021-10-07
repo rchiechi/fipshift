@@ -82,13 +82,21 @@ opts, config = parseopts()
 
 if opts.delay < 10:
     print("The delay is too short to fill the buffer, please try again with a larger delay.")
-    sys.exit()
+    sys.exit(1)
 
-TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
-ICESTMPDIR = os.path.join(config['ICES']['tmpdir'],'fipshift','ices')
-ICESTMPFILE = os.path.join(ICESTMPDIR, 'ices.log')
-ICESPLAYLIST = os.path.join(ICESTMPDIR,'playlist.txt')
-ICESCONFIG = os.path.join(ICESTMPDIR,'ices-playlist.xml')
+if 0 < opts.restart < opts.delay:
+    print("Restart delay must be larger than buffer delay.")
+    sys.exit(1)
+
+try:
+    TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
+    ICESTMPDIR = os.path.join(config['ICES']['tmpdir'],'fipshift','ices')
+    ICESTMPFILE = os.path.join(ICESTMPDIR, 'ices.log')
+    ICESPLAYLIST = os.path.join(ICESTMPDIR,'playlist.txt')
+    ICESCONFIG = os.path.join(ICESTMPDIR,'ices-playlist.xml')
+except KeyError:
+    print("Bad config file, please delete it from %s and try again." % opts.configdir)
+    sys.exit(1)
 
 if not os.path.exists(TMPDIR):
     os.mkdir(TMPDIR)
@@ -130,6 +138,7 @@ fqueue = queue.Queue()
 ALIVE.set()
 fipbuffer = FIPBuffer(ALIVE, LOCK, fqueue, TMPDIR, ICESTMPDIR)
 fipbuffer.start()
+epoch = time.time()
 time.sleep(3)
 
 try:
@@ -179,9 +188,16 @@ try:
                     with LOCK:
                         os.unlink(_p)
 
+        if time.time() - epoch > opts.restart and opts.restart > 0:
+            logger.warn("Reached restart timeout, terminating...")
+            raise(KeyboardInterrupt)
+
 except KeyboardInterrupt:
     ices.terminate()
 
 killbuffer('ICESDIED',None)
 fipbuffer.join()
 cleantmpdir(TMPDIR)
+
+if opts.restart > 0:
+    os.execv(__file__, sys.argv)

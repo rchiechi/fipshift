@@ -48,9 +48,16 @@ opts, config = parseopts()
 
 if opts.delay < 10:
     print("The delay is too short to fill the buffer, please try again with a larger delay.")
-    sys.exit()
+    sys.exit(1)
 
-TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
+if 0 < opts.restart < opts.delay:
+    print("Restart delay must be larger than buffer delay.")
+    sys.exit(1)
+try:
+    TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
+except KeyError:
+    print("Bad config file, please delete it from %s and try again." % opts.configdir)
+    sys.exit(1)
 
 if not os.path.exists(TMPDIR):
     os.mkdir(TMPDIR)

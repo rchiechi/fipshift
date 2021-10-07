@@ -17,6 +17,10 @@ def parseopts():
                         type=int,
                         help="Delay time in seconds.")
 
+    parser.add_argument('-r','--restart', action=StoreDelay, default=0,
+                        type=int,
+                        help="Restart every n hours (0 means do not restart).")
+
     parser.add_argument('--configdir', action="store",
                         default=os.path.join(os.path.expanduser('~'),'.config'),
                         help="Set the dir to look for the config file.")
@@ -32,10 +36,21 @@ def doconfig(config_file):
     if not os.path.exists(config_file):
         _pwd = os.path.dirname(os.path.realpath(__file__))
         shutil.copy2(os.path.join(_pwd,'template.conf'), config_file)
-        return None
+        return doconfig(config_file)
     config = configparser.ConfigParser(allow_no_value=False)
     config.read(config_file)
     if 'USEROPTS' not in config or 'ICES' not in config:
         config = configparser.ConfigParser(allow_no_value=False)
         config.read(os.path.basename(config_file))
     return config
+
+
+class StoreDelay(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        super().__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        # print('%r %r %r' % (namespace, values, option_string))
+        setattr(namespace, self.dest, 3600*values)
