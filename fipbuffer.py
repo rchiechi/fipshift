@@ -220,7 +220,8 @@ class OGGconverter(threading.Thread):
                         _ogg,
                         format='ogg', codec='libvorbis', bitrate="192k",
                         tags={'artist': _f[2]['artist'],
-                              'track': _f[2]['track']})
+                              'track': _f[2]['track'],
+                              'title': _f[2]['track']})
                 os.unlink(fa)
                 with self.lock:
                     with open(self.playlist, 'ab') as fh:
