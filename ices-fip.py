@@ -205,6 +205,7 @@ except KeyboardInterrupt:
     ices.terminate()
 
 except RestartTimeout:
+    ices.terminate()
     killbuffer('RESTARTTIMEOUT',None)
     fipbuffer.join()
     os.execv(__file__, sys.argv)
