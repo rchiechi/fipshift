@@ -17,6 +17,15 @@ from options import parseopts
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
 
+class RestartTimeout(Exception):
+    def __init__(self,expression,message):
+        # Call the base class constructor with the parameters it needs
+        super().__init__(expression)
+
+        # Now for your custom code...
+        self.errors = message
+
+
 p = subprocess.run(['which', 'ices'], capture_output=True)
 if p.returncode == 0:
     ICES = p.stdout.strip()
@@ -190,14 +199,17 @@ try:
 
         if time.time() - epoch > opts.restart and opts.restart > 0:
             logger.warn("Reached restart timeout, terminating...")
-            raise(KeyboardInterrupt)
+            raise(RestartTimeout("Restarting %s" % __file__))
 
 except KeyboardInterrupt:
     ices.terminate()
+
+except RestartTimeout:
+    killbuffer('RESTARTTIMEOUT',None)
+    fipbuffer.join()
+    os.execv(__file__, sys.argv)
 
 killbuffer('ICESDIED',None)
 fipbuffer.join()
 cleantmpdir(TMPDIR)
 
-if opts.restart > 0:
-    os.execv(__file__, sys.argv)
