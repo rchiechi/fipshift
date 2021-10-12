@@ -212,4 +212,3 @@ except RestartTimeout:
 killbuffer('ICESDIED',None)
 fipbuffer.join()
 cleantmpdir(TMPDIR)
-
