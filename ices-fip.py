@@ -198,7 +198,7 @@ try:
                         os.unlink(_p)
 
         if time.time() - epoch > opts.restart and opts.restart > 0:
-            logger.warn("Reached restart timeout, terminating...")
+            logger.warning("Reached restart timeout, terminating...")
             raise(RestartTimeout("Restarting %s" % __file__))
 
 except KeyboardInterrupt:
