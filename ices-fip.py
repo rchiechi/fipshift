@@ -166,27 +166,32 @@ ices = subprocess.Popen([ICES, ICESCONFIG])
 logger.info("Started ices with pid %s", ices.pid)
 time.sleep(5)
 
+def resumeplayback():
+    logger.warning("ices process died")
+    played = getplayed()
+    playlist = getplaylist()
+    if played and playlist:
+        for _e in enumerate(playlist):
+            if _e[1] == played[-1]:
+                with LOCK:
+                    with open(ICESPLAYLIST, 'wb') as fh:
+                        logger.info("Resuming playback from %s", playlist[_e[0]])
+                        for _ogg in playlist[_e[0]:]:
+                            if os.path.exists(_ogg):
+                                fh.write(_ogg+b'\n')
+                            else:
+                                logger.warning("%s does not exist, not writing to playlist.", _ogg)
+                break
+    ices = subprocess.Popen([ICES, ICESCONFIG])
+    logger.info("Restarted ices with pid %s.", ices.pid)
+    time.sleep(5)
+    return ices
+
+
 try:
     while True:
         if ices.poll() is not None:
-            logger.warning("ices process died")
-            played = getplayed()
-            playlist = getplaylist()
-            if played and playlist:
-                for _e in enumerate(playlist):
-                    if _e[1] == played[-1]:
-                        with LOCK:
-                            with open(ICESPLAYLIST, 'wb') as fh:
-                                logger.info("Resuming playback from %s", playlist[_e[0]])
-                                for _ogg in playlist[_e[0]:]:
-                                    if os.path.exists(_ogg):
-                                        fh.write(_ogg+b'\n')
-                                    else:
-                                        logger.warning("%s does not exist, not writing to playlist.", _ogg)
-                        break
-            ices = subprocess.Popen([ICES, ICESCONFIG])
-            logger.info("Restarted ices with pid %s.", ices.pid)
-            time.sleep(5)
+            ices = resumeplayback()
             continue
         time.sleep(1)
         played = getplayed()
@@ -196,7 +201,6 @@ try:
                 if os.path.exists(_p):
                     with LOCK:
                         os.unlink(_p)
-
         if time.time() - epoch > opts.restart and opts.restart > 0:
             logger.warning("\nReached restart timeout, terminating...\n")
             raise(RestartTimeout("Restarting"))
