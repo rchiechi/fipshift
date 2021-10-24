@@ -203,7 +203,7 @@ try:
                         os.unlink(_p)
         if time.time() - epoch > opts.restart and opts.restart > 0:
             logger.warning("\nReached restart timeout, terminating...\n")
-            raise(RestartTimeout("Restarting"))
+            raise(RestartTimeout(None, "Restarting"))
 
 except KeyboardInterrupt:
     ices.terminate()
