@@ -13,11 +13,11 @@ def parseopts():
                                      formatter_class=argparse
                                      .ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('-d','--delay', action="store", default=9*3600,
+    parser.add_argument('-d','--delay', action=StoreHours, default=6,
                         type=int,
-                        help="Delay time in seconds.")
+                        help="Delay time in hours.")
 
-    parser.add_argument('-r','--restart', action=StoreRestart, default=0,
+    parser.add_argument('-r','--restart', action=StoreHours, default=0,
                         type=int,
                         help="Restart every n hours (0 means do not restart).")
 
@@ -45,7 +45,7 @@ def doconfig(config_file):
     return config
 
 
-class StoreRestart(argparse.Action):
+class StoreHours(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         if nargs is not None:
             raise ValueError("nargs not allowed")
