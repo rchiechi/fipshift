@@ -232,6 +232,12 @@ class OGGconverter(threading.Thread):
             except queue.Empty:
                 logger.debug("%s: Queue empty, going to sleep.", self.getName())
                 time.sleep(5)
+            except OSError:
+                sys.stdout.write("Error writing ogg file at %s" % fa)
+                logger.error("OS-level issue writing ogg file.")
+            except IOError:
+                sys.stdout.write("Error writing ogg file at %s" % fa)
+                logger.error("I/O error writing ogg file.")
         print("%s: dying." % self.getName())
         logger.info("%s: dying.", self.getName())
 
