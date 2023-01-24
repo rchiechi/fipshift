@@ -10,6 +10,8 @@ import time
 import queue
 from urllib.error import HTTPError, URLError
 from socket import timeout as socket_timeout
+from mutagen.mp3 import EasyMP3 as MP3
+from mutagen import MutagenError
 from pydub import AudioSegment
 from pydub.exceptions import CouldntDecodeError
 
@@ -92,6 +94,14 @@ class FIPBuffer(threading.Thread):
                 # self.fqueue.put(
                 #     (time.time(), fn, self.fipmetadata.getcurrent())
                 # )
+            try:
+                _mp3 = MP3(fn)
+                _mp3['artist'] = self.fipmetadata.currentartist
+                _mp3['title'] = self.fipmetadata.currentartist
+                _mp3.save()
+            except MutagenError:
+                logger.warn('Error writing metadata to %s', fn)
+
             self.f_counter += 1
             # For whatever reason resetting the counter leads to filenotfound in main thread.
             # if self.getruntime() > 24*3600:
@@ -170,10 +180,12 @@ class FIPMetadata(threading.Thread):
             'artist': artist
         }
 
-    def getcurrenttrack(self):
+    @property
+    def currenttrack(self):
         return self.getcurrent()['track']
 
-    def getcurrentartist(self):
+    @property
+    def currentartist(self):
         return self.getcurrent()['artist']
 
     def __updatemetadata(self):
