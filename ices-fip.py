@@ -9,6 +9,7 @@ import signal
 import queue
 import time
 import subprocess
+import re
 # import shutil
 # import shout
 # import pydub
@@ -127,12 +128,15 @@ logger.addHandler(loghandler)
 
 with open(os.path.join(os.path.dirname(
           os.path.realpath(__file__)), 'ices-playlist.xml'), 'rt') as fr:
-    xml = fr.read().replace(
-        '%ICESTMPDIR%', ICESTMPDIR).replace(
-            '%HOST%', config['ICES']['HOST']).replace(
-                '%PORT%', config['ICES']['PORT']).replace(
-                    '%PASSWORD%', config['ICES']['PASSWORD']).replace(
-                        '%MOUNT%', config['ICES']['MOUNT'])
+    rep = {'%ICESTMPDIR%': ICESTMPDIR,
+           '%PLAYLIST%': os.path.basename(ICESPLAYLIST),
+           '%HOST%': config['ICES']['HOST'],
+           '%PORT%': config['ICES']['PORT'],
+           '%PASSWORD%': config['ICES']['PASSWORD'],
+           '%MOUNT%': config['ICES']['MOUNT']}
+    rep = dict((re.escape(k), v) for k, v in rep.items())
+    pattern = re.compile("|".join(rep.keys()))
+    xml = pattern.sub(lambda m: rep[re.escape(m.group(0))], fr.read())
     with open(ICESCONFIG, 'wt') as fw:
         fw.write(xml)
 
@@ -145,7 +149,7 @@ logger.info("Starting buffer threads.")
 signal.signal(signal.SIGHUP, killbuffer)
 fqueue = queue.Queue()
 ALIVE.set()
-fipbuffer = FIPBuffer(ALIVE, LOCK, fqueue, TMPDIR, ICESTMPDIR)
+fipbuffer = FIPBuffer(ALIVE, LOCK, fqueue, TMPDIR, ICESPLAYLIST)
 fipbuffer.start()
 epoch = time.time()
 time.sleep(3)
@@ -153,16 +157,21 @@ time.sleep(3)
 try:
     while fipbuffer.getruntime() < opts.delay:
         _remains = (opts.delay - fipbuffer.getruntime())/60 or 1
+        # _remains = (opts.delay - fipbuffer.getruntime()) or 1
         sys.stdout.write("\033[2K\rBuffering for %0.0f min. " % _remains)
         sys.stdout.flush()
         time.sleep(10)
 except KeyboardInterrupt:
-    print("Killing %s" % fipbuffer.getName())
+    print("Killing %s" % fipbuffer.name)
     killbuffer('KEYBOARDINTERRUPT', None)
     fipbuffer.join()
     sys.exit()
 
-ices = subprocess.Popen([ICES, ICESCONFIG])
+ices = subprocess.Popen([ICES, '-c', os.path.basename(ICESCONFIG),
+                        '-P', config['ICES']['PASSWORD'],
+                        '-h', config['ICES']['HOST'],
+                        '-p', config['ICES']['PORT']],
+                        cwd=ICESTMPDIR)
 logger.info("Started ices with pid %s", ices.pid)
 time.sleep(5)
 

@@ -13,7 +13,7 @@ def parseopts():
                                      formatter_class=argparse
                                      .ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('-d','--delay', action=StoreHours, default=21600,
+    parser.add_argument('-d', '--delay', action=StoreHours, default=21600,
                         type=int,
                         help="Delay time in hours.")
 
@@ -54,3 +54,4 @@ class StoreHours(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         # print('%r %r %r' % (namespace, values, option_string))
         setattr(namespace, self.dest, 3600*values)
+        # setattr(namespace, self.dest, values)

@@ -30,26 +30,27 @@ def timeinhours(sec):
 
 class FIPBuffer(threading.Thread):
 
-    def __init__(self, _alive, _lock, _fqueue, _tmpdir, _icestmpdir=''):
+    def __init__(self, _alive, _lock, _fqueue, _tmpdir, _playlist):
         threading.Thread.__init__(self)
         self.setName('File Buffer Thread')
         self.alive = _alive
         self.lock = _lock
         self.fqueue = _fqueue
         self.tmpdir = _tmpdir
+        self.playlist = _playlist
         self.f_counter = 0
         self.t_start = time.time()
-        if _icestmpdir:
-            self.oggconverter = OGGconverter(_alive, _lock, _fqueue, _icestmpdir)
-        else:
-            self.oggconverter = None
+        # if _icestmpdir:
+        #    self.oggconverter = OGGconverter(_alive, _lock, _fqueue, _icestmpdir)
+        # else:
+        #     self.oggconverter = None
         self.fipmetadata = FIPMetadata(_alive)
 
     def run(self):
         print("Starting %s" % self.getName())
         self.fipmetadata.start()
-        if self.oggconverter is not None:
-            self.oggconverter.start()
+        # if self.oggconverter is not None:
+        #     self.oggconverter.start()
         req = urllib.request.urlopen(FIPURL, timeout=10)
         retries = 0
         fip_error = False
@@ -82,12 +83,15 @@ class FIPBuffer(threading.Thread):
                 self.alive.clear()
                 break
             fn = os.path.join(self.tmpdir, self.getfn())
+            with self.lock:
+                with open(self.playlist, 'ab') as fh:
+                    fh.write(bytes(fn, encoding='UTF-8')+b'\n')
             with open(fn, 'wb') as fh:
                 fh.write(buff)
                 # Check here if file was created?
-                self.fqueue.put(
-                    (time.time(), fn, self.fipmetadata.getcurrent())
-                )
+                # self.fqueue.put(
+                #     (time.time(), fn, self.fipmetadata.getcurrent())
+                # )
             self.f_counter += 1
             # For whatever reason resetting the counter leads to filenotfound in main thread.
             # if self.getruntime() > 24*3600:
