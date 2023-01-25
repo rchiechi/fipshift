@@ -12,7 +12,7 @@ You can send `SIGHUP` to kill the file buffer, but leave the stream going until 
 
 `shout-fip.py` uses python-shout to start a Shoutcast mp3 server, but is really flaky.
 
-`ices-fip.py` launches ices2 and streams to an icecast2 server, but it only streams ogg/vorbis.
+`ices-fip.py` launches ices2 and sends an mp3 stream to an icecast2 server.
 
 # requirements
 
