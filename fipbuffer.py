@@ -41,7 +41,8 @@ class FIPBuffer(threading.Thread):
         self.fipmetadata = FIPMetadata(_alive)
 
     def run(self):
-        print("Starting %s" % self.getName())
+        print("Starting %s" % self.name)
+        logger.info("%s: starting.", self.name)
         self.fipmetadata.start()
         req = urllib.request.urlopen(FIPURL, timeout=10)
         retries = 0
@@ -89,11 +90,8 @@ class FIPBuffer(threading.Thread):
                 logger.warn('Error writing metadata to %s', fn)
 
             self.f_counter += 1
-            # For whatever reason resetting the counter leads to filenotfound in main thread.
-            # if self.getruntime() > 24*3600:
-            #     self.f_counter = 0  # Reset file counter every 24 hours
-        print("%s: dying." % self.getName())
-        logger.info("%s: dying.", self.getName())
+        print("%s: dying." % self.name)
+        logger.info("%s: dying.", self.name)
         self.fipmetadata.join()
 
     def getfn(self):
@@ -147,12 +145,13 @@ class FIPMetadata(threading.Thread):
         self.metaurl = 'https://api.radiofrance.fr/livemeta/live/7/fip_player'
 
     def run(self):
-        print("Starting %s" % self.getName())
+        print("Starting %s" % self.name)
+        logger.info("%s: starting.", self.name)
         while self.alive.is_set():
             self.__updatemetadata()
             time.sleep(3)
-        print("%s: dying." % self.getName())
-        logger.info("%s: dying.", self.getName())
+        print("%s: dying." % self.name)
+        logger.info("%s: dying.", self.name)
 
     def getcurrent(self):
         track = self.metadata['now']['secondLine']
@@ -190,68 +189,3 @@ class FIPMetadata(threading.Thread):
             pass
         if 'now' not in self.metadata:
             self.metadata = FIPMetadata.metadata
-
-# class OGGconverter(threading.Thread):
-# 
-#     def __init__(self, _alive, _lock, _fqueue, _tmpdir):
-#         threading.Thread.__init__(self)
-#         self.setName('OGG Converter Thread')
-#         self.alive = _alive
-#         self.lock = _lock
-#         self.fqueue = _fqueue
-#         self.tmpdir = _tmpdir
-#         self.playlist = os.path.join(self.tmpdir,'playlist.txt')
-# 
-#     def run(self):
-#         print("Starting %s" % self.getName())
-#         while self.alive.is_set():
-#             try:
-#                 _f = self.fqueue.get(timeout=1)
-#                 fa = _f[1]
-#                 # _h, _m = timeinhours(time.time() - _f[0])
-#                 # _mb = (self.fqueue.qsize()*128)/1024
-#                 _ogg = os.path.join(self.tmpdir,os.path.basename(fa+'.ogg'))
-#                 logger.debug("Converting %s -> %s", fa, _ogg)
-#                 sys.stdout.write("\033[A\033[F\033[2K\rConverting %s -> %s \n" % (fa, _ogg))
-#                 sys.stdout.write("\033[2K\rTrack: %s \n" % _f[2]['track'])
-#                 sys.stdout.write("\033[2K\rArtist: %s " % _f[2]['artist'])
-#                 sys.stdout.flush()
-# 
-#                 with self.lock:
-#                     AudioSegment.from_mp3(fa).export(
-#                         _ogg,
-#                         format='ogg', codec='libvorbis', bitrate="192k",
-#                         tags={'artist': _f[2]['artist'],
-#                               'track': _f[2]['track'],
-#                               'title': _f[2]['track']})
-#                 os.unlink(fa)
-#                 with self.lock:
-#                     with open(self.playlist, 'ab') as fh:
-#                         fh.write(bytes(_ogg,encoding='UTF-8')+b'\n')
-#             except CouldntDecodeError:
-#                 sys.stdout.write("Error decoding fip stream at %s" % fa)
-#                 logger.warn("Error decoding fip stream at %s", fa)
-#             except queue.Empty:
-#                 logger.debug("%s: Queue empty, going to sleep.", self.getName())
-#                 time.sleep(5)
-#             except OSError:
-#                 sys.stdout.write("Error writing ogg file at %s" % fa)
-#                 logger.error("OS-level issue writing ogg file.")
-#             except IOError:
-#                 sys.stdout.write("Error writing ogg file at %s" % fa)
-#                 logger.error("I/O error writing ogg file.")
-#         print("%s: dying." % self.getName())
-#         logger.info("%s: dying.", self.getName())
-
-# class IcesLogParser(threading.Thread):
-# [2021-09-20  13:44:15] INFO playlist-builtin/playlist_read Currently playing "/tmp/fipshift/ices/0000000000000021"
-#     def __init__(self, _alive, _fqueue, _tmpdir):
-#         threading.Thread.__init__(self)
-#         self.setName('File Buffer Thread')
-#         self.alive = _alive
-#         self.fqueue = _fqueue
-#         self.tmpdir = _tmpdir
-#         self.f_counter = 0
-#         self.t_start = time.time()
-#         self.fipmetadata = FIPMetadata(_alive)
-
