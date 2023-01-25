@@ -37,6 +37,12 @@ else:
     print("I could not locate the ices binary in the PATH.")
     sys.exit()
 
+p = subprocess.run([ICES, '-V'], stdout=subprocess.PIPE)
+_icesver = float(p.stdout.split(b'\n')[0].split(b' ')[-1])
+if _icesver > 1.0:
+    print(f"Ices version {_icesver} > 0; Ices 0.x is required for MP3 streaming.")
+    sys.exit()
+
 if opts.delay < 10:
     print("The delay is too short to fill the buffer, please try again with a larger delay.")
     sys.exit(1)
