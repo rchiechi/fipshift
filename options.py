@@ -29,7 +29,7 @@ def parseopts():
     config = doconfig(os.path.join(opts.configdir,
                       'fipshift.conf')
                       )
-    return opts,config
+    return opts, config
 
 def doconfig(config_file):
     '''Parse config file or write a default file.'''
