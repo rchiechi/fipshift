@@ -28,6 +28,8 @@ def timeinhours(sec):
 
 class FIPBuffer(threading.Thread):
 
+    encode_metadata = False
+
     def __init__(self, _alive, _lock, _fqueue, _tmpdir, _playlist):
         threading.Thread.__init__(self)
         self.setName('File Buffer Thread')
@@ -79,15 +81,10 @@ class FIPBuffer(threading.Thread):
             with self.lock:
                 with open(self.playlist, 'ab') as fh:
                     fh.write(bytes(fn, encoding='UTF-8')+b'\n')
-            # with open(fn, 'wb') as fh:
-            #     fh.write(buff)
-            # try:
-            #     _mp3 = MP3(fn)
-            #     _mp3['artist'] = self.fipmetadata.currentartist
-            #     _mp3['title'] = self.fipmetadata.currenttrack
-            #     _mp3.save()
-            # except MutagenError:
-            #     logger.warn('Error writing metadata to %s', fn)
+            with open(fn, 'wb') as fh:
+                fh.write(buff)
+            if self.encode_metadata:
+                self.writetags(fn)
 
             self.f_counter += 1
         print("%s: dying." % self.name)
@@ -102,6 +99,27 @@ class FIPBuffer(threading.Thread):
 
     def getstarttime(self):
         return self.t_start
+
+    def writetags(self, fn):
+        try:
+            _mp3 = MP3(fn)
+            _mp3['artist'] = self.fipmetadata.currentartist
+            _mp3['title'] = self.fipmetadata.currenttrack
+            _mp3.save()
+        except MutagenError:
+            logger.warn('Error writing metadata to %s', fn)
+
+    @property
+    def metadata(self):
+        return self.encode_metadata
+
+    @metadata.setter
+    def metadata(self, _bool):
+        if _bool:
+            self.encode_metadata = True
+        else:
+            self.encode_metadata = False
+
 
 class FIPMetadata(threading.Thread):
 
@@ -157,9 +175,9 @@ class FIPMetadata(threading.Thread):
         track = self.metadata['now']['secondLine']
         artist = self.metadata['now']['thirdLine']
         if not isinstance(track, str):
-            track = 'Error fetching track'
+            track = 'Le track'
         if not isinstance(artist, str):
-            artist = 'Error fetching artist'
+            artist = 'Le artist'
         return {
             'track': track,
             'artist': artist

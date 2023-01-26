@@ -98,6 +98,8 @@ signal.signal(signal.SIGHUP, killbuffer)
 fqueue = queue.Queue()
 ALIVE.set()
 fipbuffer = FIPBuffer(ALIVE, LOCK, fqueue, TMPDIR, ICESPLAYLIST)
+if opts.tag:
+    fipbuffer.metadata = True
 fipbuffer.start()
 epoch = time.time()
 time.sleep(3)
