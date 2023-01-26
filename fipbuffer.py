@@ -79,15 +79,15 @@ class FIPBuffer(threading.Thread):
             with self.lock:
                 with open(self.playlist, 'ab') as fh:
                     fh.write(bytes(fn, encoding='UTF-8')+b'\n')
-            with open(fn, 'wb') as fh:
-                fh.write(buff)
-            try:
-                _mp3 = MP3(fn)
-                _mp3['artist'] = self.fipmetadata.currentartist
-                _mp3['title'] = self.fipmetadata.currenttrack
-                _mp3.save()
-            except MutagenError:
-                logger.warn('Error writing metadata to %s', fn)
+            # with open(fn, 'wb') as fh:
+            #     fh.write(buff)
+            # try:
+            #     _mp3 = MP3(fn)
+            #     _mp3['artist'] = self.fipmetadata.currentartist
+            #     _mp3['title'] = self.fipmetadata.currenttrack
+            #     _mp3.save()
+            # except MutagenError:
+            #     logger.warn('Error writing metadata to %s', fn)
 
             self.f_counter += 1
         print("%s: dying." % self.name)
