@@ -34,6 +34,7 @@ def getplayed(tmpfile):
         logger.warning('Did not find any entries in %s', tmpfile)
     return _played
 
+
 def getplaylist(playlist):
     _playlist = []
     if not os.path.exists(playlist):
@@ -46,6 +47,14 @@ def getplaylist(playlist):
         logger.warning('Did not find any entries in %s', playlist)
     return _playlist
 
+
+def timeinhours(sec):
+    sec_value = sec % (24 * 3600)
+    hour_value = sec_value // 3600
+    sec_value %= 3600
+    mins = sec_value // 60
+    sec_value %= 60
+    return hour_value, mins
 
 class RestartTimeout(Exception):
     def __init__(self, expression, message):

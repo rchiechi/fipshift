@@ -26,11 +26,12 @@ def timeinhours(sec):
     sec_value %= 60
     return hour_value, mins
 
+
 class FIPBuffer(threading.Thread):
 
-    encode_metadata = False
+    _metadata = False
 
-    def __init__(self, _alive, _lock, _fqueue, _tmpdir, _playlist):
+    def __init__(self, _alive, _lock, _fqueue, _tmpdir, _playlist=''):
         threading.Thread.__init__(self)
         self.setName('File Buffer Thread')
         self.alive = _alive
@@ -78,15 +79,15 @@ class FIPBuffer(threading.Thread):
                 self.alive.clear()
                 break
             fn = os.path.join(self.tmpdir, self.getfn())
-            with self.lock:
-                with open(self.playlist, 'ab') as fh:
-                    fh.write(bytes(fn, encoding='UTF-8')+b'\n')
             with open(fn, 'wb') as fh:
                 fh.write(buff)
-            if self.encode_metadata:
-                self.writetags(fn)
-
             self.f_counter += 1
+
+            if self.fqueue is not None:
+                self.enqueue(fn)
+            if self.playlist:
+                self.writetoplaylsit(fn)
+
         print("%s: dying." % self.name)
         logger.info("%s: dying.", self.name)
         self.fipmetadata.join()
@@ -100,6 +101,20 @@ class FIPBuffer(threading.Thread):
     def getstarttime(self):
         return self.t_start
 
+    def writetoplaylsit(self, _fn):
+        if self.metadata:
+            fn = f'annotate:title="{self.fipmetadata.currenttrack}",artist="{self.fipmetadata.currentartist}":{_fn}'
+        else:
+            fn = _fn
+        with self.lock:
+            with open(self.playlist, 'ab') as fh:
+                fh.write(bytes(fn, encoding='UTF-8')+b'\n')
+
+    def enqueue(self, fn):
+        self.fqueue.put(
+            (time.time(), fn, self.fipmetadata.getcurrent())
+        )
+
     def writetags(self, fn):
         try:
             _mp3 = MP3(fn)
@@ -111,50 +126,50 @@ class FIPBuffer(threading.Thread):
 
     @property
     def metadata(self):
-        return self.encode_metadata
+        return self._metadata
 
     @metadata.setter
     def metadata(self, _bool):
         if _bool:
-            self.encode_metadata = True
+            self._metadata = True
         else:
-            self.encode_metadata = False
+            self._metadata = False
 
 
 class FIPMetadata(threading.Thread):
 
-    metadata = {"prev":[
-               {"firstLine":"FIP",
-                "secondLine":"Previous Track",
-                "thirdLine":"Previous Artist",
-                "cover":"Previous Cover",
-                "startTime":0,"endTime":1},
-               {"firstLine":"FIP",
-                "secondLine":"Previous Track",
-                "thirdLine":"Previous Artist",
-                "cover":"Previous Cover",
-                "startTime":2,
-                "endTime":3},
-               {"firstLine":"FIP",
-                "secondLine":"Previous Track",
-                "thirdLine":"Previous Artist",
-                "cover":"Previous Cover",
-                "startTime":4,
-                "endTime":5}],
+    metadata = {"prev": [
+               {"firstLine": "FIP",
+                "secondLine": "Previous Track",
+                "thirdLine": "Previous Artist",
+                "cover": "Previous Cover",
+                "startTime": 0, "endTime": 1},
+               {"firstLine": "FIP",
+                "secondLine": "Previous Track",
+                "thirdLine": "Previous Artist",
+                "cover": "Previous Cover",
+                "startTime": 2,
+                "endTime": 3},
+               {"firstLine": "FIP",
+                "secondLine": "Previous Track",
+                "thirdLine": "Previous Artist",
+                "cover": "Previous Cover",
+                "startTime": 4,
+                "endTime": 5}],
                 "now":
-                {"firstLine":"FIP",
-                 "secondLine":"Current Track",
-                 "thirdLine":"Current Artist",
-                 "cover":"Current Cover",
-                 "startTime":6,"endTime":7},
+                {"firstLine": "FIP",
+                 "secondLine": "Current Track",
+                 "thirdLine": "Current Artist",
+                 "cover": "Current Cover",
+                 "startTime": 6, "endTime": 7},
                 "next":
-                [{"firstLine":"FIP",
-                  "secondLine":"Next Track",
-                  "thirdLine":"Next Artist",
-                  "cover":"Next Cover",
-                  "startTime":8,
-                  "endTime":9}],
-                "delayToRefresh":220000}
+                [{"firstLine": "FIP",
+                  "secondLine": "Next Track",
+                  "thirdLine": "Next Artist",
+                  "cover": "Next Cover",
+                  "startTime": 8,
+                  "endTime": 9}],
+                "delayToRefresh": 220000}
 
     def __init__(self, _alive):
         threading.Thread.__init__(self)

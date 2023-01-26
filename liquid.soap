@@ -1,0 +1,8 @@
+log.file.path.set("%LOGFILE%")
+encoded_source = playlist(mode="normal", loop=false, reload_mode="watch", "%PLAYLIST%")
+output.icecast(
+  %ffmpeg(format="mp3", %audio.copy),
+  fallible=true,
+  mount="%MOUNT%",
+  host="%HOST%", port=%PORT%, password="%PASSWORD%",
+  encoded_source)

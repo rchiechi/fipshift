@@ -9,6 +9,7 @@ import signal
 import queue
 import time
 import shout
+from util import RestartTimeout, cleantmpdir, timeinhours
 from fipbuffer import FIPBuffer
 from options import parseopts
 
@@ -20,26 +21,8 @@ LOCK = threading.Lock()
 def killbuffer(signum, frame):  # pylint: disable=unused-argument
     print("\nReceived %s, killing buffer thread." % signum)
     ALIVE.clear()
+    logger.info("Received %s, killing buffer thread.", signum)
 
-def cleantmpdir(tmpdir):
-    n = 0
-    for tmpfn in os.listdir(tmpdir):
-        if os.path.isdir(os.path.join(tmpdir,tmpfn)):
-            sys.stdout.write("\nNot removing directory %s " % os.path.join(tmpdir,tmpfn))
-            continue
-        sys.stdout.write("\rClearning %s " % os.path.join(tmpdir,tmpfn))
-        sys.stdout.flush()
-        os.remove(os.path.join(tmpdir,tmpfn))
-        n += 1
-    print("\033[2K\rCleaned: %s files. " % n)
-
-def timeinhours(sec):
-    sec_value = sec % (24 * 3600)
-    hour_value = sec_value // 3600
-    sec_value %= 3600
-    mins = sec_value // 60
-    sec_value %= 60
-    return hour_value, mins
 
 # # # # # MAIN () # # # # # #
 
@@ -53,29 +36,44 @@ if opts.delay < 10:
 if 0 < opts.restart < opts.delay:
     print("Restart delay must be larger than buffer delay.")
     sys.exit(1)
+
 try:
     TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
+    ICESTMPDIR = os.path.join(config['ICES']['tmpdir'],'fipshift','ices')
+    ICESTMPFILE = os.path.join(ICESTMPDIR, 'ices.log')
+    ICESPLAYLIST = os.path.join(ICESTMPDIR,'playlist.txt')
+    ICESCONFIG = os.path.join(ICESTMPDIR,'ices-playlist.xml')
 except KeyError:
     print("Bad config file, please delete it from %s and try again." % opts.configdir)
     sys.exit(1)
 
 if not os.path.exists(TMPDIR):
     os.mkdir(TMPDIR)
-print("Saving files to %s" % TMPDIR)
 cleantmpdir(TMPDIR)
 
+if not os.path.exists(ICESTMPDIR):
+    os.mkdir(ICESTMPDIR)
+cleantmpdir(ICESTMPDIR)
+print("Saving files to %s" % ICESTMPDIR)
+
 logger = logging.getLogger(__package__)
-logger.setLevel(logging.DEBUG)
+# NOTE: Setting DEBUG fills log with subprocess ffmpeg output
+# logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 loghandler = logging.FileHandler(os.path.join(TMPDIR,
                                  os.path.basename(sys.argv[0]).split('.')[0]+'.log'))
 loghandler.setFormatter(logging.Formatter('%(asctime)s %(process)d %(levelname)s %(message)s'))
 logger.addHandler(loghandler)
 
+logger.info("Starting buffer threads.")
 signal.signal(signal.SIGHUP, killbuffer)
 fqueue = queue.Queue()
 ALIVE.set()
 fipbuffer = FIPBuffer(ALIVE, LOCK, fqueue, TMPDIR)
+if opts.tag:
+    fipbuffer.metadata = True
 fipbuffer.start()
+epoch = time.time()
 time.sleep(3)
 
 s = shout.Shout()
@@ -96,51 +94,27 @@ s.audio_info = {shout.SHOUT_AI_SAMPLERATE: '48000',
                 shout.SHOUT_AI_CHANNELS: '2',
                 shout.SHOUT_AI_BITRATE: '128'}
 try:
-    print("Starting icy server http://%s:%s%s" % (s.host, s.port, s.mount))
+    print("Shouting at %s:%s%s" % (s.host, s.port, s.mount))
     s.open()
     print("Done.")
 except shout.ShoutException as msg:
     print("Error connecting to icy server: %s" % str(msg))
-    killbuffer('SHOUTERROR',None)
+    killbuffer('SHOUTERROR', None)
     fipbuffer.join()
     sys.exit(1)
 
 try:
     while fipbuffer.getruntime() < opts.delay:
         _remains = (opts.delay - fipbuffer.getruntime())/60 or 1
-        sys.stdout.write("\rBuffering for %0.0f min. " % _remains)
+        # _remains = (opts.delay - fipbuffer.getruntime()) or 1
+        sys.stdout.write("\033[2K\rBuffering for %0.0f min. " % _remains)
         sys.stdout.flush()
         time.sleep(10)
 except KeyboardInterrupt:
-    print("Killing %s" % fipbuffer.getName())
+    print("Killing %s" % fipbuffer.name)
     killbuffer('KEYBOARDINTERRUPT', None)
     fipbuffer.join()
     sys.exit()
-
-# s = shout.Shout()
-# print("Using libshout version %s" % shout.version())
-# 
-# s.host = config['USEROPTS']['HOST']
-# s.port = int(config['USEROPTS']['PORT'])
-# s.user = config['USEROPTS']['USER']
-# s.password = config['USEROPTS']['PASSWORD']
-# s.mount = config['USEROPTS']['MOUNT']
-# s.name = config['USEROPTS']['NAME']
-# s.genre = config['USEROPTS']['GENRE']
-# s.url = config['USEROPTS']['URL']
-# s.public = int(config['USEROPTS']['PUBLIC'])
-# s.format = 'mp3'
-# s.protocol = 'http'
-# s.audio_info = {shout.SHOUT_AI_SAMPLERATE: '48000',
-#                 shout.SHOUT_AI_CHANNELS: '2',
-#                 shout.SHOUT_AI_BITRATE: '128'}
-# try:
-#     print("Starting icy server http://%s:%s%s" % (s.host, s.port, s.mount))
-#     s.open()
-# except shout.ShoutException as msg:
-#     print("Error connecting to icy server: %s" % str(msg))
-#     killbuffer('SHOUTERROR',None)
-#     sys.exit(1)
 
 sys.stdout.write("\n\n\n")
 while not fqueue.empty():
@@ -171,8 +145,12 @@ while not fqueue.empty():
         break
     except queue.Empty:
         print("\nQueue is empty, exiting.")
+    except RestartTimeout:
+        killbuffer('RESTARTTIMEOUT', None)
+        fipbuffer.join()
+        os.execv(__file__, sys.argv)
 
-killbuffer('EMPTYQUEUE',None)
+killbuffer('EMPTYQUEUE', None)
 fipbuffer.join()
 s.close()
 cleantmpdir(TMPDIR)
