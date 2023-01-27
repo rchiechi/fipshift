@@ -129,8 +129,8 @@ while not fqueue.empty():
         sys.stdout.write("\033[2K\rArtist: %s " % _f[2]['artist'])
         sys.stdout.flush()
         with open(fa, 'rb') as fh:
-            s.set_metadata({'song': _f[2]['track'],
-                            'artist': _f[2]['artist']})  # only 'song' does anything
+            # s.set_metadata({'song': _f[2]['track'],
+            #                'artist': _f[2]['artist']})  # only 'song' does anything
             nbuf = fh.read(4096)
             while True:
                 buf = nbuf
