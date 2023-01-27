@@ -48,8 +48,7 @@ def detectlastframe(fi):
                         logger.debug("Found ID3v2 header")
                         logger.debug("version %s %s %s %s %s", majorVer, minorVer, unsync, extendedHeader, experimental)
                         logger.debug("size %s", size)
-                        #TODO extendedHeader not supported yet
-    
+                        #TODO extendedHeader not supported
                         fi.seek(startPos + 10 + size)
                         continue
     
@@ -58,10 +57,9 @@ def detectlastframe(fi):
         headerRaw = fi.read(4)
         if len(headerRaw) == 4:
             headerWord = struct.unpack(">I", headerRaw)[0]
-    
             #Check for MPEG-1 audio frame
             if headerWord & 0xfff00000 == 0xfff00000:
-                logger.debug("Possible MPEG-1 audio header %s", hex(headerWord))
+                # logger.debug("Possible MPEG-1 audio header %s", hex(headerWord))
                 countMpegFrames += 1
                 ver = (headerWord & 0xf0000) >> 16
                 bitrateEnc = (headerWord & 0xf000) >> 12
@@ -69,7 +67,7 @@ def detectlastframe(fi):
                 mode = (headerWord & 0xf0) >> 4
                 cpy = (headerWord & 0xf)
                 if ver & 0xe == 0xa and freqEnc != 0xf:
-                    framepos = fi.tell()
+                    framepos = fi.tell()-4
                     logger.debug("Probably an MP3 frame at %s", framepos)
                     bitrate = bitrates[bitrateEnc]
                     freq = freqrates[freqEnc >> 2]
@@ -82,8 +80,8 @@ def detectlastframe(fi):
                     except TypeError:
                         logger.debug('Hit reserved bit.')
                     continue
-                else:
-                    logger.debug("Unsupported format: %s header: %s", hex(ver), hex(headerWord))
+                # else:
+                #     logger.debug("Unsupported format: %s header: %s", hex(ver), hex(headerWord))
     
         #If no header can be detected, move on to the next byte
         fi.seek(startPos)
@@ -92,9 +90,8 @@ def detectlastframe(fi):
             break #End of file
         unrecognizedBytes += 1
 
+    logger.debug("unrecognizedBytes: %s", unrecognizedBytes)
     return framepos
     
-    # print ("unrecognizedBytes", unrecognizedBytes)
-    # print ("countMpegFrames", countMpegFrames)
-    # print ("duration", countMpegFrames * frameDuration, "sec")
+
 
