@@ -31,7 +31,7 @@ def getplayed(tmpfile):
             # Playing /tmp/fipshift/0000000000000001
             if b'Playing ' in _l:
                 # _played.append(_l.split(b'"')[-2])
-                _played.append(_l.split(b' ')[-1])
+                _played.append(_l.split(b' ')[-1].strip())
     # if not _played:
     #     logger.warning('Did not find any entries in %s', tmpfile)
     return _played
