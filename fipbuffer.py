@@ -52,10 +52,10 @@ class FIPBuffer(threading.Thread):
         req = urllib.request.urlopen(FIPURL, timeout=10)
         retries = 0
         fip_error = False
-        buff = []
+        buff = BytesIO()
         while self.alive.is_set():
             try:
-                buff.append(req.read(BLOCKSIZE))
+                buff.write(req.read(BLOCKSIZE))
                 retries = 0
             except URLError as error:
                 fip_error = True
@@ -89,13 +89,8 @@ class FIPBuffer(threading.Thread):
         logger.info("%s: dying.", self.name)
         self.fipmetadata.join()
 
-    def writebuff(self, _buff):
-        buff = BytesIO(b''.join(_buff))
-        try:
-            _lastframe = detectlastframe(buff)
-        except RuntimeError:
-            logger.warn('Error detecting MP3 frame boundary.')
-            _lastframe = -1
+    def writebuff(self, buff):
+        _lastframe = detectlastframe(buff)
         fn = os.path.join(self.tmpdir, self.getfn())
         with open(fn, 'wb') as fh:
             buff.seek(0)
@@ -106,8 +101,7 @@ class FIPBuffer(threading.Thread):
             self.enqueue(fn)
         if self.playlist:
             self.writetoplaylsit(fn)
-
-        return [buff.read()]
+        return BytesIO(buff.read())
 
     def getfn(self):
         return str(self.f_counter).zfill(16)

@@ -62,6 +62,7 @@ def detectlastframe(fi):
             #Check for MPEG-1 audio frame
             if headerWord & 0xfff00000 == 0xfff00000:
                 logger.debug("Possible MPEG-1 audio header %s", hex(headerWord))
+                framepos = fi.tell()
                 countMpegFrames += 1
                 ver = (headerWord & 0xf0000) >> 16
                 bitrateEnc = (headerWord & 0xf000) >> 12
@@ -77,13 +78,12 @@ def detectlastframe(fi):
                     logger.debug("freq %s Hz", freq)
                     logger.debug("padding %s", padding)
                     frameLen = int((144 * bitrate * 1000 / freq ) + padding)
-                    framepos = fi.tell()
                     continue
                 else:
-                    raise RuntimeError("Unsupported format:", hex(ver), "header:", hex(headerWord))
+                    logger.warn("Unsupported format: %s header: %s", hex(ver), hex(headerWord))
     
         #If no header can be detected, move on to the next byte
-        fi.seek(startPos)
+        # fi.seek(startPos)
         nextByteRaw = fi.read(1)
         if len(nextByteRaw) == 0:
             break #End of file

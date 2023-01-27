@@ -30,7 +30,8 @@ def getplayed(tmpfile):
             # [2021-09-20  13:44:15] INFO playlist-builtin/playlist_read Currently playing "/tmp/fipshift/ices/0000000000000021"
             # Playing /tmp/fipshift/0000000000000001
             if b'Playing ' in _l:
-                _played.append(_l.split(b'"')[-2])
+                # _played.append(_l.split(b'"')[-2])
+                _played.append(_l.split(b' ')[-1])
     if not _played:
         logger.warning('Did not find any entries in %s', tmpfile)
     return _played
