@@ -71,16 +71,14 @@ class FIPBuffer(threading.Thread):
                 fip_error = False
                 if retries > 9:
                     logger.error("Maximum retries reached, bailing.")
-                    buff = ''
+                    print("\n%s: emtpy block after %s retries, dying.\n" % (retries, self.getName()))
+                    logger.error("%s: emtpy block after %s retries, dying.", retries, self.getName())
+                    self.alive.clear()
+                    break
                 else:
                     logger.warning("Fip stream error, retrying (%s)", retries)
                     req = urllib.request.urlopen(FIPURL, timeout=10)
                     continue
-            if not buff[-1]:
-                print("\n%s: emtpy block after %s retries, dying.\n" % (retries, self.getName()))
-                logger.error("%s: emtpy block after %s retries, dying.", retries, self.getName())
-                self.alive.clear()
-                break
             if self.fipmetadata.newtrack:
                 logger.debug("New track detected.")
                 buff = self.writebuff(buff)
