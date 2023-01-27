@@ -27,13 +27,11 @@ def getplayed(tmpfile):
         if os.path.getsize(tmpfile) >= 524288:
             fh.seek(-524288, 2)
         for _l in fh:
-            # [2021-09-20  13:44:15] INFO playlist-builtin/playlist_read Currently playing "/tmp/fipshift/ices/0000000000000021"
             # Playing /tmp/fipshift/0000000000000001
             if b'Playing ' in _l:
-                # _played.append(_l.split(b'"')[-2])
                 _played.append(_l.split(b' ')[-1].strip())
-    # if not _played:
-    #     logger.warning('Did not find any entries in %s', tmpfile)
+            else:
+                print(_l)
     return _played
 
 
