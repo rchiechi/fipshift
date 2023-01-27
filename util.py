@@ -32,8 +32,8 @@ def getplayed(tmpfile):
             if b'Playing ' in _l:
                 # _played.append(_l.split(b'"')[-2])
                 _played.append(_l.split(b' ')[-1])
-    if not _played:
-        logger.warning('Did not find any entries in %s', tmpfile)
+    # if not _played:
+    #     logger.warning('Did not find any entries in %s', tmpfile)
     return _played
 
 
