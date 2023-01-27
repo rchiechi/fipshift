@@ -68,7 +68,7 @@ def detectlastframe(fi):
                 cpy = (headerWord & 0xf)
                 if ver & 0xe == 0xa and freqEnc != 0xf:
                     framepos = fi.tell()-4
-                    logger.debug("Probably an MP3 frame at %s", framepos)
+                    # logger.debug("Probably an MP3 frame at %s", framepos)
                     bitrate = bitrates[bitrateEnc]
                     freq = freqrates[freqEnc >> 2]
                     padding = ((freqEnc >> 1) & 0x1) == 1
@@ -89,7 +89,7 @@ def detectlastframe(fi):
         if len(nextByteRaw) == 0:
             break #End of file
         unrecognizedBytes += 1
-
+    logger.info("Probably an MP3 frame at %s", framepos)
     logger.debug("unrecognizedBytes: %s", unrecognizedBytes)
     return framepos
     
