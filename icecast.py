@@ -1,3 +1,13 @@
+import os
+import urllib.request
+import json
+import threading
+import logging
+import time
+from urllib.error import HTTPError, URLError
+from socket import timeout as socket_timeout
+
+
 # Send
 
 # SOURCE /mp3test ICE/1.0
@@ -26,3 +36,8 @@
 # 
 # <?xml version="1.0"?>
 # <iceresponse><message>Metadata update successful</message><return>1</return></iceresponse>
+
+class Ices(threading.Thread):
+    
+    def __init__(self, _username, _password, _iceserver, _mount):
+        threading.Thread.__init__(self)
