@@ -16,6 +16,7 @@ def detectlastframe(fi):
     countMpegFrames = 0
     frameDuration = 0.026
     unrecognizedBytes = 0
+    reservedbits = 0
     fi.seek(0)
     framepos = fi.tell()
     
@@ -78,7 +79,8 @@ def detectlastframe(fi):
                     try:
                         frameLen = int((144 * bitrate * 1000 / freq ) + padding)
                     except TypeError:
-                        logger.debug('Hit reserved bit.')
+                        # logger.debug('Hit reserved bit.')
+                        reservedbits += 1
                     continue
                 # else:
                 #     logger.debug("Unsupported format: %s header: %s", hex(ver), hex(headerWord))
@@ -90,7 +92,7 @@ def detectlastframe(fi):
             break #End of file
         unrecognizedBytes += 1
     logger.info("Probably an MP3 frame at %s", framepos)
-    logger.debug("unrecognizedBytes: %s", unrecognizedBytes)
+    logger.debug("unrecognizedBytes: %s reserved bits: %s", unrecognizedBytes, reservedbits)
     return framepos
     
 
