@@ -59,7 +59,7 @@ class StoreHours(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         # print('%r %r %r' % (namespace, values, option_string))
         if values < 0:
-            setattr(namespace, self.dest, 120)  # for debugging
+            setattr(namespace, self.dest, 60)  # for debugging
         else:
             setattr(namespace, self.dest, 3600*values)
         # setattr(namespace, self.dest, values)

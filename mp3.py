@@ -77,7 +77,10 @@ def detectlastframe(fi):
                     logger.debug("bitrate %s kbps", bitrate)
                     logger.debug("freq %s Hz", freq)
                     logger.debug("padding %s", padding)
-                    frameLen = int((144 * bitrate * 1000 / freq ) + padding)
+                    try:
+                        frameLen = int((144 * bitrate * 1000 / freq ) + padding)
+                    except TypeError:
+                        logger.warn('Hit reserved bit.')
                     continue
                 else:
                     logger.warn("Unsupported format: %s header: %s", hex(ver), hex(headerWord))
