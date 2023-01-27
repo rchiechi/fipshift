@@ -6,8 +6,10 @@ import json
 import threading
 import logging
 import time
+from io import BytesIO
 from urllib.error import HTTPError, URLError
 from socket import timeout as socket_timeout
+from mp3 import detectlastframe
 from mutagen.mp3 import EasyMP3 as MP3
 from mutagen import MutagenError
 
@@ -50,9 +52,10 @@ class FIPBuffer(threading.Thread):
         req = urllib.request.urlopen(FIPURL, timeout=10)
         retries = 0
         fip_error = False
+        buff = []
         while self.alive.is_set():
             try:
-                buff = req.read(BLOCKSIZE)
+                buff.append(req.read(BLOCKSIZE))
                 retries = 0
             except URLError as error:
                 fip_error = True
@@ -73,24 +76,32 @@ class FIPBuffer(threading.Thread):
                     logger.warning("Fip stream error, retrying (%s)", retries)
                     req = urllib.request.urlopen(FIPURL, timeout=10)
                     continue
-            if not buff:
+            if not buff[-1]:
                 print("\n%s: emtpy block after %s retries, dying.\n" % (retries, self.getName()))
                 logger.error("%s: emtpy block after %s retries, dying.", retries, self.getName())
                 self.alive.clear()
                 break
-            fn = os.path.join(self.tmpdir, self.getfn())
-            with open(fn, 'wb') as fh:
-                fh.write(buff)
-            self.f_counter += 1
-
-            if self.fqueue is not None:
-                self.enqueue(fn)
-            if self.playlist:
-                self.writetoplaylsit(fn)
+            if self.fipmetadata.newtrack:
+                buff = self.writebuff(buff)
 
         print("%s: dying." % self.name)
         logger.info("%s: dying.", self.name)
         self.fipmetadata.join()
+
+    def writebuff(self, _buff):
+        buff = BytesIO(b''.join(_buff))
+        _lastframe = detectlastframe(buff)
+        fn = os.path.join(self.tmpdir, self.getfn())
+        with open(fn, 'wb') as fh:
+            fh.write(buff.read(_lastframe))
+        self.f_counter += 1
+
+        if self.fqueue is not None:
+            self.enqueue(fn)
+        if self.playlist:
+            self.writetoplaylsit(fn)
+
+        return [buff.read()]
 
     def getfn(self):
         return str(self.f_counter).zfill(16)
@@ -137,6 +148,8 @@ class FIPBuffer(threading.Thread):
 
 
 class FIPMetadata(threading.Thread):
+
+    _newtrack = False
 
     metadata = {"prev": [
                {"firstLine": "FIP",
@@ -206,10 +219,18 @@ class FIPMetadata(threading.Thread):
     def currentartist(self):
         return self.getcurrent()['artist']
 
+    @property
+    def newtrack(self):
+        if self._newtrack:
+            self._newtrack = False
+            return True
+        return False
+
     def __updatemetadata(self):
         endtime = self.metadata['now']['endTime'] or 0
         if time.time() < endtime:
             return
+        self._newtrack = True
         self.metadata = FIPMetadata.metadata
         try:
             r = urllib.request.urlopen(self.metaurl, timeout=5)
