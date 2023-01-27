@@ -158,9 +158,8 @@ try:
             ices = resumeplayback()
             continue
         time.sleep(1)
-        played = getplayed(ICESPLAYLIST)
+        played = getplayed(os.path.join(ICESTMPDIR, 'ices.txt'))
         if len(played) > 1:
-            logger.debug(played)
             played.pop()
             for _p in played:
                 if os.path.exists(_p):

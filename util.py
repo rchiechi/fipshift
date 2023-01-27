@@ -30,8 +30,6 @@ def getplayed(tmpfile):
             # Playing /tmp/fipshift/0000000000000001
             if b'Playing ' in _l:
                 _played.append(_l.split(b' ')[-1].strip())
-            else:
-                print(_l)
     return _played
 
 
