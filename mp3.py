@@ -1,9 +1,11 @@
 import struct
 import sys
-
+import logging
 # MP3 frames are not independent because of the byte reservoir. This script does not account for
 # that in determining where to do the split.
 # https://stackoverflow.com/questions/2952309/python-library-to-split-and-join-mp3-files
+
+logger = logging.getLogger(__name__)
 
 def detectlastframe(fi):
 
@@ -14,7 +16,6 @@ def detectlastframe(fi):
     countMpegFrames = 0
     frameDuration = 0.026
     unrecognizedBytes = 0
-    splitFrame = int(round(splitSec / frameDuration))
     fi.seek(0)
     framepos = fi.tell()
     
@@ -27,7 +28,7 @@ def detectlastframe(fi):
         if len(id3Start) == 3:
     
             if id3Start == b'TAG':
-                print ("Found ID3 v1/1.1 header")
+                logger.debug("Found ID3 v1/1.1 header")
                 fi.seek(startPos + 256)
                 continue
     
@@ -44,9 +45,9 @@ def detectlastframe(fi):
                         unsync = (flags >> 7) & 0x1
                         extendedHeader = (flags >> 6) & 0x1
                         experimental = (flags >> 5) & 0x1
-                        print ("Found ID3v2 header")
-                        print ("version", majorVer, minorVer, unsync, extendedHeader, experimental)
-                        print ("size", size)
+                        logger.debug("Found ID3v2 header")
+                        logger.debug("version %s %s %s %s %s", majorVer, minorVer, unsync, extendedHeader, experimental)
+                        logger.debug("size %s", size)
                         #TODO extendedHeader not supported yet
     
                         fi.seek(startPos + 10 + size)
@@ -60,7 +61,7 @@ def detectlastframe(fi):
     
             #Check for MPEG-1 audio frame
             if headerWord & 0xfff00000 == 0xfff00000:
-                print ("Possible MPEG-1 audio header", hex(headerWord))
+                logger.debug("Possible MPEG-1 audio header %s", hex(headerWord))
                 countMpegFrames += 1
                 ver = (headerWord & 0xf0000) >> 16
                 bitrateEnc = (headerWord & 0xf000) >> 12
@@ -68,21 +69,15 @@ def detectlastframe(fi):
                 mode = (headerWord & 0xf0) >> 4
                 cpy = (headerWord & 0xf)
                 if ver & 0xe == 0xa and freqEnc != 0xf:
-                    print ("Probably an MP3 frame")
+                    logger.debug("Probably an MP3 frame")
                     bitrate = bitrates[bitrateEnc]
                     freq = freqrates[freqEnc >> 2]
                     padding = ((freqEnc >> 1) & 0x1) == 1
-                    print ("bitrate", bitrate, "kbps")
-                    print ("freq", freq, "Hz")
-                    print ("padding", padding)
+                    logger.debug("bitrate %s kbps", bitrate)
+                    logger.debug("freq %s Hz", freq)
+                    logger.debug("padding %s", padding)
                     frameLen = int((144 * bitrate * 1000 / freq ) + padding)
                     framepos = fi.tell()
-    #                 fi.seek(startPos)
-    #                 frameData = fi.read(frameLen)
-    #                 if countMpegFrames >= splitFrame:
-    #                     out.write(frameData)
-    # 
-    #                 fi.seek(startPos + frameLen)
                     continue
                 else:
                     raise RuntimeError("Unsupported format:", hex(ver), "header:", hex(headerWord))
