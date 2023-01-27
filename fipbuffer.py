@@ -93,6 +93,7 @@ class FIPBuffer(threading.Thread):
         try:
             _lastframe = detectlastframe(buff)
         except RuntimeError:
+            logger.warn('Error detecting MP3 frame boundary.')
             _lastframe = -1
         fn = os.path.join(self.tmpdir, self.getfn())
         with open(fn, 'wb') as fh:
@@ -116,10 +117,12 @@ class FIPBuffer(threading.Thread):
         return self.t_start
 
     def writetoplaylsit(self, _fn):
+        fn = _fn
         if self.metadata:
-            fn = f'annotate:title="{self.fipmetadata.currenttrack}",artist="{self.fipmetadata.currentartist}":{_fn}'
-        else:
-            fn = _fn
+            # fn = f'annotate:title="{self.fipmetadata.currenttrack}",artist="{self.fipmetadata.currentartist}":{_fn}'
+            self.writetags(fn)
+        # else:
+        #     fn = _fn
         with self.lock:
             with open(self.playlist, 'ab') as fh:
                 fh.write(bytes(fn, encoding='UTF-8')+b'\n')
