@@ -82,6 +82,7 @@ class FIPBuffer(threading.Thread):
                 self.alive.clear()
                 break
             if self.fipmetadata.newtrack:
+                logger.debug("New track detected.")
                 buff = self.writebuff(buff)
 
         print("%s: dying." % self.name)
@@ -97,6 +98,7 @@ class FIPBuffer(threading.Thread):
             _lastframe = -1
         fn = os.path.join(self.tmpdir, self.getfn())
         with open(fn, 'wb') as fh:
+            buff.seek(0)
             fh.write(buff.read(_lastframe))
         self.f_counter += 1
 

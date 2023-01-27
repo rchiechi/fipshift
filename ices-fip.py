@@ -72,12 +72,15 @@ print("Saving files to %s" % ICESTMPDIR)
 
 logger = logging.getLogger(__package__)
 # NOTE: Setting DEBUG fills log with subprocess ffmpeg output
-# logger.setLevel(logging.DEBUG)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.INFO)
 loghandler = logging.FileHandler(os.path.join(TMPDIR,
                                  os.path.basename(sys.argv[0]).split('.')[0]+'.log'))
 loghandler.setFormatter(logging.Formatter('%(asctime)s %(process)d %(levelname)s %(message)s'))
 logger.addHandler(loghandler)
+streamhandler = logging.StreamHandler()
+streamhandler.setFormatter(logging.Formatter('%(asctime)s %(process)d %(levelname)s %(message)s'))
+logger.addHandler(streamhandler)
 
 with open(os.path.join(os.path.dirname(
           os.path.realpath(__file__)), 'ices-playlist.xml'), 'rt') as fr:
