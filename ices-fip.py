@@ -159,7 +159,8 @@ try:
             continue
         time.sleep(1)
         played = getplayed(ICESPLAYLIST)
-        if played:
+        if len(played) > 1:
+            logger.debug(played)
             played.pop()
             for _p in played:
                 if os.path.exists(_p):
