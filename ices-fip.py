@@ -158,7 +158,7 @@ try:
             ices = resumeplayback()
             continue
         time.sleep(1)
-        played = getplayed(os.path.join(ICESTMPDIR, 'ices.txt'))
+        played = getplayed(os.path.join(ICESTMPDIR, 'ices.log'))
         if len(played) > 1:
             played.pop()
             for _p in played:
