@@ -165,6 +165,14 @@ try:
                 if os.path.exists(_p):
                     with LOCK:
                         os.unlink(_p)
+                        _playlist = []
+                        with open(ICESPLAYLIST, 'rb') as fh:
+                            for _l in fh:
+                                if _l != _p:
+                                    _playlist.append(_l)
+                        with open(ICESPLAYLIST, 'wb') as fh:
+                            fh.write(b'\n'.join(_playlist))
+                        logger.info('Cleaned %s', os.path.basename(_p))
         if time.time() - epoch > opts.restart and opts.restart > 0:
             logger.warning("\nReached restart timeout, terminating...\n")
             raise(RestartTimeout(None, "Restarting"))
