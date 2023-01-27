@@ -37,6 +37,8 @@ from socket import timeout as socket_timeout
 # <?xml version="1.0"?>
 # <iceresponse><message>Metadata update successful</message><return>1</return></iceresponse>
 
+# https://gist.github.com/niko/2a1d7b2d109ebe7f7ca2f860c3505ef0
+
 class Ices(threading.Thread):
     
     def __init__(self, _username, _password, _iceserver, _mount):
