@@ -90,7 +90,10 @@ class FIPBuffer(threading.Thread):
 
     def writebuff(self, _buff):
         buff = BytesIO(b''.join(_buff))
-        _lastframe = detectlastframe(buff)
+        try:
+            _lastframe = detectlastframe(buff)
+        except RuntimeError:
+            _lastframe = -1
         fn = os.path.join(self.tmpdir, self.getfn())
         with open(fn, 'wb') as fh:
             fh.write(buff.read(_lastframe))
