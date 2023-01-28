@@ -6,8 +6,10 @@ import json
 import threading
 import logging
 import time
+from io import BytesIO
 from urllib.error import HTTPError, URLError
 from socket import timeout as socket_timeout
+from mp3 import detectlastframe
 from mutagen.mp3 import EasyMP3 as MP3
 from mutagen import MutagenError
 
@@ -26,9 +28,12 @@ def timeinhours(sec):
     sec_value %= 60
     return hour_value, mins
 
+
 class FIPBuffer(threading.Thread):
 
-    def __init__(self, _alive, _lock, _fqueue, _tmpdir, _playlist):
+    _metadata = False
+
+    def __init__(self, _alive, _lock, _fqueue, _tmpdir, _playlist=''):
         threading.Thread.__init__(self)
         self.setName('File Buffer Thread')
         self.alive = _alive
@@ -47,9 +52,10 @@ class FIPBuffer(threading.Thread):
         req = urllib.request.urlopen(FIPURL, timeout=10)
         retries = 0
         fip_error = False
+        buff = BytesIO()
         while self.alive.is_set():
             try:
-                buff = req.read(BLOCKSIZE)
+                buff.write(req.read(BLOCKSIZE))
                 retries = 0
             except URLError as error:
                 fip_error = True
@@ -65,34 +71,35 @@ class FIPBuffer(threading.Thread):
                 fip_error = False
                 if retries > 9:
                     logger.error("Maximum retries reached, bailing.")
-                    buff = ''
+                    print("\n%s: emtpy block after %s retries, dying.\n" % (retries, self.getName()))
+                    logger.error("%s: emtpy block after %s retries, dying.", retries, self.getName())
+                    self.alive.clear()
+                    break
                 else:
                     logger.warning("Fip stream error, retrying (%s)", retries)
                     req = urllib.request.urlopen(FIPURL, timeout=10)
                     continue
-            if not buff:
-                print("\n%s: emtpy block after %s retries, dying.\n" % (retries, self.getName()))
-                logger.error("%s: emtpy block after %s retries, dying.", retries, self.getName())
-                self.alive.clear()
-                break
-            fn = os.path.join(self.tmpdir, self.getfn())
-            with self.lock:
-                with open(self.playlist, 'ab') as fh:
-                    fh.write(bytes(fn, encoding='UTF-8')+b'\n')
-            with open(fn, 'wb') as fh:
-                fh.write(buff)
-            try:
-                _mp3 = MP3(fn)
-                _mp3['artist'] = self.fipmetadata.currentartist
-                _mp3['title'] = self.fipmetadata.currenttrack
-                _mp3.save()
-            except MutagenError:
-                logger.warn('Error writing metadata to %s', fn)
+            if self.fipmetadata.newtrack:
+                logger.debug("New track detected.")
+                buff = self.writebuff(buff)
 
-            self.f_counter += 1
         print("%s: dying." % self.name)
         logger.info("%s: dying.", self.name)
         self.fipmetadata.join()
+
+    def writebuff(self, buff):
+        _lastframe = detectlastframe(buff)
+        fn = os.path.join(self.tmpdir, self.getfn())
+        with open(fn, 'wb') as fh:
+            buff.seek(0)
+            fh.write(buff.read(_lastframe))
+        self.f_counter += 1
+
+        if self.fqueue is not None:
+            self.enqueue(fn)
+        if self.playlist:
+            self.writetoplaylsit(fn)
+        return BytesIO(buff.read())
 
     def getfn(self):
         return str(self.f_counter).zfill(16)
@@ -103,40 +110,79 @@ class FIPBuffer(threading.Thread):
     def getstarttime(self):
         return self.t_start
 
+    def writetoplaylsit(self, _fn):
+        fn = _fn
+        if self.metadata:
+            # fn = f'annotate:title="{self.fipmetadata.currenttrack}",artist="{self.fipmetadata.currentartist}":{_fn}'
+            self.writetags(fn)
+        # else:
+        #     fn = _fn
+        with self.lock:
+            with open(self.playlist, 'ab') as fh:
+                fh.write(bytes(fn, encoding='UTF-8')+b'\n')
+
+    def enqueue(self, fn):
+        self.fqueue.put(
+            (time.time(), fn, self.fipmetadata.getcurrent())
+        )
+
+    def writetags(self, fn):
+        try:
+            _mp3 = MP3(fn)
+            _mp3['artist'] = self.fipmetadata.currentartist
+            _mp3['title'] = self.fipmetadata.currenttrack
+            _mp3.save()
+        except MutagenError:
+            logger.warn('Error writing metadata to %s', fn)
+
+    @property
+    def metadata(self):
+        return self._metadata
+
+    @metadata.setter
+    def metadata(self, _bool):
+        if _bool:
+            self._metadata = True
+        else:
+            self._metadata = False
+
+
 class FIPMetadata(threading.Thread):
 
-    metadata = {"prev":[
-               {"firstLine":"FIP",
-                "secondLine":"Previous Track",
-                "thirdLine":"Previous Artist",
-                "cover":"Previous Cover",
-                "startTime":0,"endTime":1},
-               {"firstLine":"FIP",
-                "secondLine":"Previous Track",
-                "thirdLine":"Previous Artist",
-                "cover":"Previous Cover",
-                "startTime":2,
-                "endTime":3},
-               {"firstLine":"FIP",
-                "secondLine":"Previous Track",
-                "thirdLine":"Previous Artist",
-                "cover":"Previous Cover",
-                "startTime":4,
-                "endTime":5}],
+    _newtrack = False
+
+    metadata = {"prev": [
+               {"firstLine": "FIP",
+                "secondLine": "Previous Track",
+                "thirdLine": "Previous Artist",
+                "cover": "Previous Cover",
+                "startTime": 0, "endTime": 1},
+               {"firstLine": "FIP",
+                "secondLine": "Previous Track",
+                "thirdLine": "Previous Artist",
+                "cover": "Previous Cover",
+                "startTime": 2,
+                "endTime": 3},
+               {"firstLine": "FIP",
+                "secondLine": "Previous Track",
+                "thirdLine": "Previous Artist",
+                "cover": "Previous Cover",
+                "startTime": 4,
+                "endTime": 5}],
                 "now":
-                {"firstLine":"FIP",
-                 "secondLine":"Current Track",
-                 "thirdLine":"Current Artist",
-                 "cover":"Current Cover",
-                 "startTime":6,"endTime":7},
+                {"firstLine": "FIP",
+                 "secondLine": "Current Track",
+                 "thirdLine": "Current Artist",
+                 "cover": "Current Cover",
+                 "startTime": 6, "endTime": 7},
                 "next":
-                [{"firstLine":"FIP",
-                  "secondLine":"Next Track",
-                  "thirdLine":"Next Artist",
-                  "cover":"Next Cover",
-                  "startTime":8,
-                  "endTime":9}],
-                "delayToRefresh":220000}
+                [{"firstLine": "FIP",
+                  "secondLine": "Next Track",
+                  "thirdLine": "Next Artist",
+                  "cover": "Next Cover",
+                  "startTime": 8,
+                  "endTime": 9}],
+                "delayToRefresh": 220000}
 
     def __init__(self, _alive):
         threading.Thread.__init__(self)
@@ -157,9 +203,9 @@ class FIPMetadata(threading.Thread):
         track = self.metadata['now']['secondLine']
         artist = self.metadata['now']['thirdLine']
         if not isinstance(track, str):
-            track = 'Error fetching track'
+            track = 'Le track'
         if not isinstance(artist, str):
-            artist = 'Error fetching artist'
+            artist = 'Le artist'
         return {
             'track': track,
             'artist': artist
@@ -173,10 +219,18 @@ class FIPMetadata(threading.Thread):
     def currentartist(self):
         return self.getcurrent()['artist']
 
+    @property
+    def newtrack(self):
+        if self._newtrack:
+            self._newtrack = False
+            return True
+        return False
+
     def __updatemetadata(self):
         endtime = self.metadata['now']['endTime'] or 0
         if time.time() < endtime:
             return
+        self._newtrack = True
         self.metadata = FIPMetadata.metadata
         try:
             r = urllib.request.urlopen(self.metaurl, timeout=5)

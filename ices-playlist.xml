@@ -26,7 +26,7 @@
         <Genre>Eclectic</Genre>
         <Description>A time-shifted Fip stream</Description>
         <Mountpoint>%MOUNT%</Mountpoint>
-        <URL>fip.com</URL>
+        <URL>https://www.radiofrance.fr/fip</URL>
         <Bitrate>128</Bitrate>
         <Public>0</Public>
     </Stream>

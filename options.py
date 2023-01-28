@@ -17,9 +17,13 @@ def parseopts():
                         type=int,
                         help="Delay time in hours.")
 
-    parser.add_argument('-r','--restart', action=StoreHours, default=0,
+    parser.add_argument('-r', '--restart', action=StoreHours, default=0,
                         type=int,
                         help="Restart every n hours (0 means do not restart).")
+
+    parser.add_argument('-t', '--tag', action="store_true", default=False,
+                        # type=bool,
+                        help="Write metadata tags to ICY stream.")
 
     parser.add_argument('--configdir', action="store",
                         default=os.path.join(os.path.expanduser('~'),'.config'),
@@ -30,6 +34,7 @@ def parseopts():
                       'fipshift.conf')
                       )
     return opts, config
+
 
 def doconfig(config_file):
     '''Parse config file or write a default file.'''
@@ -53,5 +58,8 @@ class StoreHours(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         # print('%r %r %r' % (namespace, values, option_string))
-        setattr(namespace, self.dest, 3600*values)
+        if values < 0:
+            setattr(namespace, self.dest, 60)  # for debugging
+        else:
+            setattr(namespace, self.dest, 3600*values)
         # setattr(namespace, self.dest, values)

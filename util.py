@@ -27,12 +27,11 @@ def getplayed(tmpfile):
         if os.path.getsize(tmpfile) >= 524288:
             fh.seek(-524288, 2)
         for _l in fh:
-            # [2021-09-20  13:44:15] INFO playlist-builtin/playlist_read Currently playing "/tmp/fipshift/ices/0000000000000021"
-            if b'Currently playing' in _l:
-                _played.append(_l.split(b'"')[-2])
-    if not _played:
-        logger.warning('Did not find any entries in %s', tmpfile)
+            # Playing /tmp/fipshift/0000000000000001
+            if b'Playing ' in _l:
+                _played.append(_l.split(b' ')[-1].strip())
     return _played
+
 
 def getplaylist(playlist):
     _playlist = []
@@ -46,6 +45,14 @@ def getplaylist(playlist):
         logger.warning('Did not find any entries in %s', playlist)
     return _playlist
 
+
+def timeinhours(sec):
+    sec_value = sec % (24 * 3600)
+    hour_value = sec_value // 3600
+    sec_value %= 3600
+    mins = sec_value // 60
+    sec_value %= 60
+    return hour_value, mins
 
 class RestartTimeout(Exception):
     def __init__(self, expression, message):
