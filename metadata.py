@@ -1,4 +1,8 @@
+import threading
+import time
 import urllib.request
+from socket import timeout as socket_timeout
+import logging
 import base64
 import json
 from urllib.error import HTTPError, URLError
@@ -96,7 +100,7 @@ JSON_TEMPLATE ={
     "nowTime": 1674841458,
     "nowPercent": 55.4140127388535
   },
-  "migrated": true,
+  "migrated": True,
   "next": {
     "firstLine": {
       "id": None,
@@ -134,21 +138,120 @@ JSON_TEMPLATE ={
   }
 }
 
+logger = logging.getLogger(__package__)
+
+
+class FIPMetadata(threading.Thread):
+
+    _newtrack = False
+    metadata = JSON_TEMPLATE
+    metaurl = METAURL
+
+    def __init__(self, _alive):
+        threading.Thread.__init__(self)
+        self.name = 'Metadata Thread'
+        self.alive = _alive
+
+    def run(self):
+        print("Starting %s" % self.name)
+        logger.info("%s: starting.", self.name)
+        while self.alive.is_set():
+            self.__updatemetadata()
+            time.sleep(3)
+        print("%s: dying." % self.name)
+        logger.info("%s: dying.", self.name)
+
+    def __updatemetadata(self):
+        endtime = self.metadata['now']['endTime'] or 0
+        if time.time() < endtime:
+            return
+        self._newtrack = True
+        self.metadata = FIPMetadata.metadata
+        try:
+            r = urllib.request.urlopen(self.metaurl, timeout=5)
+            self.metadata = json.loads(r.read())
+        except json.decoder.JSONDecodeError:
+            pass
+        except urllib.error.URLError:
+            pass
+        except socket_timeout:
+            pass
+        if 'now' not in self.metadata:
+            self.metadata = FIPMetadata.metadata
+
+    def _getmeta(self, when):
+        track = self.metadata[when]['firstLine']['title']
+        artist = self.metadata[when]['secondLine']['title']
+        album = self.metadata[when]['song']['release']['title']
+        year = self.metadata[when]['song']['year']
+        coverart = self.metadata[when]['visuals']['card']['src']
+        if not isinstance(track, str):
+            track = 'Le track'
+        if not isinstance(artist, str):
+            artist = 'Le artist'
+        if not isinstance(album, str):
+            album = 'Le album'
+        if not isinstance(year, int):
+            year = '1789'
+        if not isinstance(coverart, str):
+            coverart = 'https://www.radiofrance.fr/s3/cruiser-production/2022/02/7eee98cb-3f59-4a3b-b921-6a4be85af542/250x250_visual-fip.jpg'
+        return {
+            'track': track,
+            'artist': artist,
+            'album': album,
+            'year': year,
+            'coverart': coverart
+        }
+
+    def getcurrent(self):
+        return self._getmeta('now')
+
+    @property
+    def track(self):
+        return self.getcurrent()['track']
+
+    @property
+    def artist(self):
+        return self.getcurrent()['artist']
+
+    @property
+    def album(self):
+        return self.getcurrent()['album']
+
+    @property
+    def year(self):
+        return self.getcurrent()['year']
+
+    @property
+    def coverart(self):
+        return self.getcurrent()['coverart']
+
+    @property
+    def newtrack(self):
+        if self._newtrack:
+            self._newtrack = False
+            return True
+        return False
+
 # Metadata channel
 
 # GET /admin/metadata?pass=hackme&mode=updinfo&mount=/mp3test&song=Even%20more%20meta%21%21 HTTP/1.0
 # Authorization: Basic c291cmNlOmhhY2ttZQ==
 # User-Agent: (Mozilla Compatible)
 
-class MetadataUpdater:
-    
-    def __init__(self, _username, _password, _iceserver, _mount:
-        self.auth = base64.b64encode('%s:%s' % (_username, _password))
-        self.url = f'{_iceserver}/admin/metadata?pass=hackme&mode=updinfo&mount=/{_mount}'
-        
-    def update(self, artist, track):
-
-        req = urllib.request.urlopen(url)
-        # req.add_header("Authorization", "Basic %s" % self.auth)
-        
-        result = urllib2.urlopen(request)
+if __name__ == '__main__':
+    logger.setLevel(logging.DEBUG)
+    streamhandler = logging.StreamHandler()
+    streamhandler.setFormatter(logging.Formatter('%(asctime)s %(process)d %(levelname)s %(message)s'))
+    logger.addHandler(streamhandler)
+    alive = threading.Event()
+    alive.set()
+    fipmeta = FIPMetadata(alive)
+    fipmeta.start()
+    while True:
+        time.sleep(5)
+        print(fipmeta.album)
+        print(fipmeta.artist)
+        print(fipmeta.album)
+        print(fipmeta.year)
+        print(fipmeta.coverart)

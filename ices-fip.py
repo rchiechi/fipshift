@@ -53,10 +53,10 @@ if 0 < opts.restart < opts.delay:
 
 try:
     TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
-    ICESTMPDIR = os.path.join(config['ICES']['tmpdir'],'fipshift','ices')
+    ICESTMPDIR = os.path.join(config['ICES']['tmpdir'], 'fipshift', 'ices')
     ICESTMPFILE = os.path.join(ICESTMPDIR, 'ices.log')
-    ICESPLAYLIST = os.path.join(ICESTMPDIR,'playlist.txt')
-    ICESCONFIG = os.path.join(ICESTMPDIR,'ices-playlist.xml')
+    ICESPLAYLIST = os.path.join(ICESTMPDIR, 'playlist.txt')
+    ICESCONFIG = os.path.join(ICESTMPDIR, 'ices-playlist.xml')
 except KeyError:
     print("Bad config file, please delete it from %s and try again." % opts.configdir)
     sys.exit(1)

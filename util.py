@@ -8,12 +8,12 @@ logger = logging.getLogger(__package__)
 def cleantmpdir(tmpdir):
     n = 0
     for tmpfn in os.listdir(tmpdir):
-        if os.path.isdir(os.path.join(tmpdir,tmpfn)):
-            sys.stdout.write("\nNot removing directory %s " % os.path.join(tmpdir,tmpfn))
+        if os.path.isdir(os.path.join(tmpdir, tmpfn)):
+            sys.stdout.write("\nNot removing directory %s " % os.path.join(tmpdir, tmpfn))
             continue
-        sys.stdout.write("\rClearning %s " % os.path.join(tmpdir,tmpfn))
+        sys.stdout.write("\rClearning %s " % os.path.join(tmpdir, tmpfn))
         sys.stdout.flush()
-        os.remove(os.path.join(tmpdir,tmpfn))
+        os.remove(os.path.join(tmpdir, tmpfn))
         n += 1
     print("\033[2K\rCleaned: %s files in %s. " % (n, tmpdir))
 
