@@ -227,6 +227,10 @@ class FIPMetadata(threading.Thread):
         return self.getcurrent()['coverart']
 
     @property
+    def slug(self):
+        return f'{self.track} - {self.artist} - {self.album}'
+
+    @property
     def newtrack(self):
         if self._newtrack:
             self._newtrack = False
