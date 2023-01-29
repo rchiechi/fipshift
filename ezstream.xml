@@ -11,6 +11,7 @@
   <servers>
     <server>
       <hostname>%HOST%</hostname>
+      <port>%PORT</port>
       <password>%PASSWORD%</password>
     </server>
   </servers>
@@ -18,14 +19,43 @@
   <streams>
     <stream>
       <mountpoint>/%MOUNT%</mountpoint>
-      <format>mp3</format>
+      <!--
+        Setting to allow stream to be listed in public YP directory
+        (default: no)
+        -->
+      <public>No</public>
+
+      <!-- Stream format: Ogg, MP3, WebM, Matroska -->
+      <format>MP3</format>
+
+      <!-- Encoder name (defined below) to use for (re)encoding -->
+      <encoder>limbmp3lame</encoder>
+
+      <!-- Various other informational settings -->
+      <stream_name>Fipshift</stream_name>
+      <stream_url>http://%HOST%:%PORT%/</stream_url>
+      <stream_genre>Eclectic</stream_genre>
+      <stream_description>Time-shifted Fip stream</stream_description>
+      <stream_bitrate>192</stream_bitrate>
+      <stream_samplerate>44100</stream_samplerate>
+      <stream_channels>2</stream_channels>
+
     </stream>
   </streams>
 
   <intakes>
     <intake>
+      <!--
+        Media type: autodetect, file, playlist, program, stdin
+       (default: autodetect)
+        -->
       <type>stdin</type>
+
+      <!-- Input file, program name, or "stdin" keyword (deprecated) -->
+      <!-- <filename>playlist.m3u</filename> -->
     </intake>
   </intakes>
+
+
 
 </ezstream>

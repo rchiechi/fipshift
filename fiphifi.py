@@ -187,7 +187,7 @@ class Ezstream(threading.Thread):
 
     def __init__(self, alive, lock, filequeue, **kwargs):
         threading.Thread.__init__(self)
-        self.name = 'Icecast Thread'
+        self.name = 'Ezstream Thread'
         self.alive = alive
         self.lock = lock
         self.filequeue = filequeue
@@ -206,9 +206,15 @@ class Ezstream(threading.Thread):
         lastmeta = ''
         ezstream = subprocess.Popen([self.ezstream, '-c', self.ezstreamxml, '-q'],
                                     stdin=subprocess.PIPE)
+                                    # ,
+                                    # stderr=subprocess.PIPE,
+                                    # stdout=subprocess.PIPE)
+
         while self.alive.is_set():
+            # logger.debug('Ezstream: %s', ezstream.stdout.read())
+            # logger.warn('Ezstream: %s', ezstream.stderr.read())
             if self.filequeue.empty():
-                time.sleep(0.5)
+                time.sleep(0.1)
                 continue
             _fn, _meta = self.filequeue.get()
             if _meta != lastmeta:
@@ -226,7 +232,7 @@ class Ezstream(threading.Thread):
                                             'pipe:1'],
                                            stdout=ezstream.stdin,
                                            stderr=subprocess.PIPE)
-                logger.debug('FFMPG: %s', _ffmpeg.stderr.read().split(b'\n'))
+                print(_ffmpeg.stderr.read())
                 os.unlink(_fn)
 
     def __updatemetadata(self, _meta):
@@ -238,8 +244,6 @@ class Ezstream(threading.Thread):
         _url = f'{self.iceserver}/admin/metadata?{_params}'
         req = requests.get(_url, params=_params, auth=self.auth)
         logger.debug('Metadata: %s', req.text)
-
-
 
 
 if __name__ == '__main__':

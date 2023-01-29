@@ -148,14 +148,19 @@ class FIPMetadata(threading.Thread):
         threading.Thread.__init__(self)
         self.name = 'Metadata Thread'
         self.alive = _alive
+        self.last_update = time.time()
 
     def run(self):
         logger.info(f"Starting {self.name}")
-        self.endtime = time.time() + 10
+        self.endtime = time.time() + 30
         session = requests.Session()
         while self.alive.is_set():
+            if time.time() - self.last_update > 60*10:
+                self.endtime = time.time()
+                logger.warn('Metadata: Forcing update.')
             time.sleep(5)
             self.__updatemetadata(session)
+
         logger.info(f"{self.name} dying")
 
     def __updatemetadata(self, session):
@@ -165,6 +170,7 @@ class FIPMetadata(threading.Thread):
         try:
             r = session.get(self.metaurl, timeout=5)
             self.metadata = r.json()
+            self.last_update = time.time()
         except requests.exceptions.JSONDecodeError:
             logger.error("JSON error fetching metadata from Fip.")
             self.endtime = time.time() + 10
