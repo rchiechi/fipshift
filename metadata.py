@@ -152,7 +152,7 @@ class FIPMetadata(threading.Thread):
 
     def run(self):
         logger.info(f"Starting {self.name}")
-        self.endtime = time.time() + 30
+        self.endtime = time.time() + 300
         session = requests.Session()
         while self.alive.is_set():
             if time.time() - self.last_update > 60*10:

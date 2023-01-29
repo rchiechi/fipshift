@@ -22,9 +22,13 @@ def parseopts():
                         type=int,
                         help="Restart every n hours (0 means do not restart).")
 
-    parser.add_argument('-t', '--tag', action="store_true", default=False,
-                        # type=bool,
-                        help="Write metadata tags to ICY stream.")
+    parser.add_argument('--ezstream', action="store", default='',
+                        type=str,
+                        help="Path to ezstream if not in PATH.")
+
+    parser.add_argument('--ffmpeg', action="store", default='',
+                        type=str,
+                        help="Path to ffmpeg if not in PATH.")
 
     parser.add_argument('--configdir', action="store",
                         default=os.path.join(os.path.expanduser('~'), '.config'),

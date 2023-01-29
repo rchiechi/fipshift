@@ -93,6 +93,7 @@ class FipChunks(threading.Thread):
         self.cue = os.path.join(self.tmpdir, 'metdata.txt')
         self.ffmpeg = kwargs.get('ffmpeg', '/usr/bin/ffmpeg')
         self.fipmeta = FIPMetadata(self.alive)
+        logging.getLogger("urllib3").setLevel(logging.WARN)
 
     def run(self):
         logger.info('Starting %s', self.name)
@@ -219,12 +220,19 @@ class Ezstream(threading.Thread):
 
     def run(self):
         logger.info('Starting %s', self.name)
+        while self.filequeue.empty():
+            logger.info('%s waiting for queue to fill.', self.name)
+            time.sleep(10)
         lastmeta = ''
-        fifo = os.path.join(self.tmpdir, 'fifo.mp3')
-        _ezcmd = [self.ezstream, '-c', self.ezstreamxml, '-q']
+        _ezcmd = [self.ezstream, '-c', self.ezstreamxml]
         ezstream = subprocess.Popen(_ezcmd, stdin=subprocess.PIPE)
         while self.alive.is_set():
+            # with open(os.path.join(self.tmpdir, 'ezstream.log'), 'at') as fh:
+            #     _stdout, _stderr = ezstream.communicate()
+            #     fh.write(_stdout.decode('utf-8'))
+            #     fh.write(_stderr.decode('utf-8'))
             if self.filequeue.empty():
+                logger.warn('%s empty queue', self.name)
                 time.sleep(0.1)
                 continue
             _fn, _meta = self.filequeue.get()
@@ -233,20 +241,20 @@ class Ezstream(threading.Thread):
                 try:
                     self.__updatemetadata(_meta)
                 except requests.exceptions.ConnectionError as msg:
-                    logger.warn('Metadata: %s: %s', self.name, msg)
+                    logger.warning('Metadata: %s: %s', self.name, msg)
             else:
                 logger.debug('%s: Metadata unchanged', self.name)
             if ezstream.poll() is not None:
-                logger.warn("Ezstream died.")
+                logger.warning("Ezstream died.")
                 ezstream = subprocess.Popen(_ezcmd, stdin=subprocess.PIPE)
-      
+
             with open(_fn, 'rb') as fh:
+                logger.debug('%s sending %s', self.name, _fn)
                 ezstream.stdin.write(fh.read())
 
             os.unlink(_fn)
             logger.debug("Cleaned up %s", _fn)
         ezstream.kill()
-        os.unlink(fifo)
         logger.info('%s dying', self.name)
 
     def __updatemetadata(self, _meta):
@@ -261,8 +269,6 @@ class Ezstream(threading.Thread):
 
 
 if __name__ == '__main__':
-
-    logger = logging.getLogger(__package__)
     logger.setLevel(logging.DEBUG)
     streamhandler = logging.StreamHandler()
     streamhandler.setFormatter(logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s'))

@@ -8,9 +8,10 @@ import logging
 import signal
 import time
 import subprocess
+import queue
 import re
-from util import RestartTimeout, cleantmpdir, getplayed, getplaylist
-from fiphifi import FipPlaylist, FipChunks
+from util import RestartTimeout, cleantmpdir
+from fiphifi import FipPlaylist, FipChunks, Ezstream
 from options import parseopts
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
@@ -23,6 +24,9 @@ def killbuffer(signum, frame):  # pylint: disable=unused-argument
     print("\nReceived %s, killing buffer thread." % signum)
     ALIVE.clear()
     logger.info("Received %s, killing buffer thread.", signum)
+    for _thread in threading.enumerate():
+        if _thread != threading.main_thread():
+            _thread.join()
 
 
 # # # # # MAIN () # # # # # #
@@ -30,23 +34,25 @@ def killbuffer(signum, frame):  # pylint: disable=unused-argument
 
 opts, config = parseopts()
 
-p = subprocess.run(['which', 'ezstream'], capture_output=True)
-if p.returncode == 0:
-    EZSTREAM = p.stdout.strip()
+if opts.ezstream:
+    EZSTREAM = opts.ezstream
 else:
-    print("I could not locate the ezstream binary in the PATH.")
-    sys.exit()
+    p = subprocess.run(['which', 'ezstream'], capture_output=True)
+    if p.returncode == 0:
+        EZSTREAM = p.stdout.strip()
+    else:
+        print("I could not locate the ezstream binary in the PATH.")
+        sys.exit()
 
-p = subprocess.run(['which', 'ffmpeg'], capture_output=True)
-if p.returncode == 0:
-    FFMPEG = p.stdout.strip()
+if opts.ffmpeg:
+    FFMPEG = opts.ffmpeg
 else:
-    print("I could not locate the ffmpeg binary in the PATH.")
-    sys.exit()
-
-if opts.delay < 30:
-    print("The delay is too short to fill the buffer, please try again with a larger delay.")
-    sys.exit(1)
+    p = subprocess.run(['which', 'ffmpeg'], capture_output=True)
+    if p.returncode == 0:
+        FFMPEG = p.stdout.strip()
+    else:
+        print("I could not locate the ffmpeg binary in the PATH.")
+        sys.exit()
 
 if 0 < opts.restart < opts.delay:
     print("Restart delay must be larger than buffer delay.")
@@ -97,80 +103,42 @@ with open(os.path.join(os.path.dirname(
 logger.info("Starting buffer threads.")
 signal.signal(signal.SIGHUP, killbuffer)
 ALIVE.set()
-fipbuffer = FIPBuffer(ALIVE, LOCK, None, TMPDIR, EZSTREAMPLAYLIST)
-if opts.tag:
-    fipbuffer.metadata = True
-fipbuffer.start()
+_queue = queue.Queue()
+pl = FipPlaylist(ALIVE, _queue)
+dl = FipChunks(ALIVE, LOCK, _queue, ffmpeg=FFMPEG)
+ezstreamcast = Ezstream(ALIVE, LOCK, dl.filequeue,
+                        tmpdir=dl.tmpdir,
+                        auth=('source', config['EZSTREAM']['PASSWORD'])
+                        )
 epoch = time.time()
 time.sleep(3)
 
 try:
-    while fipbuffer.getruntime() < opts.delay:
-        _remains = (opts.delay - fipbuffer.getruntime())/60 or 1
+    _runtime = time.time() - epoch
+    while _runtime < opts.delay:
+        _remains = (opts.delay - _runtime)/60 or 1
         # _remains = (opts.delay - fipbuffer.getruntime()) or 1
         sys.stdout.write("\033[2K\rBuffering for %0.0f min. " % _remains)
         sys.stdout.flush()
         time.sleep(10)
 except KeyboardInterrupt:
-    print("Killing %s" % fipbuffer.name)
+    print("Killing %s" % ezstreamcast.name)
     killbuffer('KEYBOARDINTERRUPT', None)
-    fipbuffer.join()
     sys.exit()
 
-ezstream_cmd = [EZSTREAM, '-c',
-            os.path.basename(EZSTREAMCONFIG),
-            '-P', config['EZSTREAM']['PASSWORD'],
-            '-h', config['EZSTREAM']['HOST'],
-            '-p', config['EZSTREAM']['PORT']]
-
-ezstream = subprocess.Popen(ezstream_cmd, cwd=EZSTREAMTMPDIR)
-logger.info("Started ezstream with pid %s", ezstream.pid)
+ezstreamcast.start()
+logger.info("Started %s", ezstreamcast.name)
 time.sleep(5)
-
-
-def resumeplayback():
-    logger.warning("ezstream process died")
-    played = getplayed(EZSTREAMTMPFILE)
-    playlist = getplaylist(EZSTREAMPLAYLIST)
-    if played and playlist:
-        for _e in enumerate(playlist):
-            if _e[1] == played[-1]:
-                with LOCK:
-                    with open(EZSTREAMPLAYLIST, 'wb') as fh:
-                        logger.info("Resuming playback from %s", playlist[_e[0]])
-                        for _ogg in playlist[_e[0]:]:
-                            if os.path.exists(_ogg):
-                                fh.write(_ogg+b'\n')
-                            else:
-                                logger.warning("%s does not exist, not writing to playlist.", _ogg)
-                break
-    ezstream = subprocess.Popen(ezstream_cmd, cwd=EZSTREAMTMPDIR)
-    logger.info("Restarted ezstream with pid %s.", ezstream.pid)
-    time.sleep(5)
-    return ezstream
-
 
 try:
     while True:
+        for _thread in threading.enumerate():
+            if not _thread.is_alive():
+                logger.warning("%s is dead!", _thread.name)
         if ezstream.poll() is not None:
             ezstream = resumeplayback()
             continue
         time.sleep(1)
-        played = getplayed(os.path.join(EZSTREAMTMPDIR, 'ezstream.log'))
-        if len(played) > 1:
-            played.pop()
-            for _p in played:
-                if os.path.exists(_p):
-                    with LOCK:
-                        os.unlink(_p)
-                        _playlist = []
-                        with open(EZSTREAMPLAYLIST, 'rb') as fh:
-                            for _l in fh:
-                                if _l != _p:
-                                    _playlist.append(_l)
-                        with open(EZSTREAMPLAYLIST, 'wb') as fh:
-                            fh.write(b'\n'.join(_playlist))
-                        logger.info('Cleaned %s', os.path.basename(_p))
         if time.time() - epoch > opts.restart and opts.restart > 0:
             logger.warning("\nReached restart timeout, terminating...\n")
             raise(RestartTimeout(None, "Restarting"))
@@ -181,9 +149,7 @@ except KeyboardInterrupt:
 except RestartTimeout:
     ezstream.terminate()
     killbuffer('RESTARTTIMEOUT', None)
-    fipbuffer.join()
     os.execv(__file__, sys.argv)
 
 killbuffer('EZSTREAMDIED', None)
-fipbuffer.join()
 cleantmpdir(TMPDIR)

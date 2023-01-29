@@ -52,7 +52,7 @@
       <type>stdin</type>
 
       <!-- Input file, program name, or "stdin" keyword (deprecated) -->
-      <filename>%PLAYLIST%</filename>
+      <!-- <filename>%PLAYLIST%</filename> -->
     </intake>
   </intakes>
 
