@@ -1,11 +1,8 @@
 import threading
 import time
-import urllib.request
-from socket import timeout as socket_timeout
+import requests
 import logging
-import base64
-import json
-from urllib.error import HTTPError, URLError
+
 
 METAURL = 'https://www.radiofrance.fr/api/v2.1/stations/fip/live'
 
@@ -153,31 +150,29 @@ class FIPMetadata(threading.Thread):
         self.alive = _alive
 
     def run(self):
-        print("Starting %s" % self.name)
-        logger.info("%s: starting.", self.name)
+        logger.info(f"Starting {self.name}")
+        self.endtime = time.time() + 10
+        session = requests.Session()
         while self.alive.is_set():
-            self.__updatemetadata()
-            time.sleep(3)
-        print("%s: dying." % self.name)
-        logger.info("%s: dying.", self.name)
+            time.sleep(5)
+            self.__updatemetadata(session)
+        logger.info(f"{self.name} dying")
 
-    def __updatemetadata(self):
-        endtime = self.metadata['now']['endTime'] or 0
-        if time.time() < endtime:
+    def __updatemetadata(self, session):
+        if time.time() < self.endtime:
             return
         self._newtrack = True
-        self.metadata = FIPMetadata.metadata
         try:
-            r = urllib.request.urlopen(self.metaurl, timeout=5)
-            self.metadata = json.loads(r.read())
-        except json.decoder.JSONDecodeError:
+            r = session.get(self.metaurl, timeout=5)
+            self.metadata = r.json()
+        except requests.exceptions.JSONDecodeError:
+            logger.error("JSON error fetching metadata from Fip.")
+            self.endtime = time.time() + 10
             pass
-        except urllib.error.URLError:
-            pass
-        except socket_timeout:
-            pass
-        if 'now' not in self.metadata:
-            self.metadata = FIPMetadata.metadata
+        if self.metadata is None:
+            self.metadata = JSON_TEMPLATE
+            self.endtime = time.time() + 10
+            logger.error("Error fetching metadata from Fip.")
 
     def _getmeta(self, when):
         track = self.metadata[when]['firstLine']['title']
@@ -237,11 +232,24 @@ class FIPMetadata(threading.Thread):
             return True
         return False
 
+    @property
+    def remains(self):
+        return self.endtime - time.time()
+
+    @property
+    def endtime(self):
+        return self.metadata['now']['endTime']
+
+    @endtime.setter
+    def endtime(self, _time):
+        self.metadata['now']['endTime'] = _time
+
 # Metadata channel
 
 # GET /admin/metadata?pass=hackme&mode=updinfo&mount=/mp3test&song=Even%20more%20meta%21%21 HTTP/1.0
 # Authorization: Basic c291cmNlOmhhY2ttZQ==
 # User-Agent: (Mozilla Compatible)
+
 
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)

@@ -1,14 +1,17 @@
 import os
+import sys
 import time
 import logging
 import threading
 import queue
-import urllib.request
+import subprocess
+from tempfile import TemporaryDirectory
+from urllib.parse import urlparse
 import re
-import json
-from urllib.error import HTTPError, URLError
-from socket import timeout as socket_timeout
+import io
 from metadata import FIPMetadata
+import requests
+
 
 FIPLIST = 'https://stream.radiofrance.fr/fip/fip_hifi.m3u8?id=radiofrance'
 FIPBASEURL = 'https://stream.radiofrance.fr'
@@ -20,31 +23,25 @@ logger = logging.getLogger(__package__)
 
 class FipPlaylist(threading.Thread):
 
-    def __init__(self, alive, lock, tmpdir):
+    def __init__(self, alive, _queue):
         threading.Thread.__init__(self)
+        self.name = 'FipPlaylist Thread'
         self.alive = alive
-        self.lock = lock
-        self.buff = queue.Queue()
-        self.fiphifi = FipHifi(self.alive, self.lock, self.buff, tmpdir)
-        self.fiphifi.start()
+        self.buff = _queue
 
     def run(self):
+        logger.info('Starting %s', self.name)
         fip_error = False
+        session = requests.Session()
         while self.alive.is_set():
-            req = urllib.request.urlopen(FIPLIST)
+            req = session.get(FIPLIST)
             time.sleep(1)
             try:
-                self.parselist(req.read())
+                self.parselist(req.text)
                 retries = 0
-            except URLError as error:
+            except requests.exceptions.ConnectionError as error:
                 fip_error = True
-                logger.warning("A URLError has occured: %s", error)
-            except HTTPError as error:
-                fip_error = True
-                logger.warning("An HTTPerror has occured: %s", error)
-            except socket_timeout as error:
-                fip_error = True
-                logger.warning("Socket timeout: %s", error)
+                logger.warning("A ConnectionError has occured: %s", error)
             if fip_error:
                 retries += 1
                 fip_error = False
@@ -57,12 +54,13 @@ class FipPlaylist(threading.Thread):
                 else:
                     logger.warning("Fip playlist stream error, retrying (%s)", retries)
                     continue
+        logger.info('%s dying', self.name)
 
     def parselist(self, _m3u):
         if not _m3u:
             return
         _urlz = []
-        for _l in str(_m3u, encoding='utf8').split('\n'):
+        for _l in _m3u.split('\n'):
             if not _l:
                 continue
             if _l[0] == '#':
@@ -72,42 +70,45 @@ class FipPlaylist(threading.Thread):
             self.buff.put(f'{FIPBASEURL}{_url}')
 
 
-class FipHifi(threading.Thread):
+class FipChunks(threading.Thread):
 
-    def __init__(self, alive, lock, queue, tmpdir):
+    metamap = {}
+    _empty = True
+
+    def __init__(self, alive, lock, urlqueue, **kwargs):
         threading.Thread.__init__(self)
+        self.name = 'FipChunk Thread'
         self.alive = alive
         self.lock = lock
-        self.queue = queue
-        self.tmpdir = tmpdir
-        self.cue = os.path.join(tmpdir, 'metdata.json')
+        self.urlqueue = urlqueue
+        self.filequeue = queue.Queue()
+        self._tmpdir = kwargs.get('tmpdir', TemporaryDirectory())
+        self._spool = os.path.join(self.tmpdir, 'spool.bin')
+        self.cue = os.path.join(self.tmpdir, 'metdata.txt')
         self.fipmeta = FIPMetadata(self.alive)
 
     def run(self):
+        logger.info('Starting %s', self.name)
+        self.fipmeta.start()
         fip_error = False
+        session = requests.Session()
         while self.alive.is_set():
-            if self.queue.empty():
+            if self.urlqueue.empty():
                 time.sleep(1)
                 continue
-            _url = self.queue.get()
+            _url = self.urlqueue.get()
             _m = re.match(AACRE, _url)
             if _m is None:
-                logger.warn("Empty URL?")
+                logger.warning("Empty URL?")
                 continue
             fn = _m.groups()[0]
-            req = urllib.request.urlopen(_url)
+            req = session.get(_url)
             try:
-                self.handlechunk(fn, req.read())
+                self.__handlechunk(fn, req.content)
                 retries = 0
-            except URLError as error:
+            except requests.exceptions.ConnectionError as error:
                 fip_error = True
-                logger.warning("A URLError has occured: %s", error)
-            except HTTPError as error:
-                fip_error = True
-                logger.warning("An HTTPerror has occured: %s", error)
-            except socket_timeout as error:
-                fip_error = True
-                logger.warning("Socket timeout: %s", error)
+                logger.warning("A ConnectionError has occured: %s", error)
             if fip_error:
                 retries += 1
                 fip_error = False
@@ -120,23 +121,169 @@ class FipHifi(threading.Thread):
                 else:
                     logger.warning("Fip playlist stream error, retrying (%s)", retries)
                     continue
+        logger.info('%s dying', self.name)
 
-    def handlechunk(self, _fn, _chunk):
+    def __handlechunk(self, _fn, _chunk):
+        self.__writespool(_chunk)
+        if not self.fipmeta.newtrack:
+            return
+        chunk = self.__readspool()
         fn = os.path.join(self.tmpdir, _fn)
         with open(fn, 'wb') as fh:
-            fh.write(_chunk)
+            fh.write(chunk)
+        _meta = self.fipmeta.slug
+        self.filequeue.put((fn, _meta))
         with self.lock:
             with open(self.cue, 'at') as fh:
-                fh.write(f'{fn}%{self.fipmeta.slug}\n')
+                fh.write(f'{fn}%{_meta}\n')
+            self.metamap[fn] = _meta
+        self._empty = False
+
+    def __writespool(self, _chunk):
+        with open(self._spool, 'ab') as fh:
+            fh.write(_chunk)
+
+    def __readspool(self):
+        with open(self._spool, 'rb') as fh:
+            _chunk = fh.read()
+        os.unlink(self._spool)
+        return _chunk
+
+    @property
+    def getmetadata(self, fn):
+        _metamap = {}
+        with self.lock:
+            for _fn in self.metamap:
+                if os.path.exists(_fn):
+                    _metamap[_fn] = self.metamap[_fn]
+            self.metamap = _metamap
+        return _metamap.get(fn, '')
+
+    @property
+    def tmpdir(self):
+        try:
+            _tmpdir = self._tmpdir.name
+        except AttributeError:
+            _tmpdir = self._tmpdir
+        with self.lock:
+            return _tmpdir
+
+    @tmpdir.setter
+    def tmpdir(self, _dir):
+        if os.path.exists(_dir):
+            with self.lock:
+                self._tmpdir = _dir
+
+    @property
+    def empty(self):
+        return self._empty
+
+    @property
+    def remains(self):
+        return self.fipmeta.remains
+
+
+class Ezstream(threading.Thread):
+
+    def __init__(self, alive, lock, filequeue, **kwargs):
+        threading.Thread.__init__(self)
+        self.name = 'Icecast Thread'
+        self.alive = alive
+        self.lock = lock
+        self.filequeue = filequeue
+        _server = kwargs.get('server', 'localhost')
+        _port = kwargs.get('port', '8000')
+        self.iceserver = f'http://{_server}:{_port}'
+        self.mount = kwargs.get('mount', 'fipshift')
+        _auth = kwargs.get('auth', ['', ''])
+        self.auth = requests.auth.HTTPBasicAuth(_auth[0], _auth[1])
+        self.ffmpeg = kwargs.get('ffmpeg', '/usr/bin/ffmpeg')
+        self.ezstream = kwargs.get('ezstream', '/usr/local/bin/ezstream')
+        self.ezstreamxml = kwargs.get('ezstreamxml', '/tmp/fipshift/ezstream/ezstream.xml')
+
+    def run(self):
+        logger.info('Starting %s', self.name)
+        lastmeta = ''
+        ezstream = subprocess.Popen([self.ezstream, '-c', self.ezstreamxml, '-q'],
+                                    stdin=subprocess.PIPE)
+        while self.alive.is_set():
+            if self.filequeue.empty():
+                time.sleep(0.5)
+                continue
+            _fn, _meta = self.filequeue.get()
+            if _meta != lastmeta:
+                lastmeta = _meta
+                try:
+                    self.__updatemetadata(_meta)
+                except requests.exceptions.ConnectionError as msg:
+                    logger.warn('Metadata: %s: %s', self.name, msg)
+            with self.lock:
+                _ffmpeg = subprocess.Popen([self.ffmpeg,
+                                            '-i', _fn,
+                                            '-acodec', 'libmp3lame',
+                                            '-b:a', '192k',
+                                            '-f', 'mp3',
+                                            'pipe:1'],
+                                           stdout=ezstream.stdin,
+                                           stderr=subprocess.PIPE)
+                logger.debug('FFMPG: %s', _ffmpeg.stderr.read().split(b'\n'))
+                os.unlink(_fn)
+
+    def __updatemetadata(self, _meta):
+        _params = {
+            'mode': 'updinfo',
+            'mount': f'/{self.mount}',
+            'song': _meta
+        }
+        _url = f'{self.iceserver}/admin/metadata?{_params}'
+        req = requests.get(_url, params=_params, auth=self.auth)
+        logger.debug('Metadata: %s', req.text)
+
+
 
 
 if __name__ == '__main__':
+
+    logger = logging.getLogger(__package__)
+    logger.setLevel(logging.DEBUG)
+    streamhandler = logging.StreamHandler()
+    streamhandler.setFormatter(logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s'))
+    logger.addHandler(streamhandler)
+    logging.getLogger("urllib3").setLevel(logging.WARN)
     alive = threading.Event()
     lock = threading.Lock()
+    _queue = queue.Queue()
     alive.set()
-    os.mkdir('/tmp/fiptest')
-    pl = FipPlaylist(alive, lock, '/tmp/fiptest')
+    pl = FipPlaylist(alive, _queue)
+    dl = FipChunks(alive, lock, _queue)
+    EZSTREAMCONFIG = os.path.join(dl.tmpdir, 'ezstream.xml')
+    with open(os.path.join(os.path.dirname(
+        os.path.realpath(__file__)), 'ezstream.xml'), 'rt') as fr:
+        rep = {'%HOST%': '127.0.0.1',
+            '%PORT%': '8000',
+            '%PASSWORD%': 'im08en',
+            '%MOUNT%':'fipshift'}
+        rep = dict((re.escape(k), v) for k, v in rep.items())
+        pattern = re.compile("|".join(rep.keys()))
+        xml = pattern.sub(lambda m: rep[re.escape(m.group(0))], fr.read())
+    with open(EZSTREAMCONFIG, 'wt') as fw:
+        fw.write(xml)
+    ezstreamcast = Ezstream(alive, lock, dl.filequeue,
+                            ffmpeg='/home/rchiechi/bin/ffmpeg',
+                            ezstreamxml=EZSTREAMCONFIG,
+                            auth=('source', 'im08en')
+                            )
     try:
         pl.start()
+        dl.start()
+        time.sleep(3)
+        logger.debug('tmpdir is %s', dl.tmpdir)
+        while dl.remains > 0:
+            sys.stdout.write(f"\rWaiting {dl.remains:.0f}s for cache to fill...")
+            sys.stdout.flush()
+            time.sleep(1)
+        print('\nStarting cast.')
+        ezstreamcast.start()
     except KeyboardInterrupt:
         alive.clear()
+        ezstreamcast.join()
