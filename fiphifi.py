@@ -28,6 +28,7 @@ class FipPlaylist(threading.Thread):
         self.name = 'FipPlaylist Thread'
         self.alive = alive
         self.buff = _queue
+        self.history = []
 
     def run(self):
         logger.info('Starting %s', self.name)
@@ -54,6 +55,9 @@ class FipPlaylist(threading.Thread):
                 else:
                     logger.warning("Fip playlist stream error, retrying (%s)", retries)
                     continue
+            if len(self.history) > 1024:
+                self.history = self.history[1024:]
+
         logger.info('%s dying', self.name)
 
     def parselist(self, _m3u):
@@ -65,7 +69,9 @@ class FipPlaylist(threading.Thread):
                 continue
             if _l[0] == '#':
                 continue
-            _urlz.append(_l)
+            if _l not in self.history:
+                _urlz.append(_l)
+                self.history.append(_l)
         for _url in _urlz:
             self.buff.put(f'{FIPBASEURL}{_url}')
 
@@ -83,8 +89,9 @@ class FipChunks(threading.Thread):
         self.urlqueue = urlqueue
         self.filequeue = queue.Queue()
         self._tmpdir = kwargs.get('tmpdir', TemporaryDirectory())
-        self._spool = os.path.join(self.tmpdir, 'spool.bin')
+        self.spool = os.path.join(self.tmpdir, 'spool.bin')
         self.cue = os.path.join(self.tmpdir, 'metdata.txt')
+        self.ffmpeg = kwargs.get('ffmpeg', '/usr/bin/ffmpeg')
         self.fipmeta = FIPMetadata(self.alive)
 
     def run(self):
@@ -124,30 +131,39 @@ class FipChunks(threading.Thread):
         logger.info('%s dying', self.name)
 
     def __handlechunk(self, _fn, _chunk):
-        self.__writespool(_chunk)
+        if not _chunk:
+            logger.warn("%s empty chunk", self.name)
+            return
+        with open(self.spool, 'ab') as fh:
+            fh.write(_chunk)
         if not self.fipmeta.newtrack:
             return
-        chunk = self.__readspool()
-        fn = os.path.join(self.tmpdir, _fn)
-        with open(fn, 'wb') as fh:
-            fh.write(chunk)
+        fn = os.path.join(self.tmpdir, f'{_fn}.mp3')
+        self.__ffmpeg(fn)
         _meta = self.fipmeta.slug
-        self.filequeue.put((fn, _meta))
+        if os.path.exists(fn):
+            self.filequeue.put((fn, _meta))
+        else:
+            logger.error("Failed to create %s", fn)
         with self.lock:
             with open(self.cue, 'at') as fh:
                 fh.write(f'{fn}%{_meta}\n')
             self.metamap[fn] = _meta
         self._empty = False
 
-    def __writespool(self, _chunk):
-        with open(self._spool, 'ab') as fh:
-            fh.write(_chunk)
-
-    def __readspool(self):
-        with open(self._spool, 'rb') as fh:
-            _chunk = fh.read()
-        os.unlink(self._spool)
-        return _chunk
+    def __ffmpeg(self, _out):
+        subprocess.run([self.ffmpeg,
+                          '-i', self.spool,
+                          '-acodec', 'libmp3lame',
+                          '-b:a', '192k',
+                          '-f', 'mp3',
+                          '-y',
+                        _out],
+                        cwd=self.tmpdir,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE)
+        os.unlink(self.spool)
+        self._empty = True
 
     @property
     def getmetadata(self, fn):
@@ -197,22 +213,17 @@ class Ezstream(threading.Thread):
         self.mount = kwargs.get('mount', 'fipshift')
         _auth = kwargs.get('auth', ['', ''])
         self.auth = requests.auth.HTTPBasicAuth(_auth[0], _auth[1])
-        self.ffmpeg = kwargs.get('ffmpeg', '/usr/bin/ffmpeg')
         self.ezstream = kwargs.get('ezstream', '/usr/local/bin/ezstream')
-        self.ezstreamxml = kwargs.get('ezstreamxml', '/tmp/fipshift/ezstream/ezstream.xml')
+        self.tmpdir = kwargs.get('tmpdir', '/tmp/fipshift/ezstream')
+        self.ezstreamxml = os.path.join(self.tmpdir, 'ezstream.xml')
 
     def run(self):
         logger.info('Starting %s', self.name)
         lastmeta = ''
-        ezstream = subprocess.Popen([self.ezstream, '-c', self.ezstreamxml, '-q'],
-                                    stdin=subprocess.PIPE)
-                                    # ,
-                                    # stderr=subprocess.PIPE,
-                                    # stdout=subprocess.PIPE)
-
+        fifo = os.path.join(self.tmpdir, 'fifo.mp3')
+        _ezcmd = [self.ezstream, '-c', self.ezstreamxml, '-q']
+        ezstream = subprocess.Popen(_ezcmd, stdin=subprocess.PIPE)
         while self.alive.is_set():
-            # logger.debug('Ezstream: %s', ezstream.stdout.read())
-            # logger.warn('Ezstream: %s', ezstream.stderr.read())
             if self.filequeue.empty():
                 time.sleep(0.1)
                 continue
@@ -223,17 +234,20 @@ class Ezstream(threading.Thread):
                     self.__updatemetadata(_meta)
                 except requests.exceptions.ConnectionError as msg:
                     logger.warn('Metadata: %s: %s', self.name, msg)
-            with self.lock:
-                _ffmpeg = subprocess.Popen([self.ffmpeg,
-                                            '-i', _fn,
-                                            '-acodec', 'libmp3lame',
-                                            '-b:a', '192k',
-                                            '-f', 'mp3',
-                                            'pipe:1'],
-                                           stdout=ezstream.stdin,
-                                           stderr=subprocess.PIPE)
-                print(_ffmpeg.stderr.read())
-                os.unlink(_fn)
+            else:
+                logger.debug('%s: Metadata unchanged', self.name)
+            if ezstream.poll() is not None:
+                logger.warn("Ezstream died.")
+                ezstream = subprocess.Popen(_ezcmd, stdin=subprocess.PIPE)
+      
+            with open(_fn, 'rb') as fh:
+                ezstream.stdin.write(fh.read())
+
+            os.unlink(_fn)
+            logger.debug("Cleaned up %s", _fn)
+        ezstream.kill()
+        os.unlink(fifo)
+        logger.info('%s dying', self.name)
 
     def __updatemetadata(self, _meta):
         _params = {
@@ -259,11 +273,12 @@ if __name__ == '__main__':
     _queue = queue.Queue()
     alive.set()
     pl = FipPlaylist(alive, _queue)
-    dl = FipChunks(alive, lock, _queue)
+    dl = FipChunks(alive, lock, _queue, ffmpeg='/home/rchiechi/bin/ffmpeg')
     EZSTREAMCONFIG = os.path.join(dl.tmpdir, 'ezstream.xml')
     with open(os.path.join(os.path.dirname(
         os.path.realpath(__file__)), 'ezstream.xml'), 'rt') as fr:
-        rep = {'%HOST%': '127.0.0.1',
+        rep = {'%PLAYLIST%': os.path.join(dl.tmpdir, 'fifo.mp3'),
+            '%HOST%': '127.0.0.1',
             '%PORT%': '8000',
             '%PASSWORD%': 'im08en',
             '%MOUNT%':'fipshift'}
@@ -273,8 +288,7 @@ if __name__ == '__main__':
     with open(EZSTREAMCONFIG, 'wt') as fw:
         fw.write(xml)
     ezstreamcast = Ezstream(alive, lock, dl.filequeue,
-                            ffmpeg='/home/rchiechi/bin/ffmpeg',
-                            ezstreamxml=EZSTREAMCONFIG,
+                            tmpdir=dl.tmpdir,
                             auth=('source', 'im08en')
                             )
     try:

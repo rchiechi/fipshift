@@ -76,7 +76,7 @@ logger.setLevel(logging.DEBUG)
 # logger.setLevel(logging.INFO)
 loghandler = logging.FileHandler(os.path.join(TMPDIR,
                                  os.path.basename(sys.argv[0]).split('.')[0]+'.log'))
-loghandler.setFormatter(logging.Formatter('%(asctime)s %(process)d %(levelname)s %(message)s'))
+loghandler.setFormatter(logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s'))
 logger.addHandler(loghandler)
 streamhandler = logging.StreamHandler()
 streamhandler.setFormatter(logging.Formatter('%(asctime)s %(process)d %(levelname)s %(message)s'))
