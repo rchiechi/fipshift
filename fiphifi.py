@@ -215,8 +215,8 @@ class Ezstream(threading.Thread):
         _auth = kwargs.get('auth', ['', ''])
         self.auth = requests.auth.HTTPBasicAuth(_auth[0], _auth[1])
         self.ezstream = kwargs.get('ezstream', '/usr/local/bin/ezstream')
-        self.tmpdir = kwargs.get('tmpdir', '/tmp/fipshift/ezstream')
-        self.ezstreamxml = os.path.join(self.tmpdir, 'ezstream.xml')
+        _tmpdir = kwargs.get('tmpdir', '/tmp/fipshift/ezstream')
+        self.ezstreamxml = os.path.join(_tmpdir, 'ezstream.xml')
 
     def run(self):
         logger.info('Starting %s', self.name)
@@ -227,10 +227,6 @@ class Ezstream(threading.Thread):
         _ezcmd = [self.ezstream, '-c', self.ezstreamxml]
         ezstream = subprocess.Popen(_ezcmd, stdin=subprocess.PIPE)
         while self.alive.is_set():
-            # with open(os.path.join(self.tmpdir, 'ezstream.log'), 'at') as fh:
-            #     _stdout, _stderr = ezstream.communicate()
-            #     fh.write(_stdout.decode('utf-8'))
-            #     fh.write(_stderr.decode('utf-8'))
             if self.filequeue.empty():
                 logger.warn('%s empty queue', self.name)
                 time.sleep(0.1)

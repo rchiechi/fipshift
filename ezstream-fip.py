@@ -105,9 +105,9 @@ signal.signal(signal.SIGHUP, killbuffer)
 ALIVE.set()
 _queue = queue.Queue()
 pl = FipPlaylist(ALIVE, _queue)
-dl = FipChunks(ALIVE, LOCK, _queue, ffmpeg=FFMPEG)
+dl = FipChunks(ALIVE, LOCK, _queue, ffmpeg=FFMPEG, tmpdir=TMPDIR)
 ezstreamcast = Ezstream(ALIVE, LOCK, dl.filequeue,
-                        tmpdir=dl.tmpdir,
+                        tmpdir=EZSTREAMTMPDIR,
                         auth=('source', config['EZSTREAM']['PASSWORD'])
                         )
 epoch = time.time()
@@ -135,19 +135,15 @@ try:
         for _thread in threading.enumerate():
             if not _thread.is_alive():
                 logger.warning("%s is dead!", _thread.name)
-        if ezstream.poll() is not None:
-            ezstream = resumeplayback()
-            continue
         time.sleep(1)
         if time.time() - epoch > opts.restart and opts.restart > 0:
             logger.warning("\nReached restart timeout, terminating...\n")
             raise(RestartTimeout(None, "Restarting"))
 
 except KeyboardInterrupt:
-    ezstream.terminate()
+    killbuffer('KEYBOARDINTERRUPT', None)
 
 except RestartTimeout:
-    ezstream.terminate()
     killbuffer('RESTARTTIMEOUT', None)
     os.execv(__file__, sys.argv)
 
