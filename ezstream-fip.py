@@ -110,6 +110,8 @@ ezstreamcast = Ezstream(ALIVE, LOCK, dl.filequeue,
                         tmpdir=EZSTREAMTMPDIR,
                         auth=('source', config['EZSTREAM']['PASSWORD'])
                         )
+pl.start()
+dl.start()
 epoch = time.time()
 time.sleep(3)
 
