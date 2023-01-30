@@ -291,7 +291,7 @@ if __name__ == '__main__':
         fw.write(xml)
     ezstreamcast = Ezstream(alive, lock, dl.filequeue,
                             tmpdir=dl.tmpdir,
-                            auth=('source', 'im08en')
+                            auth=('source', 'hackme')
                             )
     try:
         pl.start()
