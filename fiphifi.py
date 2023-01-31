@@ -220,6 +220,8 @@ class FipChunks(threading.Thread):
 
 class Ezstream(threading.Thread):
 
+    playing = False
+
     def __init__(self, alive, lock, filequeue, **kwargs):
         threading.Thread.__init__(self)
         self.name = 'Ezstream Thread'
@@ -247,12 +249,14 @@ class Ezstream(threading.Thread):
         while self.alive.is_set():
             if restart:
                 restart = False
+                self.playing = False
                 logger.warn("Restarting ezstream")
                 ezstream = subprocess.Popen(_ezcmd, stdin=subprocess.PIPE)
             if self.filequeue.empty():
+                self.playing = False
                 restart = True
-                logger.warn('%s empty queue', self.name)
-                time.sleep(120)
+                logger.warn('%s: empty queue, pausing for 60s.', self.name)
+                time.sleep(60)
                 continue
             _fn, _meta = self.filequeue.get()
             if _meta != lastmeta:
@@ -268,6 +272,7 @@ class Ezstream(threading.Thread):
                 restart = True
                 continue
 
+            self.playing = True
             with open(_fn, 'rb') as fh:
                 logger.debug('%s sending %s', self.name, _fn)
                 ezstream.stdin.write(fh.read())
@@ -290,6 +295,9 @@ class Ezstream(threading.Thread):
         else:
             logger.debug('Error updated metadata: %s', req.text.strip())
 
+    @property
+    def streaming(self):
+        return self.playing
 
 if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
