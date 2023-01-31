@@ -152,7 +152,7 @@ class FIPMetadata(threading.Thread):
 
     def run(self):
         logger.info(f"Starting {self.name}")
-        self.endtime = time.time() + 300
+        self.endtime = time.time() + 30
         session = requests.Session()
         while self.alive.is_set():
             if time.time() - self.last_update > 300:
@@ -213,22 +213,6 @@ class FIPMetadata(threading.Thread):
             endtime = time.time()
         except ValueError:
             endtime = time.time()
-        # if not isinstance(track, str):
-        #     track = 'Le track'
-        # if not isinstance(artist, str):
-        #     artist = 'Le artist'
-        # if not isinstance(album, str):
-        #     album = 'Le album'
-        # try:
-        #     int(year)
-        # except ValueError:
-        #     year = '1789'
-        # if not isinstance(coverart, str):
-        #     coverart = 'https://www.radiofrance.fr/s3/cruiser-production/2022/02/7eee98cb-3f59-4a3b-b921-6a4be85af542/250x250_visual-fip.jpg'
-        # try:
-        #     endtime = float(endtime)
-        # except ValueError:
-        #     endtime = time.time()
         return {
             'track': track,
             'artist': artist,
@@ -263,6 +247,8 @@ class FIPMetadata(threading.Thread):
 
     @property
     def slug(self):
+        if self.album == 'Le album':
+            return f'{self.track} - {self.artist}'
         return f'{self.track} - {self.artist} - {self.album}'
 
     @property
@@ -292,6 +278,7 @@ class FIPMetadata(threading.Thread):
 
 
 if __name__ == '__main__':
+    import sys
     logger.setLevel(logging.DEBUG)
     streamhandler = logging.StreamHandler()
     streamhandler.setFormatter(logging.Formatter('%(asctime)s %(process)d %(levelname)s %(message)s'))
@@ -300,15 +287,15 @@ if __name__ == '__main__':
     alive.set()
     fipmeta = FIPMetadata(alive)
     fipmeta.start()
+    time.sleep(3)
+    while fipmeta.remains > 0:
+        sys.stdout.write(f"\rWaiting {fipmeta.remains:.0f}s for cache to fill...")
+        sys.stdout.flush()
+        time.sleep(1)
     try:
         while True:
             time.sleep(5)
-            print(fipmeta.album)
-            print(fipmeta.artist)
-            print(fipmeta.album)
-            print(fipmeta.year)
-            print(fipmeta.coverart)
-            print(fipmeta.endtime)
+            print(f'{fipmeta.slug}: {fipmeta.remains}')
     except KeyboardInterrupt:
         alive.clear()
         fipmeta.join()

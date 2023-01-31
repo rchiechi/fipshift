@@ -150,7 +150,7 @@ class FipChunks(threading.Thread):
         logger.info('%s dying', self.name)
 
     def __handlechunk(self, _fn, _chunk):
-        if not self.fipmeta.is_alvie():
+        if not self.fipmeta.is_alive():
             logger.warn("%s: Metadata thread died, restarting", self.name)
             self.fipmeta = FIPMetadata(self.alive)
         if not _chunk:
@@ -160,7 +160,7 @@ class FipChunks(threading.Thread):
             fh.write(_chunk)
         if not self.fipmeta.newtrack:
             if os.stat(self.spool).st_size/(1024*1024) > 5:
-                logger.info('Spool exceeds 5 MB, processing.')
+                logger.debug()('Spool exceeds 5 MB, processing.')
             else:
                 return
         fn = os.path.join(self.tmpdir, f'{_fn}.mp3')
@@ -178,15 +178,15 @@ class FipChunks(threading.Thread):
 
     def __ffmpeg(self, _out):
         subprocess.run([self.ffmpeg,
-                          '-i', self.spool,
-                          '-acodec', 'libmp3lame',
-                          '-b:a', '192k',
-                          '-f', 'mp3',
-                          '-y',
+                        '-i', self.spool,
+                        '-acodec', 'libmp3lame',
+                        '-b:a', '192k',
+                        '-f', 'mp3',
+                        '-y',
                         _out],
-                        cwd=self.tmpdir,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE)
+                       cwd=self.tmpdir,
+                       stdout=subprocess.PIPE,
+                       stderr=subprocess.PIPE)
         os.unlink(self.spool)
         self._empty = True
 
@@ -277,7 +277,6 @@ class Ezstream(threading.Thread):
                 logger.warning("Ezstream died.")
                 restart = True
                 continue
-
             self.playing = True
             with open(_fn, 'rb') as fh:
                 logger.debug('%s sending %s', self.name, _fn)
