@@ -8,7 +8,6 @@ import subprocess
 from tempfile import TemporaryDirectory
 from urllib.parse import urlparse
 import re
-import io
 from metadata import FIPMetadata
 import requests
 
@@ -16,6 +15,7 @@ import requests
 FIPLIST = 'https://stream.radiofrance.fr/fip/fip_hifi.m3u8?id=radiofrance'
 FIPBASEURL = 'https://stream.radiofrance.fr'
 AACRE = re.compile(f'^{FIPBASEURL}/.*(fip_.*\.ts).*$')
+TSRE= re.compile('(.*/fip_aac_hifi_\d_)(\d+)_(\d+)')
 # 'https://stream.radiofrance.fr/msl4/fip/prod1transcoder1/fip_aac_hifi_4_1673363954_368624.ts?id=radiofrance'
 
 logger = logging.getLogger(__package__)
@@ -35,7 +35,7 @@ class FipPlaylist(threading.Thread):
         fip_error = False
         session = requests.Session()
         while self.alive.is_set():
-            req = session.get(FIPLIST)
+            req = session.get(FIPLIST, timeout=2)
             time.sleep(1)
             try:
                 self.parselist(req.text)
@@ -43,6 +43,8 @@ class FipPlaylist(threading.Thread):
             except requests.exceptions.ConnectionError as error:
                 fip_error = True
                 logger.warning("A ConnectionError has occured: %s", error)
+            except requests.exceptions.Timeout:
+                self.__guess()
             if fip_error:
                 retries += 1
                 fip_error = False
@@ -59,6 +61,22 @@ class FipPlaylist(threading.Thread):
                 self.history = self.history[1024:]
 
         logger.info('%s dying', self.name)
+
+    def __guess(self):
+        logger.warn("Guessing at next TS file")
+        _last = self.history[-1]
+        m = re.search(TSRE, _last)
+        if m is None:
+            logger.error("Error guessing : (")
+            return
+        if len(m.groups()) < 3:
+            logger.error("Error parsing ts file")
+            return
+        _url, _first, _second = m.groups()[0:3]
+        _i = int(_second)
+        for _ in range(5):
+            _i += 1
+            self.buff.put(f'{FIPBASEURL}{_url}{_first}{_i}')
 
     def parselist(self, _m3u):
         if not _m3u:
