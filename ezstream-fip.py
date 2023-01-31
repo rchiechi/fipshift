@@ -123,6 +123,7 @@ try:
         sys.stdout.write("\033[2K\rBuffering for %0.0f min. " % _remains)
         sys.stdout.flush()
         time.sleep(10)
+        _runtime = time.time() - epoch
 except KeyboardInterrupt:
     print("Killing %s" % ezstreamcast.name)
     killbuffer('KEYBOARDINTERRUPT', None)
