@@ -7,14 +7,20 @@ logger = logging.getLogger(__package__)
 
 def cleantmpdir(tmpdir):
     n = 0
-    for tmpfn in os.listdir(tmpdir):
-        if os.path.isdir(os.path.join(tmpdir, tmpfn)):
-            sys.stdout.write("\nNot removing directory %s " % os.path.join(tmpdir, tmpfn))
-            continue
-        sys.stdout.write("\rClearning %s " % os.path.join(tmpdir, tmpfn))
-        sys.stdout.flush()
-        os.remove(os.path.join(tmpdir, tmpfn))
-        n += 1
+    for root, __, files in os.walk(tmpdir):
+        for _f in files:
+            if _f[-3:] in ('.ts', '.mp3', '.aac') or _f == 'spool.bin':
+                os.remove(os.path.join(root, _f))
+                n += 1
+    # n = 0
+    # for tmpfn in os.listdir(tmpdir):
+    #     if os.path.isdir(os.path.join(tmpdir, tmpfn)):
+    #         sys.stdout.write("\nNot removing directory %s " % os.path.join(tmpdir, tmpfn))
+    #         continue
+    #     sys.stdout.write("\rClearning %s " % os.path.join(tmpdir, tmpfn))
+    #     sys.stdout.flush()
+    #     os.remove(os.path.join(tmpdir, tmpfn))
+    #     n += 1
     print("\033[2K\rCleaned: %s files in %s. " % (n, tmpdir))
 
 
