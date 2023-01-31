@@ -156,7 +156,10 @@ class FipChunks(threading.Thread):
         with open(self.spool, 'ab') as fh:
             fh.write(_chunk)
         if not self.fipmeta.newtrack:
-            return
+            if os.stat(self.spool).st_size/(1024*1024) > 5:
+                logger.info('Spool exceeds 5 MB, processing.')
+            else:
+                return
         fn = os.path.join(self.tmpdir, f'{_fn}.mp3')
         self.__ffmpeg(fn)
         _meta = self.fipmeta.slug
