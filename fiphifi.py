@@ -150,6 +150,9 @@ class FipChunks(threading.Thread):
         logger.info('%s dying', self.name)
 
     def __handlechunk(self, _fn, _chunk):
+        if not self.fipmeta.is_alvie():
+            logger.warn("%s: Metadata thread died, restarting", self.name)
+            self.fipmeta = FIPMetadata(self.alive)
         if not _chunk:
             logger.warn("%s empty chunk", self.name)
             return
