@@ -242,12 +242,17 @@ class Ezstream(threading.Thread):
             logger.info('%s waiting for queue to fill.', self.name)
             time.sleep(10)
         lastmeta = ''
+        restart = True
         _ezcmd = [self.ezstream, '-c', self.ezstreamxml]
-        ezstream = subprocess.Popen(_ezcmd, stdin=subprocess.PIPE)
         while self.alive.is_set():
+            if restart:
+                restart = False
+                logger.warn("Restarting ezstream")
+                ezstream = subprocess.Popen(_ezcmd, stdin=subprocess.PIPE)
             if self.filequeue.empty():
+                restart = True
                 logger.warn('%s empty queue', self.name)
-                time.sleep(0.1)
+                time.sleep(120)
                 continue
             _fn, _meta = self.filequeue.get()
             if _meta != lastmeta:
@@ -260,7 +265,8 @@ class Ezstream(threading.Thread):
                 logger.debug('%s: Metadata unchanged', self.name)
             if ezstream.poll() is not None:
                 logger.warning("Ezstream died.")
-                ezstream = subprocess.Popen(_ezcmd, stdin=subprocess.PIPE)
+                restart = True
+                continue
 
             with open(_fn, 'rb') as fh:
                 logger.debug('%s sending %s', self.name, _fn)

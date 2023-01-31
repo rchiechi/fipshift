@@ -80,13 +80,14 @@ logger = logging.getLogger(__package__)
 # NOTE: Setting DEBUG fills log with subprocess ffmpeg output
 logger.setLevel(logging.DEBUG)
 # logger.setLevel(logging.INFO)
-loghandler = logging.FileHandler(os.path.join(TMPDIR,
-                                 os.path.basename(sys.argv[0]).split('.')[0]+'.log'))
+_logfile = os.path.join(TMPDIR, os.path.basename(sys.argv[0]).split('.')[0]+'.log')
+loghandler = logging.FileHandler(_logfile)
 loghandler.setFormatter(logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s'))
 logger.addHandler(loghandler)
 streamhandler = logging.StreamHandler()
 streamhandler.setFormatter(logging.Formatter('%(asctime)s %(process)d %(levelname)s %(message)s'))
 logger.addHandler(streamhandler)
+logger.info("Logging to %s", _logfile)
 
 with open(os.path.join(os.path.dirname(
           os.path.realpath(__file__)), 'ezstream.xml'), 'rt') as fr:
