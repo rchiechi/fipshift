@@ -285,7 +285,10 @@ class Ezstream(threading.Thread):
         }
         _url = f'{self.iceserver}/admin/metadata?{_params}'
         req = requests.get(_url, params=_params, auth=self.auth)
-        logger.debug('Metadata: %s', req.text)
+        if 'Metadata update successful' in req.test:
+            logger.debug('Metadata updated successfully')
+        else:
+            logger.debug('Error updated metadata: %s', req.text.strip())
 
 
 if __name__ == '__main__':
