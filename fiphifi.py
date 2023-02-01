@@ -294,7 +294,11 @@ class Ezstream(threading.Thread):
             self.playing = True
             with open(_fn, 'rb') as fh:
                 logger.debug('%s sending %s', self.name, _fn)
-                ezstream.stdin.write(fh.read())
+                try:
+                    ezstream.stdin.write(fh.read())
+                except BrokenPipeError:
+                    logger.warn('%s: Broken pipe sending to ezstream.', self.name)
+                    restart = True
             try:
                 os.unlink(_fn)
             except IOError:
