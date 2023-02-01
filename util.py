@@ -9,9 +9,9 @@ def cleantmpdir(tmpdir):
     n = 0
     for root, __, files in os.walk(tmpdir):
         for _f in files:
-            if _f[-3:] in ('.ts', '.mp3', '.aac') or _f == 'spool.bin':
-                os.remove(os.path.join(root, _f))
-                n += 1
+            # if _f[-3:] in ('.ts', '.mp3', '.aac') or _f == 'spool.bin':
+            os.remove(os.path.join(root, _f))
+            n += 1
     print("\033[2K\rCleaned: %s files in %s. " % (n, tmpdir))
 
 
