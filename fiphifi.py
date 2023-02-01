@@ -9,7 +9,7 @@ from tempfile import TemporaryDirectory
 import re
 from metadata import FIPMetadata
 import requests
-from mutagen.mp4 import EasyMP3 as MP3
+from mutagen.mp3 import EasyMP3 as MP3
 
 FIPLIST = 'https://stream.radiofrance.fr/fip/fip_hifi.m3u8?id=radiofrance'
 FIPBASEURL = 'https://stream.radiofrance.fr'
