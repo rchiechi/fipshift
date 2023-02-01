@@ -156,15 +156,15 @@ class FIPMetadata(threading.Thread):
         while self.alive.is_set():
             time.sleep(0.25)
             if time.time() - self.last_update > 300:
-                self.endtime = time.time()
                 logger.debug('%s: Forcing update.', self.name)
+            if self.remains > 0:
+                continue
             self.__updatemetadata()
 
         logger.info(f"{self.name} dying")
 
     def __updatemetadata(self):
-        if self.remains > 0:
-            return
+        time.sleep(3)
         self.last_update = time.time()
         self._newtrack = True
         try:
