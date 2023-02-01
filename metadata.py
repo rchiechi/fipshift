@@ -152,30 +152,31 @@ class FIPMetadata(threading.Thread):
 
     def run(self):
         logger.info(f"Starting {self.name}")
-        self.endtime = time.time() + 30
-        session = requests.Session()
+        self.endtime = time.time() + 10
         while self.alive.is_set():
+            time.sleep(0.25)
             if time.time() - self.last_update > 300:
                 self.endtime = time.time()
-                logger.warn('Metadata: Forcing update.')
-            time.sleep(1)
-            self.__updatemetadata(session)
+                logger.debug('%s: Forcing update.', self.name)
+            self.__updatemetadata()
 
         logger.info(f"{self.name} dying")
 
-    def __updatemetadata(self, session):
-        self.last_update = time.time()
+    def __updatemetadata(self):
         if self.remains > 0:
             return
+        self.last_update = time.time()
         self._newtrack = True
         try:
-            r = session.get(self.metaurl, timeout=5)
+            logger.debug("%s: Fetching metadata from Fip", self.name)
+            r = requests.get(self.metaurl, timeout=5)
             self.metadata = r.json()
         except requests.exceptions.JSONDecodeError:
             logger.error("JSON error fetching metadata from Fip.")
             self.endtime = time.time() + 10
             pass
         except ReadTimeoutError:
+            logger.error("%s: GET request timed out.", self.name)
             pass
         if self.metadata is None:
             self.metadata = JSON_TEMPLATE
@@ -185,6 +186,7 @@ class FIPMetadata(threading.Thread):
             if _k not in self.metadata['now']:
                 self.metadata['now'][_k] = JSON_TEMPLATE['now'][_k]
                 logger.debug('%s key mangled in update', _k)
+        time.sleep(5)
 
     def _getmeta(self, when):
         try:
@@ -213,13 +215,27 @@ class FIPMetadata(threading.Thread):
             endtime = time.time()
         except ValueError:
             endtime = time.time()
+        try:
+            starttime = float(self.metadata[when]['startTime'])
+        except TypeError:
+            starttime = time.time()
+        except ValueError:
+            starttime = time.time()
+        try:
+            refresh = float(self.metadata['delayToRefresh']) / 1000
+        except TypeError:
+            refresh = 0
+        except ValueError:
+            refresh = 0
         return {
             'track': track,
             'artist': artist,
             'album': album,
             'year': year,
             'coverart': coverart,
-            'endTime': endtime
+            'endTime': endtime,
+            'startTime': starttime,
+            'delayToRefresh': refresh
         }
 
     def getcurrent(self):
@@ -260,7 +276,21 @@ class FIPMetadata(threading.Thread):
 
     @property
     def remains(self):
-        return self.endtime - time.time()
+        _remains = self.endtime - time.time()
+        if _remains < 0:
+            _remains = 0
+        return _remains
+
+    @property
+    def duration(self):
+        _duration = self.endtime - self.starttime
+        if _duration < 0:
+            _duration = 0
+        return _duration
+
+    @property
+    def starttime(self):
+        return self.getcurrent()['startTime']
 
     @property
     def endtime(self):
@@ -269,6 +299,17 @@ class FIPMetadata(threading.Thread):
     @endtime.setter
     def endtime(self, _time):
         self.metadata['now']['endTime'] = _time
+
+    @property
+    def lastupdate(self):
+        return time.time() - self.last_update
+
+    @property
+    def refresh(self):
+        _refresh = self.getcurrent()['delayToRefresh'] - self.lastupdate
+        if _refresh < 0:
+            _refresh = 0
+        return _refresh
 
 # Metadata channel
 
@@ -295,7 +336,7 @@ if __name__ == '__main__':
     try:
         while True:
             time.sleep(5)
-            print(f'{fipmeta.slug}: {fipmeta.remains}')
+            print(f'{fipmeta.slug}: {fipmeta.remains:.0f} / {fipmeta.duration:.0f}')
     except KeyboardInterrupt:
         alive.clear()
         fipmeta.join()

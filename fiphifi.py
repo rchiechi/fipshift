@@ -6,11 +6,10 @@ import threading
 import queue
 import subprocess
 from tempfile import TemporaryDirectory
-from urllib.parse import urlparse
 import re
 from metadata import FIPMetadata
 import requests
-
+from mutagen.mp4 import EasyMP3 as MP3
 
 FIPLIST = 'https://stream.radiofrance.fr/fip/fip_hifi.m3u8?id=radiofrance'
 FIPBASEURL = 'https://stream.radiofrance.fr'
@@ -158,11 +157,15 @@ class FipChunks(threading.Thread):
             return
         with open(self.spool, 'ab') as fh:
             fh.write(_chunk)
+        _chunk_kb = os.stat(self.spool).st_size/1024
         if not self.fipmeta.newtrack:
-            if os.stat(self.spool).st_size/(1024*1024) > 5:
+            if _chunk_kb/1024 > 5:
                 logger.debug()('Spool exceeds 5 MB, processing.')
             else:
                 return
+        elif _chunk_kb < 1024:
+            logger.debug('Not processing spool < 1MB')
+            return
         fn = os.path.join(self.tmpdir, f'{_fn}.mp3')
         self.__ffmpeg(fn)
         _meta = self.fipmeta.slug
@@ -188,6 +191,11 @@ class FipChunks(threading.Thread):
                        stdout=subprocess.PIPE,
                        stderr=subprocess.PIPE)
         os.unlink(self.spool)
+        _mp3 = MP3(_out)
+        _mp3['track'] = self.fipmeta.track
+        _mp3['artist'] = self.fipmeta.artist
+        _mp3['album'] = self.fipmeta.album
+        _mp3.save()
         self._empty = True
 
     @property
