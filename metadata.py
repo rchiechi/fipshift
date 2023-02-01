@@ -194,11 +194,11 @@ class FIPMetadata(threading.Thread):
                 logger.debug('%s key mangled in update', _k)
 
     def __nexttonow(self):
-        _now = self.metadata.get('now', None)
-        _next = self.metadata.get('next', None)
-        if _now != _next and _next is not None:
+        _now = self.metadata.get('now', {"startTime": 0})
+        _next = self.metadata.get('next', {"startTime": 0})
+        if _next['startTime'] > _now['startTime']:
             logger.debug("%s: now -> next", self.name)
-            self.metadata['now'] = _next
+            self.metadata['now'] = self.metadata['next']
 
     def _getmeta(self, when):
         try:
