@@ -199,7 +199,6 @@ class FIPMetadata(threading.Thread):
         if _now != _next and _next is not None:
             logger.debug("%s: now -> next", self.name)
             self.metadata['now'] = _next
-        logger.debug('%s: Not shifting now to next.', self.name)
 
     def _getmeta(self, when):
         try:
