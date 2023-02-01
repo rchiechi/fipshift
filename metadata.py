@@ -159,21 +159,22 @@ class FIPMetadata(threading.Thread):
                 logger.debug('%s: Forcing update.', self.name)
             if self.remains > 0:
                 continue
-            self.__updatemetadata()
+            self.__updatemetadata(requests.Session())
+            time.sleep(5)
 
         logger.info(f"{self.name} dying")
 
-    def __updatemetadata(self):
+    def __updatemetadata(self, session):
+        self.__nexttonow()
         self.last_update = time.time()
         self._newtrack = True
         try:
             logger.debug("%s: Fetching metadata from Fip", self.name)
-            r = requests.get(self.metaurl, timeout=5)
+            r = session.get(self.metaurl, timeout=5)
             _json = r.json()
             if _json.get('now', {'endTime':None})['endTime'] is None:
-                self.__nexttonow()
                 time.sleep(1)
-                self.__updatemetadata()
+                self.__updatemetadata(session)
             else:
                 self.metadata = _json
         except requests.exceptions.JSONDecodeError:
@@ -193,9 +194,12 @@ class FIPMetadata(threading.Thread):
                 logger.debug('%s key mangled in update', _k)
 
     def __nexttonow(self):
-        if 'now' in self.metdata and 'next' in self.metadata:
+        _now = self.metadata.get('now', None)
+        _next = self.metadata.get('next', None)
+        if _now != _next and _next is not None:
             logger.debug("%s: now -> next", self.name)
-            self.metadata['now'] = self.metadata['next']
+            self.metadata['now'] = _next
+        logger.debug('%s: Not shifting now to next.', self.name)
 
     def _getmeta(self, when):
         try:
