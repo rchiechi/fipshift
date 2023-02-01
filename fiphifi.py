@@ -160,7 +160,7 @@ class FipChunks(threading.Thread):
         _chunk_kb = os.stat(self.spool).st_size/1024
         if not self.fipmeta.newtrack:
             if _chunk_kb/1024 > 5:
-                logger.debug()('Spool exceeds 5 MB, processing.')
+                logger.debug('Spool exceeds 5 MB, processing.')
             else:
                 return
         elif _chunk_kb < 1024:
