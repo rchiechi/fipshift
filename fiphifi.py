@@ -166,8 +166,9 @@ class FipChunks(threading.Thread):
         # elif _spool_kb < 1024:
         #     logger.debug('Not processing spool < 1MB')
         #     return
+        
         fn = os.path.join(self.tmpdir, f'{_fn}.mp3')
-        self.__ffmpeg(_fn, fn)
+        self.__ffmpeg(_chunk, fn)
         _meta = self.fipmeta.slug
         if os.path.exists(fn):
             self.filequeue.put((fn, _meta))
@@ -179,18 +180,21 @@ class FipChunks(threading.Thread):
             self.metamap[fn] = _meta
         self._empty = False
 
-    def __ffmpeg(self, _in, _out):
-        subprocess.run([self.ffmpeg,
-                        '-i', _in,
+    def __ffmpeg(self, _chunk, _out):
+        p = subprocess.Popen([self.ffmpeg,
+                        '-i', 'pipe:',
                         '-acodec', 'libmp3lame',
                         '-b:a', '192k',
                         '-f', 'mp3',
                         '-y',
                         _out],
                        cwd=self.tmpdir,
+                       stdin=subprocess.PIPE,
                        stdout=subprocess.PIPE,
                        stderr=subprocess.PIPE)
-        os.unlink(_in)
+        p.communicate(_chunk)
+        p.wait()
+        # os.unlink(_in)
         _mp3 = MP3(_out)
         _mp3['title'] = self.fipmeta.track
         _mp3['artist'] = self.fipmeta.artist
