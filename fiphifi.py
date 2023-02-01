@@ -192,7 +192,7 @@ class FipChunks(threading.Thread):
                        stderr=subprocess.PIPE)
         os.unlink(self.spool)
         _mp3 = MP3(_out)
-        _mp3['track'] = self.fipmeta.track
+        _mp3['title'] = self.fipmeta.track
         _mp3['artist'] = self.fipmeta.artist
         _mp3['album'] = self.fipmeta.album
         _mp3.save()

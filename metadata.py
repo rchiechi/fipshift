@@ -164,13 +164,18 @@ class FIPMetadata(threading.Thread):
         logger.info(f"{self.name} dying")
 
     def __updatemetadata(self):
-        time.sleep(3)
         self.last_update = time.time()
         self._newtrack = True
         try:
             logger.debug("%s: Fetching metadata from Fip", self.name)
             r = requests.get(self.metaurl, timeout=5)
-            self.metadata = r.json()
+            _json = r.json()
+            if _json.get('now', {'endTime':None})['endTime'] is None:
+                self.__nexttonow()
+                time.sleep(1)
+                self.__updatemetadata()
+            else:
+                self.metadata = _json
         except requests.exceptions.JSONDecodeError:
             logger.error("JSON error fetching metadata from Fip.")
             self.endtime = time.time() + 10
@@ -186,7 +191,11 @@ class FIPMetadata(threading.Thread):
             if _k not in self.metadata['now']:
                 self.metadata['now'][_k] = JSON_TEMPLATE['now'][_k]
                 logger.debug('%s key mangled in update', _k)
-        time.sleep(5)
+
+    def __nexttonow(self):
+        if 'now' in self.metdata and 'next' in self.metadata:
+            logger.debug("%s: now -> next", self.name)
+            self.metadata['now'] = self.metadata['next']
 
     def _getmeta(self, when):
         try:
