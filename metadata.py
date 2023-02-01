@@ -159,13 +159,13 @@ class FIPMetadata(threading.Thread):
                 logger.debug('%s: Forcing update.', self.name)
             if self.remains > 0:
                 continue
+            self.__nexttonow()
             self.__updatemetadata(requests.Session())
-            time.sleep(5)
+            time.sleep(3)
 
         logger.info(f"{self.name} dying")
 
     def __updatemetadata(self, session):
-        self.__nexttonow()
         self.last_update = time.time()
         self._newtrack = True
         try:
