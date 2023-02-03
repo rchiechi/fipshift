@@ -67,7 +67,6 @@ class FipPlaylist(threading.Thread):
             _i += 1
             self.buff.put(f'{FIPBASEURL}{_url}{_first}{_i}')
 
-
     def parselist(self, _m3u):
         if not _m3u:
             logger.warning("%s: empty playlist.", self.name)
