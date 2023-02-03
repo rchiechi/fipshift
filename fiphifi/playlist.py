@@ -10,7 +10,7 @@ logger = logging.getLogger(__package__)
 
 class FipPlaylist(threading.Thread):
 
-    delay = 5
+    delay = 10
 
     def __init__(self, alive, pl_queue):
         threading.Thread.__init__(self)
@@ -84,4 +84,5 @@ class FipPlaylist(threading.Thread):
                 self.history.append(_l)
         for _url in _urlz:
             self.buff.put(f'{FIPBASEURL}{_url}')
-        self.delay = 5
+            logger.debug("%s queued %s", self.name, _url)
+        self.delay = 10
