@@ -35,6 +35,7 @@ class FIPMetadata(threading.Thread):
         logger.info(f"{self.name} dying")
 
     def __updatemetadata(self, session):
+        logger.debug("Before: %s", self.slug)
         self.__nexttonow()
         self.last_update = time.time()
         self._newtrack = True
@@ -62,6 +63,7 @@ class FIPMetadata(threading.Thread):
             if _k not in self.metadata['now']:
                 self.metadata['now'][_k] = METATEMPLATE['now'][_k]
                 logger.debug('%s key mangled in update', _k)
+        logger.debug("After: %s", self.slug)
 
     def __nexttonow(self):
         # _now = self.metadata.get('now', {"startTime": 0})['startTime']
