@@ -27,7 +27,7 @@ class FIPMetadata(threading.Thread):
             time.sleep(0.25)
             if time.time() - self.last_update > 300:
                 logger.debug('%s: Forcing update.', self.name)
-            if self.remains > 0:
+            elif self.remains > 0:
                 continue
             self.__nexttonow()
             self.__updatemetadata(requests.Session())
