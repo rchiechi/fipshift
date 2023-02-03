@@ -10,7 +10,7 @@ import time
 import subprocess
 import queue
 import re
-from fipshift.util import RestartTimeout, cleantmpdir
+from fiphifi.util import RestartTimeout, cleantmpdir
 from fiphifi.playlist import FipPlaylist
 from fiphifi.fetcher import FipChunks
 from fiphifi.sender import Ezstream
