@@ -41,6 +41,7 @@ class FipChunks(threading.Thread):
         while self.alive.is_set():
             if self.urlqueue.empty():
                 logger.debug("%s Empy URL Queue.", self.name)
+                session.close()
                 time.sleep(5)
                 session = requests.Session()
                 continue
