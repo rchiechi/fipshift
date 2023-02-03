@@ -80,6 +80,9 @@ class Ezstream(threading.Thread):
         logger.info('%s dying', self.name)
 
     def __updatemetadata(self, _meta):
+        if not self.playing:
+            logger.debug("%s not updating while not playing", self.name)
+            return
         _params = {
             'mode': 'updinfo',
             'mount': f'/{self.mount}',
