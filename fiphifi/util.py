@@ -20,7 +20,7 @@ def killbuffer(signum, frame):  # pylint: disable=unused-argument
     logger.info("Received %s, killing buffer thread.", signum)
     for _thread in threading.enumerate():
         if _thread != threading.main_thread():
-            _thread.alive.clear()
+            _thread.alive = False
     for _thread in threading.enumerate():
         if _thread != threading.main_thread():
             _thread.join()

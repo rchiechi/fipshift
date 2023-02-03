@@ -23,7 +23,7 @@ class FIPMetadata(threading.Thread):
     def run(self):
         logger.info(f"Starting {self.name}")
         self.endtime = time.time() + 10
-        while self._alive.is_set():
+        while self.alive:
             time.sleep(0.25)
             if time.time() - self.last_update > 300:
                 logger.debug('%s: Forcing update.', self.name)
@@ -122,7 +122,13 @@ class FIPMetadata(threading.Thread):
 
     @property
     def alive(self):
-        return self._alive
+        return self._alive.isSet()
+
+    @alive.setter
+    def alive(self, _bool):
+        if not _bool:
+            self._alive.clear()
+        self.alive.set()
 
     def getcurrent(self):
         return self._getmeta('now')

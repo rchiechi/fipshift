@@ -38,7 +38,7 @@ class FipChunks(threading.Thread):
         self.fipmeta.start()
         fip_error = False
         session = requests.Session()
-        while self._alive.is_set():
+        while self.alive:
             if self.urlqueue.empty():
                 logger.debug("%s Empy URL Queue.", self.name)
                 session.close()
@@ -125,7 +125,13 @@ class FipChunks(threading.Thread):
 
     @property
     def alive(self):
-        return self._alive
+        return self._alive.isSet()
+
+    @alive.setter
+    def alive(self, _bool):
+        if not _bool:
+            self._alive.clear()
+        self.alive.set()
 
     @property
     def getmetadata(self, fn):

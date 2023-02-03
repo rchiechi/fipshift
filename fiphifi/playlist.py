@@ -22,7 +22,7 @@ class FipPlaylist(threading.Thread):
     def run(self):
         logger.info('Starting %s', self.name)
         fip_error = False
-        while self._alive.is_set():
+        while self.alive:
             req = requests.get(FIPLIST, timeout=2)
             try:
                 self.parselist(req.text)
@@ -86,6 +86,12 @@ class FipPlaylist(threading.Thread):
         logger.debug("%s queued %s urls", self.name, len(_urlz))
         self.delay = 15
 
-        @property
-        def alive(self):
-            return self._alive
+    @property
+    def alive(self):
+        return self._alive.isSet()
+
+    @alive.setter
+    def alive(self, _bool):
+        if not _bool:
+            self._alive.clear()
+        self.alive.set()

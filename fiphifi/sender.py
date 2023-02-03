@@ -41,7 +41,7 @@ class Ezstream(threading.Thread):
         lastmeta = ''
         restart = True
         _ezcmd = [self.ezstream, '-c', self.ezstreamxml]
-        while self._alive.is_set():
+        while self.alive:
             if restart:
                 restart = False
                 self.playing = False
@@ -97,7 +97,13 @@ class Ezstream(threading.Thread):
 
     @property
     def alive(self):
-        return self._alive
+        return self._alive.isSet()
+
+    @alive.setter
+    def alive(self, _bool):
+        if not _bool:
+            self._alive.clear()
+        self.alive.set()
 
     @property
     def streaming(self):
