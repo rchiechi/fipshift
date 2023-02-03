@@ -11,7 +11,9 @@ import subprocess
 import queue
 import re
 from util import RestartTimeout, cleantmpdir
-from fiphifi import FipPlaylist, FipChunks, Ezstream
+from fiphifi.playlist import FipPlaylist
+from fiphifi.fetcher import FipChunks
+from fiphifi.sender import Ezstream
 from options import parseopts
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
