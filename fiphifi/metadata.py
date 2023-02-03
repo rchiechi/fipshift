@@ -68,10 +68,9 @@ class FIPMetadata(threading.Thread):
         if _next is None:
             return
         if time.time() > _next:
-            logger.debug("%s: now -> next", self.name)
-            logger.debug("Before: %s", self.slug)
+            logger.debug("Now: %s", self.slug)
             self.metadata['now'] = self.metadata['next']
-            logger.debug("After: %s", self.slug)
+            logger.debug("Now->Next: %s", self.slug)
 
     def _getmeta(self, when):
         try:
