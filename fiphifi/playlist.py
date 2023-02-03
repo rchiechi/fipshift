@@ -94,4 +94,5 @@ class FipPlaylist(threading.Thread):
     def alive(self, _bool):
         if not _bool:
             self._alive.clear()
-        self.alive.set()
+        else:
+            self._alive.set()
