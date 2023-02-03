@@ -55,9 +55,9 @@ class Ezstream(threading.Thread):
                 continue
             _fn, _meta = self.filequeue.get()
             if _meta != lastmeta:
-                lastmeta = _meta
                 try:
-                    self.__updatemetadata(_meta)
+                    if self.__updatemetadata(_meta):
+                        lastmeta = _meta
                 except requests.exceptions.ConnectionError as msg:
                     logger.warning('Metadata: %s: %s', self.name, msg)
             else:
@@ -84,7 +84,7 @@ class Ezstream(threading.Thread):
     def __updatemetadata(self, _meta):
         if not self.playing:
             logger.debug("%s not updating while not playing", self.name)
-            return
+            return False
         _params = {
             'mode': 'updinfo',
             'mount': f'/{self.mount}',
@@ -94,8 +94,10 @@ class Ezstream(threading.Thread):
         req = requests.get(_url, params=_params, auth=self.auth)
         if 'Metadata update successful' in req.text:
             logger.debug('Metadata updated successfully')
+            return True
         else:
             logger.debug('Error updated metadata: %s', req.text.strip())
+        return False
 
     @property
     def alive(self):
