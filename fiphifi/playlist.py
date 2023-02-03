@@ -85,3 +85,7 @@ class FipPlaylist(threading.Thread):
             self.buff.put(f'{FIPBASEURL}{_url}')
         logger.debug("%s queued %s urls", self.name, len(_urlz))
         self.delay = 15
+
+        @property
+        def alive(self):
+            return self.alive

@@ -10,28 +10,13 @@ import time
 import subprocess
 import queue
 import re
-from fiphifi.util import RestartTimeout, cleantmpdir
+from fiphifi.util import RestartTimeout, cleantmpdir, killbuffer
 from fiphifi.playlist import FipPlaylist
 from fiphifi.fetcher import FipChunks
 from fiphifi.sender import Ezstream
 from fiphifi.options import parseopts
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
-
-ALIVE = threading.Event()
-
-
-def killbuffer(signum, frame):  # pylint: disable=unused-argument
-    print("\nReceived %s, killing buffer thread." % signum)
-    ALIVE.clear()
-    logger.info("Received %s, killing buffer thread.", signum)
-    for _thread in threading.enumerate():
-        if _thread != threading.main_thread():
-            _thread.join()
-
-
-# # # # # MAIN () # # # # # #
-
 
 opts, config = parseopts()
 
@@ -104,19 +89,38 @@ with open(os.path.join(os.path.dirname(
 
 logger.info("Starting buffer threads.")
 signal.signal(signal.SIGHUP, killbuffer)
-ALIVE.set()
-pl_queue = queue.Queue()
-mp3_queue = queue.Queue()
-pl = FipPlaylist(ALIVE, pl_queue)
-dl = FipChunks(ALIVE, pl_queue, mp3_queue=mp3_queue, ffmpeg=FFMPEG, tmpdir=TMPDIR)
-ezstreamcast = Ezstream(ALIVE, mp3_queue,
-                        tmpdir=EZSTREAMTMPDIR,
-                        auth=('source', config['EZSTREAM']['PASSWORD'])
-                        )
-pl.start()
-while pl_queue.empty():
+
+children = {"playlist": {"queue": queue.Queue, "alive": threading.Event()},
+            "sender": {"queue": queue.Queue, "alive": threading.Event()},
+            "fetcher": {"alive": threading.Event()}
+            }
+
+children["playlist"]["thread"] = FipPlaylist(children["playlist"]["alive"],
+                                             children["playlist"]["queue"])
+children["fetcher"]["thread"] = FipChunks(children["fetcher"]["alive"],
+                                          children["playlist"]["queue"],
+                                          mp3_queue=children["fetcher"]["queue"],
+                                          ffmpeg=FFMPEG, tmpdir=TMPDIR)
+children["sender"]["thread"] = Ezstream(children["sender"]["alive"],
+                                        children["fetcher"]["queue"],
+                                        tmpdir=EZSTREAMTMPDIR,
+                                        auth=('source', config['EZSTREAM']['PASSWORD']))
+
+for _child in children:
+    _child["alive"].set()
+
+# pl_queue = queue.Queue()
+# mp3_queue = queue.Queue()
+# pl = FipPlaylist(ALIVE, pl_queue)
+# dl = FipChunks(ALIVE, pl_queue, mp3_queue=mp3_queue, ffmpeg=FFMPEG, tmpdir=TMPDIR)
+# ezstreamcast = Ezstream(ALIVE, mp3_queue,
+#                         tmpdir=EZSTREAMTMPDIR,
+#                         auth=('source', config['EZSTREAM']['PASSWORD'])
+#                         )
+children["playlist"]["thread"].start()
+while children["playlist"]["queue"].empty():
     time.sleep(1)
-dl.start()
+children["fetcher"]["thread"].start()
 epoch = time.time()
 
 
@@ -128,18 +132,14 @@ try:
         sys.stdout.flush()
         time.sleep(10)
         _runtime = time.time() - epoch
-        if dl.lastupdate > 30:
-            logger.warn('FipChunks thread is stuck, attempting restart.')
-            dl.kill()
-            dl = FipChunks(ALIVE, pl_queue, mp3_queue=mp3_queue, ffmpeg=FFMPEG, tmpdir=TMPDIR)
-            dl.start()
+
 except KeyboardInterrupt:
-    print("Killing %s" % ezstreamcast.name)
-    killbuffer('KEYBOARDINTERRUPT', None)
+    print("Killing threads")
+    killbuffer('KEYBOARDINTERRUPT', None, children)
     sys.exit()
 
-ezstreamcast.start()
-logger.info("Started %s", ezstreamcast.name)
+children["sender"]["thread"].start()
+logger.info("Started %s", children["sender"]["thread"].name)
 time.sleep(5)
 dl_restarts = 0
 
@@ -148,14 +148,17 @@ try:
         for _thread in threading.enumerate():
             if not _thread.is_alive():
                 logger.warning("%s is dead!", _thread.name)
-        if dl.lastupdate > 30:
-            logger.warn('%s is stuck, attempting restart.', dl.name)
-            dl.kill()
-            dl = FipChunks(ALIVE, pl_queue, mp3_queue=mp3_queue, ffmpeg=FFMPEG, tmpdir=TMPDIR)
-            dl.start()
-            dl_restarts += 1
+        if children["fetcher"]["thread"].lastupdate > 30:
+            logger.warn('FipChunks thread is stuck, attempting restart.')
+            children["fetcher"]["alive"].clear()
+            children["fetcher"]["thread"].join(60)
+            children["fetcher"]["thread"] = FipChunks(children["fetcher"]["alive"],
+                                                      children["playlist"]["queue"],
+                                                      mp3_queue=children["fetcher"]["queue"],
+                                                      ffmpeg=FFMPEG, tmpdir=TMPDIR)
+            children["fetcher"]["thread"].start()
         if dl_restarts > 10:
-            logger.error('Cannot restart %s, attempting to restart %s', dl.name, __file__)
+            logger.error('Cannot restart %s, attempting to restart %s', children["fetcher"]["thread"].name, __file__)
             killbuffer('RESTARTTIMEOUT', None)
             os.execv(__file__, sys.argv)
         time.sleep(1)

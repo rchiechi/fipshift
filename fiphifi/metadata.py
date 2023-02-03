@@ -120,6 +120,10 @@ class FIPMetadata(threading.Thread):
             'delayToRefresh': refresh
         }
 
+    @property
+    def alive(self):
+        return self.alive
+
     def getcurrent(self):
         return self._getmeta('now')
 

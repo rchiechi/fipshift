@@ -1,5 +1,6 @@
 import os
 import logging
+import threading
 
 logger = logging.getLogger(__package__)
 
@@ -14,33 +15,15 @@ def cleantmpdir(tmpdir):
     print("\033[2K\rCleaned: %s files in %s. " % (n, tmpdir))
 
 
-def getplayed(tmpfile):
-    _played = []
-    if not os.path.exists(tmpfile):
-        logger.warning("%s does not exist, cannot parse log.", tmpfile)
-        return _played
-    with open(tmpfile, 'rb') as fh:
-        if os.path.getsize(tmpfile) >= 524288:
-            fh.seek(-524288, 2)
-        for _l in fh:
-            # Playing /tmp/fipshift/0000000000000001
-            if b'Playing ' in _l:
-                _played.append(_l.split(b' ')[-1].strip())
-    return _played
-
-
-def getplaylist(playlist):
-    _playlist = []
-    if not os.path.exists(playlist):
-        logger.warning("%s does not exist, cannot parse playlist.", playlist)
-        return _playlist
-    with open(playlist, 'rb') as fh:
-        for _l in fh:
-            _playlist.append(_l.strip())
-    if not _playlist:
-        logger.warning('Did not find any entries in %s', playlist)
-    return _playlist
-
+def killbuffer(signum, frame):  # pylint: disable=unused-argument
+    print("\nReceived %s, killing buffer thread." % signum)
+    logger.info("Received %s, killing buffer thread.", signum)
+    for _thread in threading.enumerate():
+        if _thread != threading.main_thread():
+            _thread.alive.clear()
+    for _thread in threading.enumerate():
+        if _thread != threading.main_thread():
+            _thread.join()
 
 def timeinhours(sec):
     sec_value = sec % (24 * 3600)

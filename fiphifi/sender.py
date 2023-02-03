@@ -96,6 +96,10 @@ class Ezstream(threading.Thread):
             logger.debug('Error updated metadata: %s', req.text.strip())
 
     @property
+    def alive(self):
+        return self.alive
+
+    @property
     def streaming(self):
         return self.playing
 

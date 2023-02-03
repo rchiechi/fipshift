@@ -124,6 +124,10 @@ class FipChunks(threading.Thread):
             self._empty = True
 
     @property
+    def alive(self):
+        return self.alive
+
+    @property
     def getmetadata(self, fn):
         _metamap = {}
         for _fn in self.metamap:
