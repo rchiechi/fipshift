@@ -23,14 +23,16 @@ class FipPlaylist(threading.Thread):
         session = requests.Session()
         while self.alive.is_set():
             req = session.get(FIPLIST, timeout=2)
-            time.sleep(1)
+            time.sleep(2)
             try:
                 self.parselist(req.text)
                 retries = 0
             except requests.exceptions.ConnectionError as error:
                 fip_error = True
-                logger.warning("A ConnectionError has occured: %s", error)
+                logger.warning("%s: A ConnectionError has occured: %s", self.name, error)
+                self.__guess()
             except requests.exceptions.Timeout:
+                logger.warning("%s requst timed out", self.name)
                 self.__guess()
             finally:
                 if fip_error:
@@ -43,6 +45,7 @@ class FipPlaylist(threading.Thread):
                         logger.warning("%s error, retrying (%s)", self.name, retries)
                         continue
             if len(self.history) > 1024:
+                logger.debug("%s pruning history.", self.name)
                 self.history = self.history[1024:]
 
         logger.info('%s dying', self.name)
@@ -65,6 +68,7 @@ class FipPlaylist(threading.Thread):
 
     def parselist(self, _m3u):
         if not _m3u:
+            logger.warning("%s: empty playlist.", self.name)
             return
         _urlz = []
         for _l in _m3u.split('\n'):
