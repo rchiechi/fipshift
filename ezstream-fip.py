@@ -107,7 +107,7 @@ children["sender"]["thread"] = Ezstream(children["sender"]["alive"],
                                         auth=('source', config['EZSTREAM']['PASSWORD']))
 
 for _child in children:
-    _child["alive"].set()
+    children[_child]["alive"].set()
 
 # pl_queue = queue.Queue()
 # mp3_queue = queue.Queue()
