@@ -128,8 +128,9 @@ try:
     _runtime = time.time() - epoch
     while _runtime < opts.delay:
         _remains = (opts.delay - _runtime)/60 or 1
-        sys.stdout.write("\033[2K\rBuffering for %0.0f min. " % _remains)
-        sys.stdout.flush()
+        # sys.stdout.write("\033[2K\rBuffering for %0.0f min. \r" % _remains)
+        # sys.stdout.flush()
+        logger.info('Buffering for %s more minutes', _remains)
         time.sleep(10)
         _runtime = time.time() - epoch
 
