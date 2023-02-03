@@ -200,11 +200,10 @@ class FipChunks(threading.Thread):
     @property
     def getmetadata(self, fn):
         _metamap = {}
-        with self.lock:
-            for _fn in self.metamap:
-                if os.path.exists(_fn):
-                    _metamap[_fn] = self.metamap[_fn]
-            self.metamap = _metamap
+        for _fn in self.metamap:
+            if os.path.exists(_fn):
+                _metamap[_fn] = self.metamap[_fn]
+        self.metamap = _metamap
         return _metamap.get(fn, '')
 
     @property
@@ -213,14 +212,12 @@ class FipChunks(threading.Thread):
             _tmpdir = self._tmpdir.name
         except AttributeError:
             _tmpdir = self._tmpdir
-        with self.lock:
-            return _tmpdir
+        return _tmpdir
 
     @tmpdir.setter
     def tmpdir(self, _dir):
         if os.path.exists(_dir):
-            with self.lock:
-                self._tmpdir = _dir
+            self._tmpdir = _dir
 
     @property
     def empty(self):
@@ -324,7 +321,6 @@ if __name__ == '__main__':
     logger.addHandler(streamhandler)
     logging.getLogger("urllib3").setLevel(logging.WARN)
     alive = threading.Event()
-    lock = threading.Lock()
     _queue = queue.Queue()
     alive.set()
     pl = FipPlaylist(alive, _queue)
@@ -342,7 +338,7 @@ if __name__ == '__main__':
         xml = pattern.sub(lambda m: rep[re.escape(m.group(0))], fr.read())
     with open(EZSTREAMCONFIG, 'wt') as fw:
         fw.write(xml)
-    ezstreamcast = Ezstream(alive, lock, dl.filequeue,
+    ezstreamcast = Ezstream(alive, dl.filequeue,
                             tmpdir=dl.tmpdir,
                             auth=('source', 'hackme')
                             )
