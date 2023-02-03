@@ -90,8 +90,8 @@ with open(os.path.join(os.path.dirname(
 logger.info("Starting buffer threads.")
 signal.signal(signal.SIGHUP, killbuffer)
 
-children = {"playlist": {"queue": queue.Queue, "alive": threading.Event()},
-            "fetcher": {"queue": queue.Queue, "alive": threading.Event()},
+children = {"playlist": {"queue": queue.Queue(), "alive": threading.Event()},
+            "fetcher": {"queue": queue.Queue(), "alive": threading.Event()},
             "sender": {"alive": threading.Event()}
             }
 
