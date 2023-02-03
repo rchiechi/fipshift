@@ -15,14 +15,14 @@ class FipPlaylist(threading.Thread):
     def __init__(self, alive, pl_queue):
         threading.Thread.__init__(self)
         self.name = 'FipPlaylist Thread'
-        self.alive = alive
+        self._alive = alive
         self.buff = pl_queue
         self.history = []
 
     def run(self):
         logger.info('Starting %s', self.name)
         fip_error = False
-        while self.alive.is_set():
+        while self._alive.is_set():
             req = requests.get(FIPLIST, timeout=2)
             try:
                 self.parselist(req.text)
@@ -88,4 +88,4 @@ class FipPlaylist(threading.Thread):
 
         @property
         def alive(self):
-            return self.alive
+            return self._alive

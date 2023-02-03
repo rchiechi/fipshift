@@ -17,13 +17,13 @@ class FIPMetadata(threading.Thread):
     def __init__(self, _alive):
         threading.Thread.__init__(self)
         self.name = 'Metadata Thread'
-        self.alive = _alive
+        self._alive = _alive
         self.last_update = time.time()
 
     def run(self):
         logger.info(f"Starting {self.name}")
         self.endtime = time.time() + 10
-        while self.alive.is_set():
+        while self._alive.is_set():
             time.sleep(0.25)
             if time.time() - self.last_update > 300:
                 logger.debug('%s: Forcing update.', self.name)
@@ -122,7 +122,7 @@ class FIPMetadata(threading.Thread):
 
     @property
     def alive(self):
-        return self.alive
+        return self._alive
 
     def getcurrent(self):
         return self._getmeta('now')

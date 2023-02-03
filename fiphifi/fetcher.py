@@ -23,13 +23,13 @@ class FipChunks(threading.Thread):
     def __init__(self, alive, pl_queue, **kwargs):
         threading.Thread.__init__(self)
         self.name = 'FipChunk Thread'
-        self.alive = alive
+        self._alive = alive
         self.urlqueue = pl_queue
         self.filequeue = kwargs.get('mp3_queue', queue.Queue())
         self._tmpdir = kwargs.get('tmpdir', TemporaryDirectory())
         self.cue = os.path.join(self.tmpdir, 'metdata.txt')
         self.ffmpeg = kwargs.get('ffmpeg', '/usr/bin/ffmpeg')
-        self.fipmeta = FIPMetadata(self.alive)
+        self.fipmeta = FIPMetadata(self._alive)
         self.last_chunk = time.time()
         logging.getLogger("urllib3").setLevel(logging.WARN)
 
@@ -38,7 +38,7 @@ class FipChunks(threading.Thread):
         self.fipmeta.start()
         fip_error = False
         session = requests.Session()
-        while self.alive.is_set():
+        while self._alive.is_set():
             if self.urlqueue.empty():
                 logger.debug("%s Empy URL Queue.", self.name)
                 session.close()
@@ -76,7 +76,7 @@ class FipChunks(threading.Thread):
     def __handlechunk(self, _fn, _chunk):
         if not self.fipmeta.is_alive():
             logger.warn("%s: Metadata thread died, restarting", self.name)
-            self.fipmeta = FIPMetadata(self.alive)
+            self.fipmeta = FIPMetadata(self._alive)
             self.fipmeta.run()
         if not _chunk:
             logger.warn("%s empty chunk", self.name)
@@ -125,7 +125,7 @@ class FipChunks(threading.Thread):
 
     @property
     def alive(self):
-        return self.alive
+        return self._alive
 
     @property
     def getmetadata(self, fn):

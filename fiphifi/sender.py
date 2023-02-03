@@ -21,7 +21,7 @@ class Ezstream(threading.Thread):
     def __init__(self, alive, filequeue, **kwargs):
         threading.Thread.__init__(self)
         self.name = 'Ezstream Thread'
-        self.alive = alive
+        self._alive = alive
         self.filequeue = filequeue
         _server = kwargs.get('server', 'localhost')
         _port = kwargs.get('port', '8000')
@@ -41,7 +41,7 @@ class Ezstream(threading.Thread):
         lastmeta = ''
         restart = True
         _ezcmd = [self.ezstream, '-c', self.ezstreamxml]
-        while self.alive.is_set():
+        while self._alive.is_set():
             if restart:
                 restart = False
                 self.playing = False
@@ -97,7 +97,7 @@ class Ezstream(threading.Thread):
 
     @property
     def alive(self):
-        return self.alive
+        return self._alive
 
     @property
     def streaming(self):
