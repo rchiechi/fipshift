@@ -3,7 +3,7 @@ import time
 import requests
 import logging
 from urllib3.exceptions import ReadTimeoutError
-from constants import METAURL, METATEMPLATE
+from fiphifi.constants import METAURL, METATEMPLATE
 
 logger = logging.getLogger(__package__)
 

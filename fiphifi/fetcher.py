@@ -6,8 +6,8 @@ import queue
 import subprocess
 from tempfile import TemporaryDirectory
 import re
-from constants import AACRE
-from metadata import FIPMetadata
+from fiphifi.constants import AACRE
+from fiphifi.metadata import FIPMetadata
 import requests
 from mutagen.mp3 import EasyMP3 as MP3
 

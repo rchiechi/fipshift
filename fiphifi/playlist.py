@@ -2,7 +2,7 @@ import time
 import logging
 import threading
 import re
-from constants import FIPBASEURL, FIPLIST, TSRE
+from fiphifi.constants import FIPBASEURL, FIPLIST, TSRE
 import requests
 
 logger = logging.getLogger(__package__)
