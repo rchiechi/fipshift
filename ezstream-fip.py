@@ -114,9 +114,11 @@ ezstreamcast = Ezstream(ALIVE, mp3_queue,
                         auth=('source', config['EZSTREAM']['PASSWORD'])
                         )
 pl.start()
+while pl_queue.empty():
+    time.sleep(1)
 dl.start()
 epoch = time.time()
-time.sleep(3)
+
 
 try:
     _runtime = time.time() - epoch
