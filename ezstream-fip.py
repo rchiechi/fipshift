@@ -136,7 +136,7 @@ try:
 
 except KeyboardInterrupt:
     print("Killing threads")
-    killbuffer('KEYBOARDINTERRUPT', None, children)
+    killbuffer('KEYBOARDINTERRUPT', None)
     sys.exit()
 
 children["sender"]["thread"].start()
