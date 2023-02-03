@@ -20,10 +20,8 @@ class FipPlaylist(threading.Thread):
     def run(self):
         logger.info('Starting %s', self.name)
         fip_error = False
-        session = requests.Session()
         while self.alive.is_set():
-            req = session.get(FIPLIST, timeout=2)
-            time.sleep(2)
+            req = requests.get(FIPLIST, timeout=2)
             try:
                 self.parselist(req.text)
                 retries = 0
@@ -44,10 +42,10 @@ class FipPlaylist(threading.Thread):
                     else:
                         logger.warning("%s error, retrying (%s)", self.name, retries)
                         continue
+                time.sleep(5)
             if len(self.history) > 1024:
                 logger.debug("%s pruning history.", self.name)
                 self.history = self.history[1024:]
-
         logger.info('%s dying', self.name)
 
     def __guess(self):

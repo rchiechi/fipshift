@@ -42,6 +42,7 @@ class FipChunks(threading.Thread):
             if self.urlqueue.empty():
                 logger.debug("%s Empy URL Queue.", self.name)
                 time.sleep(5)
+                session = requests.Session()
                 continue
             _url = self.urlqueue.get()
             _m = re.match(AACRE, _url)
