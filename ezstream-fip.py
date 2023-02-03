@@ -157,6 +157,7 @@ try:
                                                       children["playlist"]["queue"],
                                                       mp3_queue=children["fetcher"]["queue"],
                                                       ffmpeg=FFMPEG, tmpdir=TMPDIR)
+            children["fetcher"]["alive"].set()
             children["fetcher"]["thread"].start()
         if dl_restarts > 10:
             logger.error('Cannot restart %s, attempting to restart %s', children["fetcher"]["thread"].name, __file__)

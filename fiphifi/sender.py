@@ -60,8 +60,6 @@ class Ezstream(threading.Thread):
                         lastmeta = _meta
                 except requests.exceptions.ConnectionError as msg:
                     logger.warning('Metadata: %s: %s', self.name, msg)
-            else:
-                logger.debug("%s: %s = %s", self.name, _meta, lastmeta)
             if ezstream.poll() is not None:
                 logger.warning("Ezstream died.")
                 restart = True
