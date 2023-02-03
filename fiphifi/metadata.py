@@ -65,7 +65,7 @@ class FIPMetadata(threading.Thread):
 
     def __nexttonow(self):
         # _now = self.metadata.get('now', {"startTime": 0})['startTime']
-        _next = self.metadata.get('next', {"startTime": 0})['startTime']
+        _next = self.metadata.get('next', {"startTime": time.time()+10})['startTime']
         if _next is None:
             return
         if time.time() > _next:
