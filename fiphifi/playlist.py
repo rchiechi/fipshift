@@ -10,6 +10,8 @@ logger = logging.getLogger(__package__)
 
 class FipPlaylist(threading.Thread):
 
+    delay = 5
+
     def __init__(self, alive, pl_queue):
         threading.Thread.__init__(self)
         self.name = 'FipPlaylist Thread'
@@ -42,7 +44,7 @@ class FipPlaylist(threading.Thread):
                     else:
                         logger.warning("%s error, retrying (%s)", self.name, retries)
                         continue
-                time.sleep(5)
+                time.sleep(self.delay)
             if len(self.history) > 1024:
                 logger.debug("%s pruning history.", self.name)
                 self.history = self.history[1024:]
@@ -50,6 +52,7 @@ class FipPlaylist(threading.Thread):
 
     def __guess(self):
         logger.warn("Guessing at next TS file")
+        self.delay = 5
         _last = self.history[-1]
         m = re.search(TSRE, _last)
         if m is None:
@@ -64,9 +67,11 @@ class FipPlaylist(threading.Thread):
             _i += 1
             self.buff.put(f'{FIPBASEURL}{_url}{_first}{_i}')
 
+
     def parselist(self, _m3u):
         if not _m3u:
             logger.warning("%s: empty playlist.", self.name)
+            self.delay = 0.5
             return
         _urlz = []
         for _l in _m3u.split('\n'):
@@ -79,3 +84,4 @@ class FipPlaylist(threading.Thread):
                 self.history.append(_l)
         for _url in _urlz:
             self.buff.put(f'{FIPBASEURL}{_url}')
+        self.delay = 5
