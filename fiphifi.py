@@ -22,11 +22,11 @@ logger = logging.getLogger(__package__)
 
 class FipPlaylist(threading.Thread):
 
-    def __init__(self, alive, _queue):
+    def __init__(self, alive, pl_queue):
         threading.Thread.__init__(self)
         self.name = 'FipPlaylist Thread'
         self.alive = alive
-        self.buff = _queue
+        self.buff = pl_queue
         self.history = []
 
     def run(self):
@@ -44,18 +44,16 @@ class FipPlaylist(threading.Thread):
                 logger.warning("A ConnectionError has occured: %s", error)
             except requests.exceptions.Timeout:
                 self.__guess()
-            if fip_error:
-                retries += 1
-                fip_error = False
-                if retries > 9:
-                    logger.error("Maximum retries reached, bailing.")
-                    print("\n%s: emtpy block after %s retries, dying.\n" % (retries, self.getName()))
-                    logger.error("%s: emtpy block after %s retries, dying.", retries, self.getName())
-                    self.alive.clear()
-                    break
-                else:
-                    logger.warning("Fip playlist stream error, retrying (%s)", retries)
-                    continue
+            finally:
+                if fip_error:
+                    retries += 1
+                    fip_error = False
+                    if retries > 9:
+                        logger.error("%s Maximum retries reached, bailing.", self.name)
+                        break
+                    else:
+                        logger.warning("%s error, retrying (%s)", self.name, retries)
+                        continue
             if len(self.history) > 1024:
                 self.history = self.history[1024:]
 
@@ -97,20 +95,19 @@ class FipChunks(threading.Thread):
 
     metamap = {}
     _empty = True
+    spool = []
 
-    def __init__(self, alive, lock, urlqueue, **kwargs):
+    def __init__(self, alive, pl_queue, **kwargs):
         threading.Thread.__init__(self)
         self.name = 'FipChunk Thread'
         self.alive = alive
-        self.lock = lock
-        self.urlqueue = urlqueue
-        self.filequeue = queue.Queue()
+        self.urlqueue = pl_queue
+        self.filequeue = kwargs.get('mp3_queue', queue.Queue())
         self._tmpdir = kwargs.get('tmpdir', TemporaryDirectory())
-        # self.spool = os.path.join(self.tmpdir, 'spool.bin')
-        self.spool = []
         self.cue = os.path.join(self.tmpdir, 'metdata.txt')
         self.ffmpeg = kwargs.get('ffmpeg', '/usr/bin/ffmpeg')
         self.fipmeta = FIPMetadata(self.alive)
+        self.last_chunk = time.time()
         logging.getLogger("urllib3").setLevel(logging.WARN)
 
     def run(self):
@@ -128,25 +125,26 @@ class FipChunks(threading.Thread):
                 logger.warning("Empty URL?")
                 continue
             fn = _m.groups()[0]
-            req = session.get(_url)
             try:
+                req = session.get(_url, timeout=10)
                 self.__handlechunk(fn, req.content)
                 retries = 0
             except requests.exceptions.ConnectionError as error:
                 fip_error = True
                 logger.warning("A ConnectionError has occured: %s", error)
-            if fip_error:
-                retries += 1
-                fip_error = False
-                if retries > 9:
-                    logger.error("Maximum retries reached, bailing.")
-                    print("\n%s: emtpy block after %s retries, dying.\n" % (retries, self.getName()))
-                    logger.error("%s: emtpy block after %s retries, dying.", retries, self.getName())
-                    self.alive.clear()
-                    break
-                else:
-                    logger.warning("Fip playlist stream error, retrying (%s)", retries)
-                    continue
+            except requests.exceptions.Timeout:
+                logger.warning("%s timed out fetching chunk.", self.name)
+                fip_error = True
+            finally:
+                if fip_error:
+                    retries += 1
+                    fip_error = False
+                    if retries > 9:
+                        logger.error("%s Maximum retries reached, bailing.", self.name)
+                        break
+                    else:
+                        logger.warning("Fip playlist stream error, retrying (%s)", retries)
+                        continue
         logger.info('%s dying', self.name)
 
     def __handlechunk(self, _fn, _chunk):
@@ -157,21 +155,10 @@ class FipChunks(threading.Thread):
         if not _chunk:
             logger.warn("%s empty chunk", self.name)
             return
-        # with open(self.spool, 'ab') as fh:
-        #     fh.write(_chunk)
         self.spool.append(_chunk)
+        self.last_chunk = time.time()
         if len(self.spool) < 10:
             return
-        # _spool_kb = os.stat(self.spool).st_size/1024
-        # if not self.fipmeta.newtrack:
-        #     if _spool_kb/1024 > 5:
-        #         logger.debug('Spool exceeds 5 MB, processing.')
-        #     else:
-        #         return
-        # elif _spool_kb < 1024:
-        #     logger.debug('Not processing spool < 1MB')
-        #     return
-        # fn = os.path.join(self.tmpdir, f'{_fn}.mp3')
         fn = os.path.join(self.tmpdir, f'{time.time():.0f}.mp3')
         self.__ffmpeg(b''.join(self.spool), fn)
         _meta = self.fipmeta.slug
@@ -179,33 +166,36 @@ class FipChunks(threading.Thread):
             self.filequeue.put((fn, _meta))
         else:
             logger.error("Failed to create %s", fn)
-        with self.lock:
-            with open(self.cue, 'at') as fh:
-                fh.write(f'{fn}%{_meta}\n')
+        with open(self.cue, 'at') as fh:
+            fh.write(f'{fn}%{_meta}\n')
             self.metamap[fn] = _meta
         self.spool = []
         self._empty = False
 
     def __ffmpeg(self, _chunk, _out):
         p = subprocess.Popen([self.ffmpeg,
-                        '-i', 'pipe:',
-                        '-acodec', 'libmp3lame',
-                        '-b:a', '192k',
-                        '-f', 'mp3',
-                        '-y',
-                        _out],
-                       cwd=self.tmpdir,
-                       stdin=subprocess.PIPE,
-                       stdout=subprocess.PIPE,
-                       stderr=subprocess.PIPE)
-        p.communicate(_chunk)
-        p.wait()
-        _mp3 = MP3(_out)
-        _mp3['title'] = self.fipmeta.track
-        _mp3['artist'] = self.fipmeta.artist
-        _mp3['album'] = self.fipmeta.album
-        _mp3.save()
-        self._empty = True
+                              '-i', 'pipe:',
+                              '-acodec', 'libmp3lame',
+                              '-b:a', '192k',
+                              '-f', 'mp3',
+                              '-y',
+                              _out],
+                             cwd=self.tmpdir,
+                             stdin=subprocess.PIPE,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+        try:
+            p.communicate(_chunk)
+            p.wait(timeout=60)
+            _mp3 = MP3(_out)
+            _mp3['title'] = self.fipmeta.track
+            _mp3['artist'] = self.fipmeta.artist
+            _mp3['album'] = self.fipmeta.album
+            _mp3.save()
+        except subprocess.TimeoutExpired:
+            logger.error("%s is stuck, skipping chunk.", self.ffmpeg)
+        finally:
+            self._empty = True
 
     @property
     def getmetadata(self, fn):
@@ -240,16 +230,19 @@ class FipChunks(threading.Thread):
     def remains(self):
         return self.fipmeta.remains
 
+    @property
+    def lastupdate(self):
+        return time.time() - self.last_chunk
+
 
 class Ezstream(threading.Thread):
 
     playing = False
 
-    def __init__(self, alive, lock, filequeue, **kwargs):
+    def __init__(self, alive, filequeue, **kwargs):
         threading.Thread.__init__(self)
         self.name = 'Ezstream Thread'
         self.alive = alive
-        self.lock = lock
         self.filequeue = filequeue
         _server = kwargs.get('server', 'localhost')
         _port = kwargs.get('port', '8000')
@@ -278,8 +271,8 @@ class Ezstream(threading.Thread):
             if self.filequeue.empty():
                 self.playing = False
                 restart = True
-                logger.warn('%s: empty queue, pausing for 60s.', self.name)
-                time.sleep(60)
+                logger.warn('%s: empty queue, pausing for 30s.', self.name)
+                time.sleep(30)
                 continue
             _fn, _meta = self.filequeue.get()
             if _meta != lastmeta:

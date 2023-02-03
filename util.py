@@ -50,6 +50,7 @@ def timeinhours(sec):
     sec_value %= 60
     return hour_value, mins
 
+
 class RestartTimeout(Exception):
     def __init__(self, expression, message):
         # Call the base class constructor with the parameters it needs

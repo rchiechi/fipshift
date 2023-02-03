@@ -17,7 +17,6 @@ from options import parseopts
 # pylint: disable=missing-class-docstring, missing-function-docstring
 
 ALIVE = threading.Event()
-LOCK = threading.Lock()
 
 
 def killbuffer(signum, frame):  # pylint: disable=unused-argument
@@ -104,10 +103,11 @@ with open(os.path.join(os.path.dirname(
 logger.info("Starting buffer threads.")
 signal.signal(signal.SIGHUP, killbuffer)
 ALIVE.set()
-_queue = queue.Queue()
-pl = FipPlaylist(ALIVE, _queue)
-dl = FipChunks(ALIVE, LOCK, _queue, ffmpeg=FFMPEG, tmpdir=TMPDIR)
-ezstreamcast = Ezstream(ALIVE, LOCK, dl.filequeue,
+pl_queue = queue.Queue()
+mp3_queue = queue.Queue()
+pl = FipPlaylist(ALIVE, pl_queue)
+dl = FipChunks(ALIVE, pl_queue, mp3_queue=mp3_queue, ffmpeg=FFMPEG, tmpdir=TMPDIR)
+ezstreamcast = Ezstream(ALIVE, mp3_queue,
                         tmpdir=EZSTREAMTMPDIR,
                         auth=('source', config['EZSTREAM']['PASSWORD'])
                         )
@@ -120,11 +120,15 @@ try:
     _runtime = time.time() - epoch
     while _runtime < opts.delay:
         _remains = (opts.delay - _runtime)/60 or 1
-        # _remains = (opts.delay - fipbuffer.getruntime()) or 1
         sys.stdout.write("\033[2K\rBuffering for %0.0f min. " % _remains)
         sys.stdout.flush()
         time.sleep(10)
         _runtime = time.time() - epoch
+        if dl.lastupdate > 30:
+            logger.warn('FipChunks thread is stuck, attempting restart.')
+            dl.kill()
+            dl = FipChunks(ALIVE, pl_queue, mp3_queue=mp3_queue, ffmpeg=FFMPEG, tmpdir=TMPDIR)
+            dl.start()
 except KeyboardInterrupt:
     print("Killing %s" % ezstreamcast.name)
     killbuffer('KEYBOARDINTERRUPT', None)
@@ -133,12 +137,23 @@ except KeyboardInterrupt:
 ezstreamcast.start()
 logger.info("Started %s", ezstreamcast.name)
 time.sleep(5)
+dl_restarts = 0
 
 try:
     while True:
         for _thread in threading.enumerate():
             if not _thread.is_alive():
                 logger.warning("%s is dead!", _thread.name)
+        if dl.lastupdate > 30:
+            logger.warn('%s is stuck, attempting restart.', dl.name)
+            dl.kill()
+            dl = FipChunks(ALIVE, pl_queue, mp3_queue=mp3_queue, ffmpeg=FFMPEG, tmpdir=TMPDIR)
+            dl.start()
+            dl_restarts += 1
+        if dl_restarts > 10:
+            logger.error('Cannot restart %s, attempting to restart %s', dl.name, __file__)
+            killbuffer('RESTARTTIMEOUT', None)
+            os.execv(__file__, sys.argv)
         time.sleep(1)
         if time.time() - epoch > opts.restart and opts.restart > 0:
             logger.warning("\nReached restart timeout, terminating...\n")
