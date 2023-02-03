@@ -91,8 +91,8 @@ logger.info("Starting buffer threads.")
 signal.signal(signal.SIGHUP, killbuffer)
 
 children = {"playlist": {"queue": queue.Queue, "alive": threading.Event()},
-            "sender": {"queue": queue.Queue, "alive": threading.Event()},
-            "fetcher": {"alive": threading.Event()}
+            "fetcher": {"queue": queue.Queue,"alive": threading.Event()},
+            "sender": {"alive": threading.Event()}
             }
 
 children["playlist"]["thread"] = FipPlaylist(children["playlist"]["alive"],
