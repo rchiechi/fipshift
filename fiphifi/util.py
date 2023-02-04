@@ -16,8 +16,7 @@ def cleantmpdir(tmpdir):
 
 
 def killbuffer(signum, frame):  # pylint: disable=unused-argument
-    print("\nReceived %s, killing buffer thread." % signum)
-    logger.info("Received %s, killing buffer thread.", signum)
+    logger.info("Received %s, dying.", signum)
     for _thread in threading.enumerate():
         if _thread != threading.main_thread():
             _thread.alive = False

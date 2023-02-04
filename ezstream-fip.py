@@ -88,7 +88,13 @@ with open(os.path.join(os.path.dirname(
         fw.write(xml)
 
 logger.info("Starting buffer threads.")
-signal.signal(signal.SIGHUP, killbuffer)
+
+RESTART = False
+def restart_threads(signum, frame):
+    logger.warn("Received %s", signum)
+    RESTART = True
+signal.signal(signal.SIGHUP, restart_threads)
+signal.signal(signal.SIGTERM, killbuffer)
 
 children = {"playlist": {"queue": queue.Queue(), "alive": threading.Event(), "restarts": 0},
             "fetcher": {"queue": queue.Queue(), "alive": threading.Event(), "restarts": 0},
@@ -146,9 +152,10 @@ time.sleep(5)
 try:
     while True:
         for child in ("fetcher", "playlist"):
-            if children[child]["thread"].lastupdate < 30:
-                continue
-            logger.warn('%s is stuck, attempting restart.', children[child]["thread"].name)
+            if not RESTART:
+                if children[child]["thread"].lastupdate < 30:
+                    continue
+            logger.warn('Attempting restart %s.', children[child]["thread"].name)
             children[child]["alive"].clear()
             children[child]["thread"].join(60)
             if child == "fetcher":
