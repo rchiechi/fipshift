@@ -91,10 +91,14 @@ logger.info("Starting buffer threads.")
 
 RESTART = False
 def restart_threads(signum, frame):
-    logger.warn("Received %s", signum)
+    logger.warning("Received %s", signum)
     RESTART = True
+ALIVE = True
+def kill_threads(signum, frame):
+    logger.warning("Received %s", signum)
+    ALIVE = False
 signal.signal(signal.SIGHUP, restart_threads)
-signal.signal(signal.SIGTERM, killbuffer)
+signal.signal(signal.SIGTERM, kill_threads)
 
 children = {"playlist": {"queue": queue.Queue(), "alive": threading.Event(), "restarts": 0},
             "fetcher": {"queue": queue.Queue(), "alive": threading.Event(), "restarts": 0},
@@ -115,14 +119,6 @@ children["sender"]["thread"] = Ezstream(children["sender"]["alive"],
 for _child in children:
     children[_child]["alive"].set()
 
-# pl_queue = queue.Queue()
-# mp3_queue = queue.Queue()
-# pl = FipPlaylist(ALIVE, pl_queue)
-# dl = FipChunks(ALIVE, pl_queue, mp3_queue=mp3_queue, ffmpeg=FFMPEG, tmpdir=TMPDIR)
-# ezstreamcast = Ezstream(ALIVE, mp3_queue,
-#                         tmpdir=EZSTREAMTMPDIR,
-#                         auth=('source', config['EZSTREAM']['PASSWORD'])
-#                         )
 children["playlist"]["thread"].start()
 while children["playlist"]["queue"].empty():
     time.sleep(1)
@@ -134,15 +130,14 @@ try:
     _runtime = time.time() - epoch
     while _runtime < opts.delay:
         _remains = (opts.delay - _runtime)/60 or 1
-        # sys.stdout.write("\033[2K\rBuffering for %0.0f min. \r" % _remains)
-        # sys.stdout.flush()
         logger.info('Buffering for %0.0f more minutes', _remains)
         time.sleep(10)
         _runtime = time.time() - epoch
 
 except KeyboardInterrupt:
     print("Killing threads")
-    killbuffer('KEYBOARDINTERRUPT', None)
+    killbuffer('KeyboardInterrupt', None)
+    cleantmpdir(TMPDIR)
     sys.exit()
 
 children["sender"]["thread"].start()
@@ -151,11 +146,15 @@ time.sleep(5)
 
 try:
     while True:
+        if not ALIVE:
+            logger.warning('Got kill signal, dying.')
+            raise SystemExit
         for child in ("fetcher", "playlist"):
             if not RESTART:
                 if children[child]["thread"].lastupdate < 30:
                     continue
-            logger.warn('Attempting restart %s.', children[child]["thread"].name)
+            RESTART = False
+            logger.warning('Attempting restart %s.', children[child]["thread"].name)
             children[child]["alive"].clear()
             children[child]["thread"].join(60)
             if child == "fetcher":
@@ -179,11 +178,15 @@ try:
             raise(RestartTimeout(None, "Restarting"))
 
 except KeyboardInterrupt:
-    killbuffer('KEYBOARDINTERRUPT', None)
+    killbuffer('KeyboardInterrupt', None)
+
+except SystemExit:
+    killbuffer('SystemExit', None)
+    cleantmpdir(TMPDIR)
+    os.exit()
 
 except RestartTimeout:
-    killbuffer('RESTARTTIMEOUT', None)
+    killbuffer('RestartTimeout', None)
     os.execv(__file__, sys.argv)
 
-killbuffer('EZSTREAMDIED', None)
 cleantmpdir(TMPDIR)
