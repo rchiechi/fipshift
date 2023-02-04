@@ -18,6 +18,7 @@ class FipPlaylist(threading.Thread):
         self._alive = alive
         self.buff = pl_queue
         self.history = []
+        self.last_update = time.time()
 
     def run(self):
         logger.info('Starting %s', self.name)
@@ -84,6 +85,7 @@ class FipPlaylist(threading.Thread):
         for _url in _urlz:
             self.buff.put(f'{FIPBASEURL}{_url}')
         logger.debug("%s queued %s urls", self.name, len(_urlz))
+        self.last_update = time.time()
         self.delay = 15
 
     @property
@@ -96,3 +98,7 @@ class FipPlaylist(threading.Thread):
             self._alive.clear()
         else:
             self._alive.set()
+
+    @property
+    def lastupdate(self):
+        return time.time() - self.last_update

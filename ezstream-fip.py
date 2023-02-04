@@ -90,9 +90,9 @@ with open(os.path.join(os.path.dirname(
 logger.info("Starting buffer threads.")
 signal.signal(signal.SIGHUP, killbuffer)
 
-children = {"playlist": {"queue": queue.Queue(), "alive": threading.Event()},
-            "fetcher": {"queue": queue.Queue(), "alive": threading.Event()},
-            "sender": {"alive": threading.Event()}
+children = {"playlist": {"queue": queue.Queue(), "alive": threading.Event(), "restarts": 0},
+            "fetcher": {"queue": queue.Queue(), "alive": threading.Event(), "restarts": 0},
+            "sender": {"alive": threading.Event(), "restarts": 0}
             }
 
 children["playlist"]["thread"] = FipPlaylist(children["playlist"]["alive"],
@@ -142,25 +142,28 @@ except KeyboardInterrupt:
 children["sender"]["thread"].start()
 logger.info("Started %s", children["sender"]["thread"].name)
 time.sleep(5)
-dl_restarts = 0
 
 try:
     while True:
-        for _thread in threading.enumerate():
-            if not _thread.is_alive():
-                logger.warning("%s is dead!", _thread.name)
-        if children["fetcher"]["thread"].lastupdate > 30:
-            logger.warn('FipChunks thread is stuck, attempting restart.')
-            children["fetcher"]["alive"].clear()
-            children["fetcher"]["thread"].join(60)
-            children["fetcher"]["thread"] = FipChunks(children["fetcher"]["alive"],
-                                                      children["playlist"]["queue"],
-                                                      mp3_queue=children["fetcher"]["queue"],
-                                                      ffmpeg=FFMPEG, tmpdir=TMPDIR)
-            children["fetcher"]["alive"].set()
-            children["fetcher"]["thread"].start()
-        if dl_restarts > 10:
-            logger.error('Cannot restart %s, attempting to restart %s', children["fetcher"]["thread"].name, __file__)
+        for child in ("fetcher", "playlist"):
+            if children[child]["thread"].lastupdate < 30:
+                continue
+            logger.warn('%s is stuck, attempting restart.', children[child]["thread"].name)
+            children[child]["alive"].clear()
+            children[child]["thread"].join(60)
+            if child == "fetcher":
+                children[child]["thread"] = FipChunks(children[child]["alive"],
+                                                        children["playlist"]["queue"],
+                                                        mp3_queue=children["fetcher"]["queue"],
+                                                        ffmpeg=FFMPEG, tmpdir=TMPDIR)
+            if child == "playlist":
+                children[child]["thread"] = FipPlaylist(children[child]["alive"],
+                                            children["playlist"]["queue"])
+            children[child]["alive"].set()
+            children[child]["thread"].start()
+            children[child]["restarts"] += 1
+        if children[child]["restarts"] > 10:
+            logger.error('Cannot restart %s, attempting to restart %s', children[child]["thread"].name, __file__)
             killbuffer('RESTARTTIMEOUT', None)
             os.execv(__file__, sys.argv)
         time.sleep(1)
