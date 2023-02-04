@@ -93,12 +93,7 @@ RESTART = False
 def restart_threads(signum, frame):
     logger.warning("Received %s", signum)
     RESTART = True
-ALIVE = True
-def kill_threads(signum, frame):
-    logger.warning("Received %s", signum)
-    ALIVE = False
 signal.signal(signal.SIGHUP, restart_threads)
-signal.signal(signal.SIGTERM, kill_threads)
 
 children = {"playlist": {"queue": queue.Queue(), "alive": threading.Event(), "restarts": 0},
             "fetcher": {"queue": queue.Queue(), "alive": threading.Event(), "restarts": 0},
@@ -146,9 +141,6 @@ time.sleep(5)
 
 try:
     while True:
-        if not ALIVE:
-            logger.warning('Got kill signal, dying.')
-            raise SystemExit
         for child in ("fetcher", "playlist"):
             if not RESTART:
                 if children[child]["thread"].lastupdate < 30:
