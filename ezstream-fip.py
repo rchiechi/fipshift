@@ -91,6 +91,7 @@ logger.info("Starting buffer threads.")
 
 RESTART = False
 def restart_threads(signum, frame):
+    global RESTART
     logger.warning("Received %s", signum)
     RESTART = True
 
