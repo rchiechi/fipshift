@@ -93,6 +93,8 @@ RESTART = False
 def restart_threads(signum, frame):
     logger.warning("Received %s", signum)
     RESTART = True
+
+
 signal.signal(signal.SIGHUP, restart_threads)
 
 children = {"playlist": {"queue": queue.Queue(), "alive": threading.Event(), "restarts": 0},
@@ -105,7 +107,7 @@ children["playlist"]["thread"] = FipPlaylist(children["playlist"]["alive"],
 children["fetcher"]["thread"] = FipChunks(children["fetcher"]["alive"],
                                           children["playlist"]["queue"],
                                           mp3_queue=children["fetcher"]["queue"],
-                                          ffmpeg=FFMPEG, tmpdir=TMPDIR)
+                                          ffmpeg=FFMPEG, tmpdir=TMPDIR, tag=opts.tag)
 children["sender"]["thread"] = Ezstream(children["sender"]["alive"],
                                         children["fetcher"]["queue"],
                                         tmpdir=EZSTREAMTMPDIR,

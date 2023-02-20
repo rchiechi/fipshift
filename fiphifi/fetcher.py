@@ -29,6 +29,7 @@ class FipChunks(threading.Thread):
         self._tmpdir = kwargs.get('tmpdir', TemporaryDirectory())
         self.cue = os.path.join(self.tmpdir, 'metdata.txt')
         self.ffmpeg = kwargs.get('ffmpeg', '/usr/bin/ffmpeg')
+        self.tag = kwargs.get('tag', True)
         self.fipmeta = FIPMetadata(self._alive)
         self.last_chunk = time.time()
         logging.getLogger("urllib3").setLevel(logging.WARN)
@@ -113,11 +114,12 @@ class FipChunks(threading.Thread):
         try:
             p.communicate(_chunk)
             p.wait(timeout=60)
-            _mp3 = MP3(_out)
-            _mp3['title'] = self.fipmeta.track
-            _mp3['artist'] = self.fipmeta.artist
-            _mp3['album'] = self.fipmeta.album
-            _mp3.save()
+            if self.tag:
+                _mp3 = MP3(_out)
+                _mp3['title'] = self.fipmeta.track
+                _mp3['artist'] = self.fipmeta.artist
+                _mp3['album'] = self.fipmeta.album
+                _mp3.save()
         except subprocess.TimeoutExpired:
             logger.error("%s is stuck, skipping chunk.", self.ffmpeg)
         finally:

@@ -6,7 +6,7 @@ import shutil
 
 
 def parseopts():
-    '''Parse commandline arguments and config file and return opts, config'''
+    '''Parse command line arguments and config file and return opts, config'''
 
     desc = '''Create an shoutcast client that time-shifts
             FIP for listening in a different timezone.'''
@@ -21,6 +21,10 @@ def parseopts():
     parser.add_argument('-r', '--restart', action=StoreHours, default=0,
                         type=int,
                         help="Restart every n hours (0 means do not restart).")
+
+    parser.add_argument('-t', '--tag', action="store_true", default=False,
+                        type=bool,
+                        help="Write ID3 tags to MP3 files.")
 
     parser.add_argument('--ezstream', action="store", default='',
                         type=str,
