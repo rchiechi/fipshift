@@ -23,7 +23,6 @@ def parseopts():
                         help="Restart every n hours (0 means do not restart).")
 
     parser.add_argument('-t', '--tag', action="store_true", default=False,
-                        type=bool,
                         help="Write ID3 tags to MP3 files.")
 
     parser.add_argument('--ezstream', action="store", default='',
