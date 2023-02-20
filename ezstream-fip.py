@@ -108,7 +108,7 @@ children["playlist"]["thread"] = FipPlaylist(children["playlist"]["alive"],
 children["fetcher"]["thread"] = FipChunks(children["fetcher"]["alive"],
                                           children["playlist"]["queue"],
                                           mp3_queue=children["fetcher"]["queue"],
-                                          ffmpeg=FFMPEG, tmpdir=TMPDIR, tag=opts.tag)
+                                          ffmpeg=FFMPEG, tmpdir=TMPDIR, tag=opts.tag, delay=opts.delay)
 children["sender"]["thread"] = Ezstream(children["sender"]["alive"],
                                         children["fetcher"]["queue"],
                                         tmpdir=EZSTREAMTMPDIR,
@@ -156,7 +156,7 @@ try:
                 children[child]["thread"] = FipChunks(children[child]["alive"],
                                                         children["playlist"]["queue"],
                                                         mp3_queue=children["fetcher"]["queue"],
-                                                        ffmpeg=FFMPEG, tmpdir=TMPDIR)
+                                                        ffmpeg=FFMPEG, tmpdir=TMPDIR, tag=opts.tag, delay=opts.delay)
             if child == "playlist":
                 children[child]["thread"] = FipPlaylist(children[child]["alive"],
                                             children["playlist"]["queue"])

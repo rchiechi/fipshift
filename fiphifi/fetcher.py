@@ -30,6 +30,7 @@ class FipChunks(threading.Thread):
         self.cue = os.path.join(self.tmpdir, 'metdata.txt')
         self.ffmpeg = kwargs.get('ffmpeg', '/usr/bin/ffmpeg')
         self.tag = kwargs.get('tag', True)
+        self.delay = kwargs.get('delay', 0)
         self.fipmeta = FIPMetadata(self._alive)
         self.last_chunk = time.time()
         logging.getLogger("urllib3").setLevel(logging.WARN)
@@ -86,7 +87,7 @@ class FipChunks(threading.Thread):
         self.last_chunk = time.time()
         if len(self.spool) < 10:
             return
-        fn = os.path.join(self.tmpdir, f'{time.time():.0f}.mp3')
+        fn = os.path.join(self.tmpdir, f'{time.time()+self.delay:.0f}.mp3')
         self.__ffmpeg(b''.join(self.spool), fn)
         _meta = self.fipmeta.slug
         if os.path.exists(fn):
