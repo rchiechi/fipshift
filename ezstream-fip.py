@@ -10,6 +10,7 @@ import time
 import subprocess
 import queue
 import re
+import shutil
 from fiphifi.util import RestartTimeout, cleantmpdir, killbuffer  # type: ignore
 from fiphifi.playlist import FipPlaylist  # type: ignore
 from fiphifi.fetcher import FipChunks  # type: ignore
@@ -75,8 +76,8 @@ streamhandler.setFormatter(logging.Formatter('%(asctime)s %(process)d %(levelnam
 logger.addHandler(streamhandler)
 logger.info("Logging to %s", _logfile)
 
-with open(os.path.join(os.path.dirname(
-          os.path.realpath(__file__)), 'ezstream.xml'), 'rt') as fr:
+ABSPATH = os.path.join(os.path.dirname(os.path.realpath(__file__)))
+with open(os.path.join(ABSPATH, 'ezstream.xml'), 'rt') as fr:
     rep = {'%HOST%': config['EZSTREAM']['HOST'],
            '%PORT%': config['EZSTREAM']['PORT'],
            '%PASSWORD%': config['EZSTREAM']['PASSWORD'],
@@ -86,7 +87,7 @@ with open(os.path.join(os.path.dirname(
     xml = pattern.sub(lambda m: rep[re.escape(m.group(0))], fr.read())
     with open(EZSTREAMCONFIG, 'wt') as fw:
         fw.write(xml)
-
+shutil.copy(os.path.join(ABSPATH, 'silence.mp3'), os.path.join(EZSTREAMTMPDIR, 'silence.mp3'))
 logger.info("Starting buffer threads.")
 
 RESTART = False
@@ -115,12 +116,12 @@ children["sender"]["thread"] = Ezstream(children["sender"]["alive"],
                                         auth=('source', config['EZSTREAM']['PASSWORD']))
 
 for _child in children:
-    children[_child]["alive"].set()
+    children[_child]["alive"].set()  # type: ignore
 
-children["playlist"]["thread"].start()
-while children["playlist"]["queue"].empty():
+children["playlist"]["thread"].start()  # type: ignore
+while children["playlist"]["queue"].empty():  # type: ignore
     time.sleep(1)
-children["fetcher"]["thread"].start()
+children["fetcher"]["thread"].start()  # type: ignore
 epoch = time.time()
 
 
@@ -138,20 +139,20 @@ except KeyboardInterrupt:
     cleantmpdir(TMPDIR)
     sys.exit()
 
-children["sender"]["thread"].start()
-logger.info("Started %s", children["sender"]["thread"].name)
+children["sender"]["thread"].start()  # type: ignore
+logger.info("Started %s", children["sender"]["thread"].name)  # type: ignore
 time.sleep(5)
 
 try:
     while True:
         for child in ("fetcher", "playlist"):
             if not RESTART:
-                if children[child]["thread"].lastupdate < 30:
+                if children[child]["thread"].lastupdate < 30:  # type: ignore
                     continue
             RESTART = False
-            logger.warning('Attempting restart %s.', children[child]["thread"].name)
-            children[child]["alive"].clear()
-            children[child]["thread"].join(60)
+            logger.warning('Attempting restart %s.', children[child]["thread"].name)  # type: ignore
+            children[child]["alive"].clear()  # type: ignore
+            children[child]["thread"].join(60)  # type: ignore
             if child == "fetcher":
                 children[child]["thread"] = FipChunks(children[child]["alive"],
                                                         children["playlist"]["queue"],
@@ -160,11 +161,11 @@ try:
             if child == "playlist":
                 children[child]["thread"] = FipPlaylist(children[child]["alive"],
                                             children["playlist"]["queue"])
-            children[child]["alive"].set()
-            children[child]["thread"].start()
-            children[child]["restarts"] += 1
-        if children[child]["restarts"] > 10:
-            logger.error('Cannot restart %s, attempting to restart %s', children[child]["thread"].name, __file__)
+            children[child]["alive"].set()  # type: ignore
+            children[child]["thread"].start()  # type: ignore
+            children[child]["restarts"] += 1  # type: ignore
+        if children[child]["restarts"] > 10:  # type: ignore
+            logger.error('Cannot restart %s, attempting to restart %s', children[child]["thread"].name, __file__)  # type: ignore
             killbuffer('RESTARTTIMEOUT', None)
             os.execv(__file__, sys.argv)
         time.sleep(1)
@@ -178,7 +179,7 @@ except KeyboardInterrupt:
 except SystemExit:
     killbuffer('SystemExit', None)
     cleantmpdir(TMPDIR)
-    os.exit()
+    sys.exit()
 
 except RestartTimeout:
     killbuffer('RestartTimeout', None)

@@ -30,8 +30,8 @@ class Ezstream(threading.Thread):
         _auth = kwargs.get('auth', ['', ''])
         self.auth = requests.auth.HTTPBasicAuth(_auth[0], _auth[1])
         self.ezstream = kwargs.get('ezstream', '/usr/local/bin/ezstream')
-        _tmpdir = kwargs.get('tmpdir', '/tmp/fipshift/ezstream')
-        self.ezstreamxml = os.path.join(_tmpdir, 'ezstream.xml')
+        self.tmpdir = kwargs.get('tmpdir', '/tmp/fipshift/ezstream')
+        self.ezstreamxml = os.path.join(self.tmpdir, 'ezstream.xml')
 
     def run(self):
         logger.info('Starting %s', self.name)
@@ -42,19 +42,20 @@ class Ezstream(threading.Thread):
         restart = True
         _ezcmd = [self.ezstream, '-c', self.ezstreamxml]
         while self.alive:
+            prune = True
             if restart:
                 restart = False
                 self.playing = False
                 logger.warn("%s: Restarting ezstream", self.name)
                 ezstream = subprocess.Popen(_ezcmd, stdin=subprocess.PIPE)
             if self.filequeue.empty():
-                self.playing = False
-                restart = True
-                logger.warn('%s: empty queue, pausing for 30s.', self.name)
-                time.sleep(30)
-                continue
-            _fn, _meta = self.filequeue.get()
-            if _meta != lastmeta:
+                # self.playing = False
+                prune = False
+                logger.warn('%s: empty queue, seding 10s of silence.', self.name)
+                _fn, _meta = os.path.join(self.tmpdir, 'silence.mp3'), None
+            else:
+                _fn, _meta = self.filequeue.get()
+            if _meta != lastmeta and _meta is not None:
                 try:
                     if self.__updatemetadata(_meta):
                         lastmeta = _meta
@@ -72,10 +73,11 @@ class Ezstream(threading.Thread):
                 except BrokenPipeError:
                     logger.warn('%s: Broken pipe sending to ezstream.', self.name)
                     restart = True
-            try:
-                os.unlink(_fn)
-            except IOError:
-                logger.warn("%s: I/O Erro removing %s", self.name, _fn)
+            if prune:
+                try:
+                    os.unlink(_fn)
+                except IOError:
+                    logger.warn("%s: I/O Erro removing %s", self.name, _fn)
         ezstream.kill()
         logger.info('%s dying', self.name)
 
@@ -114,15 +116,15 @@ class Ezstream(threading.Thread):
 
 
 if __name__ == '__main__':
-    from playlist import FipPlaylist
-    from fetcher import FipChunks
+    from playlist import FipPlaylist  # type: ignore
+    from fetcher import FipChunks  # type: ignore
     logger.setLevel(logging.DEBUG)
     streamhandler = logging.StreamHandler()
     streamhandler.setFormatter(logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s'))
     logger.addHandler(streamhandler)
     logging.getLogger("urllib3").setLevel(logging.WARN)
     alive = threading.Event()
-    _queue = queue.Queue()
+    _queue = queue.Queue()  # type: ignore
     alive.set()
     pl = FipPlaylist(alive, _queue)
     dl = FipChunks(alive, _queue, ffmpeg='/home/rchiechi/bin/ffmpeg')
