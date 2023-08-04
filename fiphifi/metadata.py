@@ -1,5 +1,7 @@
+import os
 import threading
 import time
+import json
 import requests
 import logging
 from urllib3.exceptions import ReadTimeoutError
@@ -14,28 +16,30 @@ class FIPMetadata(threading.Thread):
     metadata = METATEMPLATE
     metaurl = METAURL
 
-    def __init__(self, _alive):
+    def __init__(self, _alive, tmpdir):
         threading.Thread.__init__(self)
         self.name = 'Metadata Thread'
         self._alive = _alive
+        self._lock = threading.Lock()
+        self.cache = os.path.join(tmpdir, 'metadata.json')
         self.last_update = time.time()
 
     def run(self):
         logger.info(f"Starting {self.name}")
         self.endtime = time.time() + 10
         while self.alive:
-            time.sleep(0.25)
+            # time.sleep(0.25)
             if time.time() - self.last_update > 300:
                 logger.debug('%s: Forcing update.', self.name)
             elif self.remains > 0:
                 continue
-            self.__updatemetadata(requests.Session())
-            time.sleep(3)
+            _delay = self._updatemetadata(requests.Session())
+            time.sleep(_delay)
 
         logger.info(f"{self.name} dying")
 
-    def __updatemetadata(self, session):
-        self.__nexttonow()
+    def _updatemetadata(self, session):
+        self._nexttonow()
         self.last_update = time.time()
         self._newtrack = True
         try:
@@ -62,8 +66,24 @@ class FIPMetadata(threading.Thread):
             if _k not in self.metadata['now']:
                 self.metadata['now'][_k] = METATEMPLATE['now'][_k]
                 logger.debug('%s key mangled in update', _k)
+        return _json.get('delayToRefresh', 300000)/1000
 
-    def __nexttonow(self):
+    def _writetodisk(self):
+        _json = self._readfromdisk()
+        with self.lock:
+            _metadata = self.getcurrent()
+            _json[_metadata['startTime']] = _metadata
+            _metadata = self.getnext()
+            _json[_metadata['startTime']] = _metadata
+            with open(self.cache, 'wt') as fh:
+                json.dump(_json, fh)
+
+    def _readfromdisk(self):
+        with self.lock:
+            with open(self.cache, 'rt') as fh:
+                return json.load(fh)
+
+    def _nexttonow(self):
         _next = self.metadata.get('next', {"startTime": time.time()+10})['startTime']
         if _next is None:
             return
@@ -123,6 +143,10 @@ class FIPMetadata(threading.Thread):
         }
 
     @property
+    def lock(self):
+        return self._lock
+
+    @property
     def alive(self):
         return self._alive.isSet()
 
@@ -133,8 +157,25 @@ class FIPMetadata(threading.Thread):
         else:
             self._alive.set()
 
+    def getfromtime(self, _start):
+        _json = self._readfromdisk()
+        for _key in _json:
+            if _json[_key]['endTime'] > _start > _key:
+                slug = _json.pop(_key)
+                with self.lock:
+                    with open(self.cache, 'wt') as fh:
+                        json.dump(_json, fh)
+                return slug
+
     def getcurrent(self):
         return self._getmeta('now')
+
+    def getnext(self):
+        return self._getmeta('next')
+
+    @property
+    def cache(self):
+        return self._readfromdisk()
 
     @property
     def track(self):

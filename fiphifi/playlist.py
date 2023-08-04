@@ -2,7 +2,8 @@ import time
 import logging
 import threading
 import re
-from fiphifi.constants import FIPBASEURL, FIPLIST, TSRE  # type: ignore
+from datetime import datetime as dt
+from fiphifi.constants import FIPBASEURL, FIPLIST, TSRE, STRPTIME  # type: ignore
 import requests  # type: ignore
 
 logger = logging.getLogger(__package__)
@@ -74,17 +75,25 @@ class FipPlaylist(threading.Thread):
             self.delay = 0.5
             return
         _urlz = []
+        _dt = ''
         for _l in _m3u.split('\n'):
             if not _l:
                 continue
+            if '#EXT-X-PROGRAM-DATE-TIME' in _l:
+                _dt = ':'.join(_l.strip().split(':')[1:])
+                try:
+                    _timestamp = dt.strptime(_dt, STRPTIME).timestamp()
+                except ValueError:
+                    _timestamp = 0
             if _l[0] == '#':
                 continue
             if _l not in self.history:
-                _urlz.append(_l)
+                _urlz.append([_timestamp, f'{FIPBASEURL}{_l.strip()}'])
                 self.history.append(_l)
         for _url in _urlz:
-            self.buff.put(f'{FIPBASEURL}{_url}')
-        logger.debug("%s queued %s urls", self.name, len(_urlz))
+            self.buff.put(_url)
+            logger.debug("Queued %s", _url)
+        # logger.debug("%s queued %s urls", self.name, len(_urlz))
         self.last_update = time.time()
         self.delay = 15
 

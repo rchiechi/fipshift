@@ -6,13 +6,117 @@ import threading
 import queue
 import subprocess
 import re
+from tempfile import TemporaryDirectory
 import requests  # type: ignore
-
+from fiphifi.metadata import FIPMetadata
 
 # 'https://stream.radiofrance.fr/msl4/fip/prod1transcoder1/fip_aac_hifi_4_1673363954_368624.ts?id=radiofrance'
 
 logger = logging.getLogger(__package__)
 
+class AACStream(threading.Thread):
+
+    playing = False
+
+    def __init__(self, alive, urlqueue, **kwargs):
+        threading.Thread.__init__(self)
+        self.name = 'AAC Sender Thread'
+        self._alive = alive
+        self.urlq = urlqueue
+        self.ffmpeg = kwargs.get('ffmpeg', '/usr/bin/ffmpeg')
+        _server = kwargs.get('server', 'localhost')
+        _port = kwargs.get('port', '8000')
+        self.iceserver = f'{_server}:{_port}'
+        self.mount = kwargs.get('mount', 'fipshift')
+        _auth = kwargs.get('auth', ['', ''])
+        self.pw = _auth[1]
+        self.auth = requests.auth.HTTPBasicAuth(_auth[0], _auth[1])
+        self.fipmeta = FIPMetadata(self._alive, kwargs.get('tmpdir', TemporaryDirectory()))
+
+    def run(self):
+        logger.info('Starting %s', self.name)
+        while self.urlq.empty():
+            logger.info("%s waiting for queue to fill.", self.name)
+            time.sleep(1)
+        # ffmpeg -i pipe: -c:a copy -f adts icecast://source:im08en@10.10.10.100:8001/fipshift
+        _ffmpegcmd = [self.ffmpeg,
+                      '-loglevel', 'quiet',
+                      '-i', 'pipe:',
+                      '-c:a', 'copy',
+                      '-f', 'adts',
+                      f'icecast://source:{self.pw}@{self.iceserver}/{self.mount}']
+        restart = True
+        while self.alive:
+            if restart:
+                restart = False
+                self.playing = False
+                logger.warn("%s: Restarting ffmpeg", self.name)
+                ffmpeg = subprocess.Popen(_ffmpegcmd, stdin=subprocess.PIPE)
+            if self.urlq.empty():
+                # self.playing = False
+                prune = False
+                logger.warn('%s: empty queue, seding 10s of silence.', self.name)
+                _fn, _meta = os.path.join(self.tmpdir, 'silence.mp3'), None
+            else:
+                _fn, _meta = self.urlq.get()
+            if _meta != lastmeta and _meta is not None:
+                try:
+                    if self.__updatemetadata(_meta):
+                        lastmeta = _meta
+                except requests.exceptions.ConnectionError as msg:
+                    logger.warning('Metadata: %s: %s', self.name, msg)
+            if ezstream.poll() is not None:
+                logger.warning("Ezstream died.")
+                restart = True
+                continue
+            self.playing = True
+            with open(_fn, 'rb') as fh:
+                logger.debug('%s sending %s', self.name, _fn)
+                try:
+                    ezstream.stdin.write(fh.read())
+                except BrokenPipeError:
+                    logger.warn('%s: Broken pipe sending to ezstream.', self.name)
+                    restart = True
+            if prune:
+                try:
+                    os.unlink(_fn)
+                except IOError:
+                    logger.warn("%s: I/O Erro removing %s", self.name, _fn)
+        ezstream.kill()
+        logger.info('%s dying', self.name)
+
+    def __updatemetadata(self, _meta):
+        if not self.playing:
+            logger.debug("%s not updating while not playing", self.name)
+            return False
+        _params = {
+            'mode': 'updinfo',
+            'mount': f'/{self.mount}',
+            'song': _meta
+        }
+        _url = f'http://{self.iceserver}/admin/metadata?{_params}'
+        req = requests.get(_url, params=_params, auth=self.auth)
+        if 'Metadata update successful' in req.text:
+            logger.debug('Metadata updated successfully')
+            return True
+        else:
+            logger.debug('Error updated metadata: %s', req.text.strip())
+        return False
+
+    @property
+    def alive(self):
+        return self._alive.isSet()
+
+    @alive.setter
+    def alive(self, _bool):
+        if not _bool:
+            self._alive.clear()
+        else:
+            self._alive.set()
+
+    @property
+    def streaming(self):
+        return self.playing
 
 class Ezstream(threading.Thread):
 

@@ -9,7 +9,7 @@ import re
 from fiphifi.constants import AACRE
 from fiphifi.metadata import FIPMetadata
 import requests
-from mutagen.mp3 import EasyMP3 as MP3
+# from mutagen.mp3 import EasyMP3 as MP3
 
 logger = logging.getLogger(__package__)
 
@@ -48,13 +48,13 @@ class FipChunks(threading.Thread):
                 session = requests.Session()
                 continue
             _url = self.urlqueue.get()
-            _m = re.match(AACRE, _url)
+            _m = re.match(AACRE, _url[1])
             if _m is None:
                 logger.warning("Empty URL?")
                 continue
             fn = _m.groups()[0]
             try:
-                req = session.get(_url, timeout=10)
+                req = session.get(_url[1], timeout=10)
                 self.__handlechunk(fn, req.content)
                 retries = 0
             except requests.exceptions.ConnectionError as error:
@@ -115,12 +115,12 @@ class FipChunks(threading.Thread):
         try:
             p.communicate(_chunk)
             p.wait(timeout=60)
-            if self.tag:
-                _mp3 = MP3(_out)
-                _mp3['title'] = self.fipmeta.track
-                _mp3['artist'] = self.fipmeta.artist
-                _mp3['album'] = self.fipmeta.album
-                _mp3.save()
+            # if self.tag:
+            #     _mp3 = MP3(_out)
+            #     _mp3['title'] = self.fipmeta.track
+            #     _mp3['artist'] = self.fipmeta.artist
+            #     _mp3['album'] = self.fipmeta.album
+            #     _mp3.save()
         except subprocess.TimeoutExpired:
             logger.error("%s is stuck, skipping chunk.", self.ffmpeg)
         finally:

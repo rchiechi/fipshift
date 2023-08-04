@@ -5,6 +5,7 @@ FIPLIST = 'https://stream.radiofrance.fr/fip/fip_hifi.m3u8?id=radiofrance'
 METAURL = 'https://www.radiofrance.fr/api/v2.1/stations/fip/live'
 AACRE = re.compile(f'^{FIPBASEURL}/.*(fip_.*\.ts).*$')
 TSRE= re.compile('(.*/fip_aac_hifi_\d_)(\d+)_(\d+)')
+STRPTIME = "%Y-%m-%dT%H:%M:%SZ"
 METATEMPLATE = {
                 "delayToRefresh": 71000,
                 "now": {

@@ -48,7 +48,7 @@ def doconfig(config_file):
     '''Parse config file or write a default file.'''
     if not os.path.exists(config_file):
         _pwd = os.path.dirname(os.path.realpath(__file__))
-        shutil.copy2(os.path.join(_pwd,'template.conf'), config_file)
+        shutil.copy2(os.path.join(os.path.join(_pwd, '..'),'template.conf'), config_file)
         return doconfig(config_file)
     config = configparser.ConfigParser(allow_no_value=False)
     config.read(config_file)
