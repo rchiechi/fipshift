@@ -10,11 +10,11 @@ import time
 import subprocess
 import queue
 import re
-from fiphifi.util import RestartTimeout, cleantmpdir, killbuffer
-from fiphifi.playlist import FipPlaylist
-from fiphifi.fetcher import FipChunks
-from fiphifi.sender import Ezstream
-from fiphifi.options import parseopts
+from fiphifi.util import RestartTimeout, cleantmpdir, killbuffer  # type: ignore
+from fiphifi.playlist import FipPlaylist  # type: ignore
+from fiphifi.fetcher import FipChunks  # type: ignore
+from fiphifi.sender import Ezstream  # type: ignore
+from fiphifi.options import parseopts  # type: ignore
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
 

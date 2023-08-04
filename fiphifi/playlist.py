@@ -2,8 +2,8 @@ import time
 import logging
 import threading
 import re
-from fiphifi.constants import FIPBASEURL, FIPLIST, TSRE
-import requests
+from fiphifi.constants import FIPBASEURL, FIPLIST, TSRE  # type: ignore
+import requests  # type: ignore
 
 logger = logging.getLogger(__package__)
 

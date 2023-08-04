@@ -6,7 +6,7 @@ import threading
 import queue
 import subprocess
 import re
-import requests
+import requests  # type: ignore
 
 
 # 'https://stream.radiofrance.fr/msl4/fip/prod1transcoder1/fip_aac_hifi_4_1673363954_368624.ts?id=radiofrance'
