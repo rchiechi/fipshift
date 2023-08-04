@@ -2,10 +2,10 @@ import os
 import threading
 import time
 import json
-import requests
+import requests  # type: ignore
 import logging
-from urllib3.exceptions import ReadTimeoutError
-from fiphifi.constants import METAURL, METATEMPLATE
+# from urllib3.exceptions import ReadTimeoutError  # type: ignore
+from fiphifi.constants import METAURL, METATEMPLATE  # type: ignore
 
 logger = logging.getLogger(__package__)
 
@@ -21,7 +21,9 @@ class FIPMetadata(threading.Thread):
         self.name = 'Metadata Thread'
         self._alive = _alive
         self._lock = threading.Lock()
-        self.cache = os.path.join(tmpdir, 'metadata.json')
+        self._cache = os.path.join(tmpdir, 'metadata.json')
+        with open(self.cache, 'wt') as fh:
+            json.dump({}, fh)
         self.last_update = time.time()
 
     def run(self):
@@ -143,6 +145,10 @@ class FIPMetadata(threading.Thread):
         }
 
     @property
+    def cache(self):
+        return self._cache
+
+    @property
     def lock(self):
         return self._lock
 
@@ -174,7 +180,7 @@ class FIPMetadata(threading.Thread):
         return self._getmeta('next')
 
     @property
-    def cache(self):
+    def jsoncache(self):
         return self._readfromdisk()
 
     @property
