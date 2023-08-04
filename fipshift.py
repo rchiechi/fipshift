@@ -27,18 +27,18 @@ from fiphifi.metadata import FIPMetadata  # type: ignore
 
 opts, config = parseopts()
 
-# if opts.ezstream:
-#     EZSTREAM = opts.ezstream
-# else:
-#     p = subprocess.run(['which', 'ezstream'], capture_output=True)
-#     if p.returncode == 0:
-#         EZSTREAM = p.stdout.strip()
-#     else:
-#         print("I could not locate the ezstream binary in the PATH.")
-#         sys.exit()
+try:
+    TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
+    _ = config['USEROPTS']['FFMPEG']
+except KeyError as msg:
+    print(msg)
+    print("Bad config file, please delete it from %s and try again." % opts.configdir)
+    sys.exit(1)
 
 if opts.ffmpeg:
     FFMPEG = opts.ffmpeg
+elif os.path.exists(config['USEROPTS']['FFMPEG']):
+    FFMPEG = config['USEROPTS']['FFMPEG']
 else:
     p = subprocess.run(['which', 'ffmpeg'], capture_output=True)
     if p.returncode == 0:
@@ -51,24 +51,10 @@ if 0 < opts.restart < opts.delay:
     print("Restart delay must be larger than buffer delay.")
     sys.exit(1)
 
-try:
-    TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
-    # EZSTREAMTMPDIR = os.path.join(config['EZSTREAM']['tmpdir'], 'fipshift', 'ezstream')
-    # EZSTREAMTMPFILE = os.path.join(EZSTREAMTMPDIR, 'ezstream.log')
-    # EZSTREAMCONFIG = os.path.join(EZSTREAMTMPDIR, 'ezstream.xml')
-except KeyError as msg:
-    print(msg)
-    print("Bad config file, please delete it from %s and try again." % opts.configdir)
-    sys.exit(1)
 
 if not os.path.exists(TMPDIR):
     os.mkdir(TMPDIR)
 cleantmpdir(TMPDIR)
-
-# if not os.path.exists(EZSTREAMTMPDIR):
-#     os.mkdir(EZSTREAMTMPDIR)
-# cleantmpdir(EZSTREAMTMPDIR)
-# print("Saving files to %s" % EZSTREAMTMPDIR)
 
 logger = logging.getLogger(__package__)
 # NOTE: Setting DEBUG fills log with subprocess ffmpeg output
@@ -84,17 +70,7 @@ logger.addHandler(streamhandler)
 logger.info("Logging to %s", _logfile)
 
 ABSPATH = os.path.join(os.path.dirname(os.path.realpath(__file__)))
-# with open(os.path.join(ABSPATH, 'ezstream.xml'), 'rt') as fr:
-#     rep = {'%HOST%': config['EZSTREAM']['HOST'],
-#            '%PORT%': config['EZSTREAM']['PORT'],
-#            '%PASSWORD%': config['EZSTREAM']['PASSWORD'],
-#            '%MOUNT%': config['EZSTREAM']['MOUNT']}
-#     rep = dict((re.escape(k), v) for k, v in rep.items())
-#     pattern = re.compile("|".join(rep.keys()))
-#     xml = pattern.sub(lambda m: rep[re.escape(m.group(0))], fr.read())
-#     with open(EZSTREAMCONFIG, 'wt') as fw:
-#         fw.write(xml)
-# shutil.copy(os.path.join(ABSPATH, 'silence.mp3'), os.path.join(EZSTREAMTMPDIR, 'silence.mp3'))
+
 logger.info("Starting buffer threads.")
 
 RESTART = False
@@ -117,8 +93,10 @@ children["metadata"]["thread"] = FIPMetadata(children["metadata"]["alive"],
                                              tmpdir=TMPDIR)
 children["sender"]["thread"] = AACStream(children["sender"]["alive"],
                                          children["playlist"]["queue"],
+                                         delay=opts.delay,
                                          tmpdir=TMPDIR,
-                                         ffmpeg=config['USEROPTS']['FFMPEG'],
+                                         ffmpeg=FFMPEG,
+                                         tmpidr=TMPDIR,
                                          host=config['USEROPTS']['HOST'],
                                          port=config['USEROPTS']['PORT'],
                                          mount=config['USEROPTS']['MOUNT'],
@@ -136,7 +114,7 @@ try:
     while _runtime < opts.delay:
         _remains = (opts.delay - _runtime)/60 or 1
         logger.info('Buffering for %0.0f more minutes', _remains)
-        time.sleep(10)
+        time.sleep(60)
         _runtime = time.time() - epoch
 
 except KeyboardInterrupt:
@@ -185,6 +163,7 @@ try:
                            auth=requests.auth.HTTPBasicAuth('source', config['USEROPTS']['PASSWORD']))
         if 'Metadata update successful' in req.text:
             logger.debug('Metadata updated successfully')
+        logger.debug("Delay: %s / Offset: %s", children["sender"]["thread"].offset, opts.delay)  # type: ignore
         #     def __updatemetadata(self, _meta):
         #         if not self.playing:
         #             logger.debug("%s not updating while not playing", self.name)

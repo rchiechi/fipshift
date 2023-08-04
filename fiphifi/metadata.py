@@ -28,6 +28,8 @@ class FIPMetadata(threading.Thread):
 
     def run(self):
         logger.info(f"Starting {self.name}")
+        if not self.alive:
+            logger.warn("%s called without alive set.", self.name)
         self.endtime = time.time() + 10
         while self.alive:
             # time.sleep(0.25)
@@ -37,8 +39,7 @@ class FIPMetadata(threading.Thread):
                 continue
             _delay = self._updatemetadata(requests.Session())
             time.sleep(_delay)
-
-        logger.info(f"{self.name} dying")
+        logger.info('%s dying (alive: %s)', self.name, self.alive)
 
     def _updatemetadata(self, session):
         self._nexttonow()

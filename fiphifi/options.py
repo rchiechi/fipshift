@@ -25,10 +25,6 @@ def parseopts():
     parser.add_argument('-t', '--tag', action="store_true", default=False,
                         help="Write ID3 tags to MP3 files.")
 
-    parser.add_argument('--ezstream', action="store", default='',
-                        type=str,
-                        help="Path to ezstream if not in PATH.")
-
     parser.add_argument('--ffmpeg', action="store", default='',
                         type=str,
                         help="Path to ffmpeg if not in PATH.")
@@ -67,7 +63,7 @@ class StoreHours(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         # print('%r %r %r' % (namespace, values, option_string))
         if values < 0:
-            setattr(namespace, self.dest, 120)  # for debugging
+            setattr(namespace, self.dest, 60)  # for debugging
         else:
             setattr(namespace, self.dest, 3600*values)
         # setattr(namespace, self.dest, values)

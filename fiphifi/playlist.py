@@ -23,6 +23,8 @@ class FipPlaylist(threading.Thread):
 
     def run(self):
         logger.info('Starting %s', self.name)
+        if not self.alive:
+            logger.warn("%s called without alive set.", self.name)
         fip_error = False
         while self.alive:
             req = requests.get(FIPLIST, timeout=2)
@@ -50,7 +52,7 @@ class FipPlaylist(threading.Thread):
             if len(self.history) > 1024:
                 logger.debug("%s pruning history.", self.name)
                 self.history = self.history[1024:]
-        logger.info('%s dying', self.name)
+        logger.info('%s dying (alive: %s)', self.name, self.alive)
 
     def __guess(self):
         logger.warn("Guessing at next TS file")
@@ -92,8 +94,8 @@ class FipPlaylist(threading.Thread):
                 self.history.append(_l)
         for _url in _urlz:
             self.buff.put(_url)
-            logger.debug("Queued %s", _url)
-        # logger.debug("%s queued %s urls", self.name, len(_urlz))
+            # logger.debug("Queued %s", _url)
+        logger.debug("%s queued %s urls", self.name, len(_urlz))
         self.last_update = time.time()
         self.delay = 15
 

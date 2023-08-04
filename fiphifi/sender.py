@@ -1,4 +1,4 @@
-# import os
+import os
 # import sys
 import time
 import logging
@@ -6,21 +6,54 @@ import threading
 # import queue
 import subprocess
 # import re
-# import requests  # type: ignore
+import requests  # type: ignore
 
 # 'https://stream.radiofrance.fr/msl4/fip/prod1transcoder1/fip_aac_hifi_4_1673363954_368624.ts?id=radiofrance'
 
 logger = logging.getLogger(__package__)
 
+class FIFO(threading.Thread):
+
+    def __init__(self, alive, urlqueue, tmpdir):
+        threading.Thread.__init__(self)
+        self.alive = alive
+        self.urlq = urlqueue
+        self._fifo = os.path.join(tmpdir, 'fipshift.fifo')
+        self._timestamp = 0
+
+    def run(self):
+        logger.info('Starting FIFO')
+        os.mkfifo(self._fifo)
+        fifo = open(self._fifo, 'wb')
+        session = requests.Session()
+        while self.alive.isSet():
+            self._timestamp, _url = self.urlq.get()
+            req = session.get(_url, timeout=1)
+            fifo.write(req.content)
+        fifo.close()
+        os.unlink(self._fifo)
+        logger.info("FIFO ended")
+
+    @property
+    def timestamp(self):
+        return self._timestamp
+
+    @property
+    def pipe(self):
+        return self._fifo
+
 class AACStream(threading.Thread):
 
     playing = False
+    fifo = None
 
-    def __init__(self, alive, urlqueue, **kwargs):
+    def __init__(self, alive, urlqueue, delay, **kwargs):
         threading.Thread.__init__(self)
         self.name = 'AAC Sender Thread'
         self._alive = alive
         self.urlq = urlqueue
+        self._delay = delay
+        self.tmpdir = kwargs.get('tmpdir', '/tmp')
         self.ffmpeg = kwargs.get('ffmpeg', '/usr/bin/ffmpeg')
         _server = kwargs.get('server', 'localhost')
         _port = kwargs.get('port', '8000')
@@ -33,21 +66,28 @@ class AACStream(threading.Thread):
 
     def run(self):
         logger.info('Starting %s', self.name)
-        while self.urlq.empty():
-            logger.info("%s waiting for queue to fill.", self.name)
-            time.sleep(1)
-        while self.alive and not self.urlq.empty():
-            self._timestamp, _url = self.urlq.get()
-            _ffmpegcmd = [self.ffmpeg,
-                          '-loglevel', 'fatal',
-                          '-i', _url,
-                          '-c:a', 'copy',
-                          '-f', 'adts',
-                          f'icecast://source:{self.pw}@{self._iceserver}/{self.mount}']
+        self.fifo = FIFO(self._alive, self.urlq, self.tmpdir)
+        self.fifo.start()
+        _ffmpegcmd = [self.ffmpeg,
+                      '-loglevel', 'fatal',
+                      '-re',
+                      '-i', self.fifo.pipe,
+                      '-c:a', 'copy',
+                      '-f', 'adts',
+                      f'icecast://source:{self.pw}@{self._iceserver}/{self.mount}']
+        if not self.alive:
+            logger.warn("%s called without alive set.", self.name)
+        while self.alive:
+            # self._timestamp, _url = self.urlq.get()
+            logger.info('%s buffering for 30 seconds', self.name)
+            time.sleep(30)
+            logger.info('%s starting ffmpeg', self.name)
             _p = subprocess.run(_ffmpegcmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             if _p.stdout:
                 logger.error(str(_p.stdout, encoding='utf-8'))
-        logger.info('%s dying', self.name)
+            # logger.debug('Offset: %s / Delay: %s', self.offset, self.delay)
+        logger.info('%s dying (alive: %s)', self.name, self.alive)
+        self.fifo.join()
 
     @property
     def alive(self):
@@ -62,153 +102,24 @@ class AACStream(threading.Thread):
 
     @property
     def timestamp(self):
-        return self._timesamp
+        if self.fifo is not None:
+            return self.fifo.timestamp
+        else:
+            return 0
 
+    @property
+    def offset(self):
+        return time.time() - self.timestamp
+    
     @property
     def iceserver(self):
         return self._iceserver
 
-# class Ezstream(threading.Thread):
-# 
-#     playing = False
-# 
-#     def __init__(self, alive, filequeue, **kwargs):
-#         threading.Thread.__init__(self)
-#         self.name = 'Ezstream Thread'
-#         self._alive = alive
-#         self.filequeue = filequeue
-#         _server = kwargs.get('server', 'localhost')
-#         _port = kwargs.get('port', '8000')
-#         self.iceserver = f'http://{_server}:{_port}'
-#         self.mount = kwargs.get('mount', 'fipshift')
-#         _auth = kwargs.get('auth', ['', ''])
-#         self.auth = requests.auth.HTTPBasicAuth(_auth[0], _auth[1])
-#         self.ezstream = kwargs.get('ezstream', '/usr/local/bin/ezstream')
-#         self.tmpdir = kwargs.get('tmpdir', '/tmp/fipshift/ezstream')
-#         self.ezstreamxml = os.path.join(self.tmpdir, 'ezstream.xml')
-# 
-#     def run(self):
-#         logger.info('Starting %s', self.name)
-#         while self.filequeue.empty():
-#             logger.info('%s waiting for queue to fill.', self.name)
-#             time.sleep(10)
-#         lastmeta = ''
-#         restart = True
-#         _ezcmd = [self.ezstream, '-c', self.ezstreamxml]
-#         while self.alive:
-#             prune = True
-#             if restart:
-#                 restart = False
-#                 self.playing = False
-#                 logger.warn("%s: Restarting ezstream", self.name)
-#                 ezstream = subprocess.Popen(_ezcmd, stdin=subprocess.PIPE)
-#             if self.filequeue.empty():
-#                 # self.playing = False
-#                 prune = False
-#                 logger.warn('%s: empty queue, seding 10s of silence.', self.name)
-#                 _fn, _meta = os.path.join(self.tmpdir, 'silence.mp3'), None
-#             else:
-#                 _fn, _meta = self.filequeue.get()
-#             if _meta != lastmeta and _meta is not None:
-#                 try:
-#                     if self.__updatemetadata(_meta):
-#                         lastmeta = _meta
-#                 except requests.exceptions.ConnectionError as msg:
-#                     logger.warning('Metadata: %s: %s', self.name, msg)
-#             if ezstream.poll() is not None:
-#                 logger.warning("Ezstream died.")
-#                 restart = True
-#                 continue
-#             self.playing = True
-#             with open(_fn, 'rb') as fh:
-#                 logger.debug('%s sending %s', self.name, _fn)
-#                 try:
-#                     ezstream.stdin.write(fh.read())
-#                 except BrokenPipeError:
-#                     logger.warn('%s: Broken pipe sending to ezstream.', self.name)
-#                     restart = True
-#             if prune:
-#                 try:
-#                     os.unlink(_fn)
-#                 except IOError:
-#                     logger.warn("%s: I/O Erro removing %s", self.name, _fn)
-#         ezstream.kill()
-#         logger.info('%s dying', self.name)
-# 
-#     def __updatemetadata(self, _meta):
-#         if not self.playing:
-#             logger.debug("%s not updating while not playing", self.name)
-#             return False
-#         _params = {
-#             'mode': 'updinfo',
-#             'mount': f'/{self.mount}',
-#             'song': _meta
-#         }
-#         _url = f'{self.iceserver}/admin/metadata?{_params}'
-#         req = requests.get(_url, params=_params, auth=self.auth)
-#         if 'Metadata update successful' in req.text:
-#             logger.debug('Metadata updated successfully')
-#             return True
-#         else:
-#             logger.debug('Error updated metadata: %s', req.text.strip())
-#         return False
-# 
-#     @property
-#     def alive(self):
-#         return self._alive.isSet()
-# 
-#     @alive.setter
-#     def alive(self, _bool):
-#         if not _bool:
-#             self._alive.clear()
-#         else:
-#             self._alive.set()
-# 
-#     @property
-#     def streaming(self):
-#         return self.playing
-# 
-# 
-# if __name__ == '__main__':
-#     from playlist import FipPlaylist  # type: ignore
-#     from fetcher import FipChunks  # type: ignore
-#     logger.setLevel(logging.DEBUG)
-#     streamhandler = logging.StreamHandler()
-#     streamhandler.setFormatter(logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s'))
-#     logger.addHandler(streamhandler)
-#     logging.getLogger("urllib3").setLevel(logging.WARN)
-#     alive = threading.Event()
-#     _queue = queue.Queue()  # type: ignore
-#     alive.set()
-#     pl = FipPlaylist(alive, _queue)
-#     dl = FipChunks(alive, _queue, ffmpeg='/home/rchiechi/bin/ffmpeg')
-#     EZSTREAMCONFIG = os.path.join(dl.tmpdir, 'ezstream.xml')
-#     with open(os.path.join(os.path.dirname(
-#               os.path.realpath(__file__)), 'ezstream.xml'), 'rt') as fr:
-#         rep = {'%HOST%': '127.0.0.1',
-#                '%PORT%': '8000',
-#                '%PASSWORD%': 'im08en',
-#                '%MOUNT%':'fipshift'}
-#         rep = dict((re.escape(k), v) for k, v in rep.items())
-#         pattern = re.compile("|".join(rep.keys()))
-#         xml = pattern.sub(lambda m: rep[re.escape(m.group(0))], fr.read())
-#     with open(EZSTREAMCONFIG, 'wt') as fw:
-#         fw.write(xml)
-#     ezstreamcast = Ezstream(alive, dl.filequeue,
-#                             tmpdir=dl.tmpdir,
-#                             auth=('source', 'hackme')
-#                             )
-#     try:
-#         pl.start()
-#         dl.start()
-#         time.sleep(3)
-#         logger.debug('tmpdir is %s', dl.tmpdir)
-#         while dl.remains > 0:
-#             sys.stdout.write(f"\rWaiting {dl.remains:.0f}s for cache to fill...")
-#             sys.stdout.flush()
-#             time.sleep(1)
-#         print('\nStarting cast.')
-#         ezstreamcast.start()
-#     except KeyboardInterrupt:
-#         alive.clear()
-#         ezstreamcast.join()
+    @property
+    def delay(self):
+        return self._delay
+
+    @delay.setter
+    def delay(self, _delay):
+        if isinstance(_delay, int):
+            self._delay = _delay
