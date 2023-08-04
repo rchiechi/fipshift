@@ -92,7 +92,7 @@ class AACStream(threading.Thread):
         logger.info('%s dying (alive: %s)', self.name, self.alive)
         self.fifo.join()
         if os.path.exists(self.fifo.pipe):
-            os.unlinke(self.fifo.pipe)
+            os.unlink(self.fifo.pipe)
 
     @property
     def alive(self):
