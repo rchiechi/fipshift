@@ -26,10 +26,13 @@ class FIFO(threading.Thread):
         os.mkfifo(self._fifo)
         fifo = open(self._fifo, 'wb')
         session = requests.Session()
-        while self.alive.isSet():
-            self._timestamp, _url = self.urlq.get()
-            req = session.get(_url, timeout=1)
-            fifo.write(req.content)
+        try:
+            while self.alive.isSet():
+                self._timestamp, _url = self.urlq.get()
+                req = session.get(_url, timeout=1)
+                fifo.write(req.content)
+        except BrokenPipeError:
+            pass
         fifo.close()
         os.unlink(self._fifo)
         logger.info("FIFO ended")
@@ -88,6 +91,8 @@ class AACStream(threading.Thread):
             # logger.debug('Offset: %s / Delay: %s', self.offset, self.delay)
         logger.info('%s dying (alive: %s)', self.name, self.alive)
         self.fifo.join()
+        if os.path.exists(self.fifo.pipe):
+            os.unlinke(self.fifo.pipe)
 
     @property
     def alive(self):
@@ -110,7 +115,7 @@ class AACStream(threading.Thread):
     @property
     def offset(self):
         return time.time() - self.timestamp
-    
+
     @property
     def iceserver(self):
         return self._iceserver
