@@ -30,7 +30,11 @@
 
       <!-- Encoder name (defined below) to use for (re)encoding -->
       <encoder>limbmp3lame</encoder>
-
+      <decoder>
+        <name>MadPlay</name>
+        <program>madplay -b 16 -R 44100 -S -o raw:- @T@</program>
+        <file_ext>.mp3</file_ext>
+      </decoder>
       <!-- Various other informational settings -->
       <stream_name>Fipshift</stream_name>
       <stream_url>http://%HOST%:%PORT%/</stream_url>
@@ -49,10 +53,10 @@
         Media type: autodetect, file, playlist, program, stdin
        (default: autodetect)
         -->
-      <type>stdin</type>
+      <!-- <type>stdin</type> -->
 
       <!-- Input file, program name, or "stdin" keyword (deprecated) -->
-      <!-- <filename>%PLAYLIST%</filename> -->
+      <filename>%PLAYLIST%</filename>
     </intake>
   </intakes>
 

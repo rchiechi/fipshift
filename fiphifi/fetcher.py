@@ -6,19 +6,19 @@ import queue
 import subprocess
 from tempfile import TemporaryDirectory
 import re
-from fiphifi.constants import AACRE
-from fiphifi.metadata import FIPMetadata
-import requests
-from mutagen.mp3 import EasyMP3 as MP3
+from fiphifi.constants import AACRE  # type: ignore
+from fiphifi.metadata import FIPMetadata  # type: ignore
+import requests  # type: ignore
+from mutagen.mp3 import EasyMP3 as MP3  # type: ignore
 
 logger = logging.getLogger(__package__)
 
 
 class FipChunks(threading.Thread):
 
-    metamap = {}
+    metamap: dict[str, dict]
     _empty = True
-    spool = []
+    spool: list[bytes]
 
     def __init__(self, alive, pl_queue, **kwargs):
         threading.Thread.__init__(self)
@@ -137,7 +137,7 @@ class FipChunks(threading.Thread):
         else:
             self._alive.set()
 
-    @property
+    @property  # type: ignore
     def getmetadata(self, fn):
         _metamap = {}
         for _fn in self.metamap:

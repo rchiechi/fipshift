@@ -49,6 +49,7 @@ try:
     EZSTREAMTMPDIR = os.path.join(config['EZSTREAM']['tmpdir'], 'fipshift', 'ezstream')
     EZSTREAMTMPFILE = os.path.join(EZSTREAMTMPDIR, 'ezstream.log')
     EZSTREAMCONFIG = os.path.join(EZSTREAMTMPDIR, 'ezstream.xml')
+    EZSTREAMPLAYLIST = os.path.join(EZSTREAMTMPDIR, 'playlist.m3u')
 except KeyError:
     print("Bad config file, please delete it from %s and try again." % opts.configdir)
     sys.exit(1)
@@ -80,7 +81,8 @@ with open(os.path.join(os.path.dirname(
     rep = {'%HOST%': config['EZSTREAM']['HOST'],
            '%PORT%': config['EZSTREAM']['PORT'],
            '%PASSWORD%': config['EZSTREAM']['PASSWORD'],
-           '%MOUNT%': config['EZSTREAM']['MOUNT']}
+           '%MOUNT%': config['EZSTREAM']['MOUNT'],
+           '%PLAYLIST%': EZSTREAMPLAYLIST}
     rep = dict((re.escape(k), v) for k, v in rep.items())
     pattern = re.compile("|".join(rep.keys()))
     xml = pattern.sub(lambda m: rep[re.escape(m.group(0))], fr.read())
@@ -115,12 +117,12 @@ children["sender"]["thread"] = Ezstream(children["sender"]["alive"],
                                         auth=('source', config['EZSTREAM']['PASSWORD']))
 
 for _child in children:
-    children[_child]["alive"].set()
+    children[_child]["alive"].set()  # type: ignore
 
-children["playlist"]["thread"].start()
-while children["playlist"]["queue"].empty():
+children["playlist"]["thread"].start()  # type: ignore
+while children["playlist"]["queue"].empty():  # type: ignore
     time.sleep(1)
-children["fetcher"]["thread"].start()
+children["fetcher"]["thread"].start()  # type: ignore
 epoch = time.time()
 
 

@@ -6,6 +6,7 @@ import threading
 import queue
 import subprocess
 import re
+from signal import SIGHUP
 import requests  # type: ignore
 
 

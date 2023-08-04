@@ -1,9 +1,9 @@
 import threading
 import time
-import requests
+import requests  # type: ignore
 import logging
-from urllib3.exceptions import ReadTimeoutError
-from fiphifi.constants import METAURL, METATEMPLATE
+from urllib3.exceptions import ReadTimeoutError  # type: ignore
+from fiphifi.constants import METAURL, METATEMPLATE  # type: ignore
 
 logger = logging.getLogger(__package__)
 
