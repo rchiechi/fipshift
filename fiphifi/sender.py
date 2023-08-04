@@ -58,7 +58,7 @@ class AACStream(threading.Thread):
         self._delay = delay
         self.tmpdir = kwargs.get('tmpdir', '/tmp')
         self.ffmpeg = kwargs.get('ffmpeg', '/usr/bin/ffmpeg')
-        _server = kwargs.get('server', 'localhost')
+        _server = kwargs.get('host', 'localhost')
         _port = kwargs.get('port', '8000')
         self.mount = kwargs.get('mount', 'fipshift')
         self._iceserver = f'{_server}:{_port}'
