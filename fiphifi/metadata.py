@@ -2,9 +2,8 @@ import os
 import threading
 import time
 import json
-import requests  # type: ignore
 import logging
-# from urllib3.exceptions import ReadTimeoutError  # type: ignore
+import requests  # type: ignore
 from fiphifi.constants import METAURL, METATEMPLATE  # type: ignore
 
 logger = logging.getLogger(__package__)
@@ -32,7 +31,6 @@ class FIPMetadata(threading.Thread):
             logger.warn("%s called without alive set.", self.name)
         self.endtime = time.time() + 10
         while self.alive:
-            # time.sleep(0.25)
             if time.time() - self.last_update > 300:
                 logger.debug('%s: Forcing update.', self.name)
             elif self.remains > 0:
@@ -40,11 +38,11 @@ class FIPMetadata(threading.Thread):
             _delay = self._updatemetadata(requests.Session())
             self._writetodisk()
             for _ in range(_delay):
-                time.sleep(1)
+                if self.alive:
+                    time.sleep(1)
         logger.info('%s dying (alive: %s)', self.name, self.alive)
 
     def _updatemetadata(self, session):
-        # self._nexttonow()
         self.last_update = time.time()
         self._newtrack = True
         try:
@@ -88,15 +86,6 @@ class FIPMetadata(threading.Thread):
         with self.lock:
             with open(self.cache, 'rt') as fh:
                 return json.load(fh)
-
-    def _nexttonow(self):
-        _next = self.metadata.get('next', {"startTime": time.time() + 10})['startTime']
-        if _next is None:
-            return
-        if time.time() > _next:
-            logger.debug("Now: %s", self.slug)
-            self.metadata['now'] = self.metadata['next']
-            logger.debug("Now->Next: %s", self.slug)
 
     def _getmeta(self, when):
         try:

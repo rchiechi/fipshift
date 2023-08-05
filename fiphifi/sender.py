@@ -59,21 +59,19 @@ class AACStream(threading.Thread):
     fifo = None
     session = None
 
-    def __init__(self, _alive, urlqueue, delay, **kwargs):
+    def __init__(self, _alive, urlqueue, delay, config, **kwargs):
         threading.Thread.__init__(self)
         self.name = 'AAC Sender Thread'
         self._alive = _alive
         self.urlq = urlqueue
         self._delay = delay
         self.tmpdir = kwargs.get('tmpdir', '/tmp')
+        self.ffmpeg = config['USEROPTS']['FFMPEG']
+        self.mount = config['USEROPTS']['MOUNT']
+        self._iceserver = f"{config['USEROPTS']['HOST']}:{config['USEROPTS']['PORT']}"
+        self.un = config['USEROPTS']['USER']
+        self.pw = config['USEROPTS']['PASSWORD']
         self._fifo = os.path.join(self.tmpdir, 'fipshift.fifo')
-        self.ffmpeg = kwargs.get('ffmpeg', '/usr/bin/ffmpeg')
-        _server = kwargs.get('host', 'localhost')
-        _port = kwargs.get('port', '8000')
-        self.mount = kwargs.get('mount', 'fipshift')
-        self._iceserver = f'{_server}:{_port}'
-        _auth = kwargs.get('auth', ['', ''])
-        self.pw = _auth[1]
         self._timestamp = 0
 
     def run(self):
@@ -124,7 +122,7 @@ class AACStream(threading.Thread):
                       '-ice_genre', 'Eclectic',
                       '-c:a', 'copy',
                       '-f', 'adts',
-                      f'icecast://source:{self.pw}@{self._iceserver}/{self.mount}']
+                      f'icecast://{self.un}:{self.pw}@{self._iceserver}/{self.mount}']
         return subprocess.Popen(_ffmpegcmd)
 
     @property

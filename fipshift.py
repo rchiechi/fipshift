@@ -10,15 +10,10 @@ import time
 import subprocess
 import queue
 from typing_extensions import TypedDict
-# import re
-# import shutil
-# import datetime
 import json
-# from tempfile import TemporaryDirectory
 import requests  # type: ignore
-from fiphifi.util import RestartTimeout, cleantmpdir, killbuffer  # type: ignore
+from fiphifi.util import cleantmpdir  # type: ignore
 from fiphifi.playlist import FipPlaylist  # type: ignore
-# from fiphifi.fetcher import FipChunks  # type: ignore
 from fiphifi.sender import AACStream  # type: ignore
 from fiphifi.options import parseopts  # type: ignore
 from fiphifi.metadata import FIPMetadata  # type: ignore
@@ -28,6 +23,7 @@ from fiphifi.metadata import FIPMetadata  # type: ignore
 
 opts, config = parseopts()
 Children = TypedDict('Children', {'playlist': FipPlaylist, 'metadata': FIPMetadata, 'sender': AACStream})
+epoch = time.time()
 
 try:
     TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
@@ -49,17 +45,11 @@ else:
         print("I could not locate the ffmpeg binary in the PATH.")
         sys.exit()
 
-if 0 < opts.restart < opts.delay:
-    print("Restart delay must be larger than buffer delay.")
-    sys.exit(1)
-
-
 if not os.path.exists(TMPDIR):
     os.mkdir(TMPDIR)
 cleantmpdir(TMPDIR)
 
 logger = logging.getLogger(__package__)
-# NOTE: Setting DEBUG fills log with subprocess ffmpeg output
 logger.setLevel(logging.DEBUG)
 # logger.setLevel(logging.INFO)
 _logfile = os.path.join(TMPDIR, os.path.basename(sys.argv[0]).split('.')[0] + '.log')
@@ -76,14 +66,6 @@ ABSPATH = os.path.join(os.path.dirname(os.path.realpath(__file__)))
 
 logger.info("Starting buffer threads.")
 
-RESTART = False
-def restart_threads(signum, frame):
-    global RESTART
-    logger.warning("Received %s", signum)
-    RESTART = True
-
-
-signal.signal(signal.SIGHUP, restart_threads)
 ALIVE = threading.Event()
 URLQ = queue.Queue()
 
@@ -95,16 +77,10 @@ children["sender"] = AACStream(ALIVE, URLQ,
                                tmpdir=TMPDIR,
                                ffmpeg=FFMPEG,
                                tmpidr=TMPDIR,
-                               # config=config,
-                               host=config['USEROPTS']['HOST'],
-                               port=config['USEROPTS']['PORT'],
-                               mount=config['USEROPTS']['MOUNT'],
-                               auth=(config['USEROPTS']['USER'], config['USEROPTS']['PASSWORD']))
-
+                               config=config)
 ALIVE.set()
 children["playlist"].start()
 children["metadata"].start()
-epoch = time.time()
 
 try:
     _runtime = time.time() - epoch
@@ -133,11 +109,10 @@ try:
         track, artist, album = 'Le track', 'Le artist', 'Le album'
         _meta = {}
         for _key in _json:
-            # logger.debug('Checking %s > %s > %s', int(_json[_key]['endTime']), int(_start), int(_key))
             if int(_json[_key]['endTime']) > int(_start) > int(_key):
                 _meta = _json.pop(_key)
-                with children["metadata"].lock:  # type: ignore
-                    with open(children["metadata"].cache, 'wt') as fh:  # type: ignore
+                with children["metadata"].lock:
+                    with open(children["metadata"].cache, 'wt') as fh:
                         json.dump(_json, fh)
                 try:
                     track = _meta['track']
@@ -151,32 +126,24 @@ try:
                     album = _meta['album']
                 except (KeyError, TypeError):
                     pass
-                # logger.debug('Found new metadata.')
                 break
         if not _meta:
-            # logger.debug('No metadata matched for %s', _start)
             continue
-        _url = children["sender"].iceserver  # type: ignore
+        _url = children["sender"].iceserver
         _params = {'mode': 'updinfo',
                    'mount': f"/{config['USEROPTS']['MOUNT']}",
-                   'song': f'{track} - {artist} - {album}'
-                   }
+                   'song': f'{track} - {artist} - {album}'}
         req = requests.get(f'http://{_url}/admin/metadata', params=_params,
                            auth=requests.auth.HTTPBasicAuth('source', config['USEROPTS']['PASSWORD']))
         if 'Metadata update successful' in req.text:
-            logger.info('Metadata updated successfully: %s - %s - %s', track, artist, album)
+            logger.info('Metadata udpate: %s - %s - %s', track, artist, album)
         else:
             logger.warning('Error updating metdata: %s', req.text)
-        # logger.debug("Offset: %0.0f / Delay: %0.0f", children["sender"].offset, opts.delay)
 
 except (KeyboardInterrupt, SystemExit):
     ALIVE.clear()
     for child in children:
         print(f"Joining {child}")
         children[child].join()
-
-except RestartTimeout:
-    killbuffer('RestartTimeout', None)
-    os.execv(__file__, sys.argv)
 
 cleantmpdir(TMPDIR)

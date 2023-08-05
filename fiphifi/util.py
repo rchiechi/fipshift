@@ -24,6 +24,7 @@ def killbuffer(signum, frame):  # pylint: disable=unused-argument
         if _thread != threading.main_thread():
             _thread.join()
 
+
 def timeinhours(sec):
     sec_value = sec % (24 * 3600)
     hour_value = sec_value // 3600

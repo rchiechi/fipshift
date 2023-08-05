@@ -18,13 +18,6 @@ def parseopts():
                         type=int,
                         help="Delay time in hours.")
 
-    parser.add_argument('-r', '--restart', action=StoreHours, default=0,
-                        type=int,
-                        help="Restart every n hours (0 means do not restart).")
-
-    parser.add_argument('-t', '--tag', action="store_true", default=False,
-                        help="Write ID3 tags to MP3 files.")
-
     parser.add_argument('--ffmpeg', action="store", default='',
                         type=str,
                         help="Path to ffmpeg if not in PATH.")
@@ -34,9 +27,7 @@ def parseopts():
                         help="Set the dir to look for the config file.")
 
     opts = parser.parse_args()
-    config = doconfig(os.path.join(opts.configdir,
-                      'fipshift.conf')
-                      )
+    config = doconfig(os.path.join(opts.configdir, 'fipshift.conf'))
     return opts, config
 
 
@@ -44,7 +35,7 @@ def doconfig(config_file):
     '''Parse config file or write a default file.'''
     if not os.path.exists(config_file):
         _pwd = os.path.dirname(os.path.realpath(__file__))
-        shutil.copy2(os.path.join(os.path.join(_pwd, '..'),'template.conf'), config_file)
+        shutil.copy2(os.path.join(os.path.join(_pwd, '..'), 'template.conf'), config_file)
         return doconfig(config_file)
     config = configparser.ConfigParser(allow_no_value=False)
     config.read(config_file)
@@ -65,5 +56,4 @@ class StoreHours(argparse.Action):
         if values < 0:
             setattr(namespace, self.dest, 60)  # for debugging
         else:
-            setattr(namespace, self.dest, 3600*values)
-        # setattr(namespace, self.dest, values)
+            setattr(namespace, self.dest, 3600 * values)
