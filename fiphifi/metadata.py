@@ -11,7 +11,6 @@ logger = logging.getLogger(__package__)
 
 class FIPMetadata(threading.Thread):
 
-    _newtrack = False
     metadata = METATEMPLATE
     metaurl = METAURL
 
@@ -44,13 +43,12 @@ class FIPMetadata(threading.Thread):
 
     def _updatemetadata(self, session):
         self.last_update = time.time()
-        self._newtrack = True
+        logger.info("%s fetching metadata from Fip", self.name)
         try:
-            logger.info("%s fetching metadata from Fip", self.name)
-            r = session.get(self.metaurl, timeout=5)
-            _json = r.json()
+            _json = session.get(self.metaurl, timeout=5).json()
             if _json.get('now', {'endTime': None})['endTime'] is None:
                 time.sleep(1)
+                logger.debug('%s retrying request.')
                 self._updatemetadata(session)
             else:
                 self.metadata = _json
@@ -201,13 +199,6 @@ class FIPMetadata(threading.Thread):
         if self.album == 'Le album':
             return f'{self.track} - {self.artist}'
         return f'{self.track} - {self.artist} - {self.album}'
-
-    @property
-    def newtrack(self):
-        if self._newtrack:
-            self._newtrack = False
-            return True
-        return False
 
     @property
     def remains(self):

@@ -94,7 +94,9 @@ except KeyboardInterrupt:
     print("Killing threads")
     ALIVE.clear()
     for child in children:
-        children[child].join()
+        if children[child].is_alive():
+            logger.info("Joining %s", child)
+            children[child].join(timeout=30)
     cleantmpdir(TMPDIR)
     sys.exit()
 
@@ -137,13 +139,17 @@ try:
                            auth=requests.auth.HTTPBasicAuth('source', config['USEROPTS']['PASSWORD']))
         if 'Metadata update successful' in req.text:
             logger.info('Metadata udpate: %s - %s - %s', track, artist, album)
+            time.sleep(9)
         else:
             logger.warning('Error updating metdata: %s', req.text)
 
 except (KeyboardInterrupt, SystemExit):
+    logger.warn("Main thread killed.")
+
+finally:
     ALIVE.clear()
     for child in children:
-        print(f"Joining {child}")
-        children[child].join()
+        logger.info("Joining %s", child)
+        children[child].join(timeout=60)
 
 cleantmpdir(TMPDIR)
