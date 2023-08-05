@@ -102,18 +102,17 @@ _ffmpegcmd = [FFMPEG,
               '-f', 'adts',
               f"icecast://{_c['USER']}:{_c['PASSWORD']}@{_c['HOST']}:{_c['PORT']}/{_c['MOUNT']}"]
 ffmpeg_proc = subprocess.Popen(_ffmpegcmd)
-time.sleep(1)
 
 try:
-    _runtime = time.time() - epoch
+    _runtime = opts.delay + 10
     while _runtime < opts.delay:
         _remains = (opts.delay - _runtime) / 60 or 1
         logger.info('Buffering for %0.0f more minutes', _remains)
+        time.sleep(60)
         send_metadata(f"{_c['HOST']}:{_c['PORT']}",
                       _c['MOUNT'],
                       f"Realtime Stream: T-{_remains:0.0f} minutes",
                       (config['USEROPTS']['USER'], config['USEROPTS']['PASSWORD']))
-        time.sleep(60)
         _runtime = time.time() - epoch
 
 except KeyboardInterrupt:
@@ -145,18 +144,9 @@ try:
                 with children["metadata"].lock:
                     with open(children["metadata"].cache, 'wt') as fh:
                         json.dump(_json, fh)
-                try:
-                    track = _meta['track']
-                except (KeyError, TypeError):
-                    pass
-                try:
-                    artist = _meta['artist']
-                except (KeyError, TypeError):
-                    pass
-                try:
-                    album = _meta['album']
-                except (KeyError, TypeError):
-                    pass
+                track = _meta.get('track')
+                artist = _meta.get('artist')
+                album = _meta.get('album')
                 break
         if not _meta:
             continue
@@ -168,17 +158,6 @@ try:
                          slug,
                          (config['USEROPTS']['USER'], config['USEROPTS']['PASSWORD'])):
             last_slug = slug
-        # _url = children["sender"].iceserver
-        # _params = {'mode': 'updinfo',
-        #            'mount': f"/{config['USEROPTS']['MOUNT']}",
-        #            'song': slug}
-        # req = requests.get(f'http://{_url}/admin/metadata', params=_params,
-        #                    auth=requests.auth.HTTPBasicAuth('source', config['USEROPTS']['PASSWORD']))
-        # if 'Metadata update successful' in req.text:
-        #     logger.info('Metadata udpate: %s', slug)
-        #     last_slug = slug
-        # else:
-        #     logger.warning('Error updating metdata: %s', req.text)
 
 except (KeyboardInterrupt, SystemExit):
     logger.warning("Main thread killed.")
