@@ -6,50 +6,59 @@ METAURL = 'https://www.radiofrance.fr/api/v2.1/stations/fip/live'
 AACRE = re.compile(f'^{FIPBASEURL}/.*(fip_.*\.ts).*$')
 TSRE= re.compile('(.*/fip_aac_hifi_\d_)(\d+)_(\d+)')
 STRPTIME = "%Y-%m-%dT%H:%M:%SZ"
-METATEMPLATE = {
-                "delayToRefresh": 71000,
+METATEMPLATE = {"delayToRefresh": 10000,
                 "now": {
                   "firstLine": {
                     "id": None,
-                    "title": "Le song",
+                    "title": "Le direct",
                     "path": None
                   },
                   "secondLine": {
                     "id": None,
-                    "title": "Le artist",
+                    "title": "La radio la plus éclectique du monde",
                     "path": None
                   },
-                  "startTime": 1674841371,
+                  "thirdLine": {
+                    "id": None,
+                    "title": None,
+                    "path": None
+                  },
+                  "printProgMusic": False,
+                  "startTime": None,
                   "visuals": {
                     "card": {
-                      "src": "https://www.radiofrance.fr/s3/cruiser-production/2019/12/0683977a-2cb3-4290-ae3e-d953c83903a0/250x250_rf_omm_0000232973_dnc.0057839972.jpg",
-                      "webpSrc": "https://www.radiofrance.fr/s3/cruiser-production/2019/12/0683977a-2cb3-4290-ae3e-d953c83903a0/250x250_rf_omm_0000232973_dnc.0057839972.webp",
-                      "legend": None,
-                      "width": 250,
-                      "height": 250,
-                      "preview": "/9j/2wBDACgcHiMeGSgjISMtKygwPGRBPDc3PHtYXUlkkYCZlo+AjIqgtObDoKrarYqMyP/L2u71////m8H////6/+b9//j/2wBDASstLTw1PHZBQXb4pYyl+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj/wAARCAAqACoDASIAAhEBAxEB/8QAGQAAAwEBAQAAAAAAAAAAAAAAAgMEBQAB/8QAJhAAAQMDAwQCAwAAAAAAAAAAAQACAwQREiExQRMUQlEFIlJhgf/EABYBAQEBAAAAAAAAAAAAAAAAAAIAAf/EABYRAQEBAAAAAAAAAAAAAAAAAAABEf/aAAwDAQACEQMRAD8AbI/oR5OJ/qlknjey2bib7Kv5VhMAI2BWXA0iQEjRE1GVPvdwKtpakSDBhyIQlkT4rWbdL+NDI5pCXD0FNq3J/wCK77+k668v+lDpdXGJIS3k7KWpjZjGxxDdNVe4AiyxawvE9pRY8FVUVRwx62dwlQsaJDjxqUDWgR+WRTInBlO5oH2J1WE0ojlE0n0iQxOa6NuJuLIkgDkQdUFVTtqYS3y4KcAu8wsTGo2SOqOjISA3cJnQPcFhdjf3ytEtHcg2F7IZwOq02F1YWhhg7dlg4lNyHtMOyCw9LWP/2Q=="
+                      "model": "EmbedImage",
+                      "author": None,
+                      "copyright": "Aucun(e)",
+                      "height": 200,
+                      "id": "7eee98cb-3f59-4a3b-b921-6a4be85af542",
+                      "legend": "fallback fip cover",
+                      "preset": "200x200",
+                      "preview": "/9j/2wBDACgcHiMeGSgjISMtKygwPGRBPDc3PHtYXUlkkYCZlo+AjIqgtObDoKrarYqMyP/L2u71////m8H////6/+b9//j/2wBDASstLTw1PHZBQXb4pYyl+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj/wAARCAAqACoDASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAAAgMAAQUE/8QAJBAAAgMAAQIGAwAAAAAAAAAAAAECAxEhBBIFEyIxUXEUQVL/xAAXAQEBAQEAAAAAAAAAAAAAAAAAAQIE/8QAGBEBAQADAAAAAAAAAAAAAAAAAAEDETH/2gAMAwEAAhEDEQA/AO6MBigSKGLgqA7CnDhjE0/2XgGNZQ/VNNYINp9PXz6fcD8Wr+Ea265nk6u65UUuyXOGTLxO6dmrEvg151xurcJrUzPl4Q1LYS1fDMuUzybrmpu1R49kw6pWR1Ob2LOSfQ9ZuR4X2FTX1FFvZc1jRBq1Tdlev3LF9PxW/sPSgIsNSEoJFQ3uAnCE2nJa0UQgJZFYiFEA/9k=",
+                      "src": "https://www.radiofrance.fr/s3/cruiser-production/2022/02/7eee98cb-3f59-4a3b-b921-6a4be85af542/200x200_visual-fip.jpg",
+                      "type": "image",
+                      "webpSrc": "https://www.radiofrance.fr/s3/cruiser-production/2022/02/7eee98cb-3f59-4a3b-b921-6a4be85af542/200x200_visual-fip.webp",
+                      "width": 200
                     },
                     "player": {
-                      "src": "https://www.radiofrance.fr/s3/cruiser-production/2019/12/0683977a-2cb3-4290-ae3e-d953c83903a0/200x200_rf_omm_0000232973_dnc.0057839972.jpg",
-                      "webpSrc": "https://www.radiofrance.fr/s3/cruiser-production/2019/12/0683977a-2cb3-4290-ae3e-d953c83903a0/200x200_rf_omm_0000232973_dnc.0057839972.webp",
-                      "legend": None,
-                      "width": 200,
+                      "model": "EmbedImage",
+                      "author": None,
+                      "copyright": "Aucun(e)",
                       "height": 200,
-                      "preview": "/9j/2wBDACgcHiMeGSgjISMtKygwPGRBPDc3PHtYXUlkkYCZlo+AjIqgtObDoKrarYqMyP/L2u71////m8H////6/+b9//j/2wBDASstLTw1PHZBQXb4pYyl+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj/wAARCAAqACoDASIAAhEBAxEB/8QAGQAAAwEBAQAAAAAAAAAAAAAAAgMEBQAB/8QAJhAAAQMDAwQCAwAAAAAAAAAAAQACAwQREiExQRMUQlEFIlJhgf/EABYBAQEBAAAAAAAAAAAAAAAAAAIAAf/EABYRAQEBAAAAAAAAAAAAAAAAAAABEf/aAAwDAQACEQMRAD8AbI/oR5OJ/qlknjey2bib7Kv5VhMAI2BWXA0iQEjRE1GVPvdwKtpakSDBhyIQlkT4rWbdL+NDI5pCXD0FNq3J/wCK77+k668v+lDpdXGJIS3k7KWpjZjGxxDdNVe4AiyxawvE9pRY8FVUVRwx62dwlQsaJDjxqUDWgR+WRTInBlO5oH2J1WE0ojlE0n0iQxOa6NuJuLIkgDkQdUFVTtqYS3y4KcAu8wsTGo2SOqOjISA3cJnQPcFhdjf3ytEtHcg2F7IZwOq02F1YWhhg7dlg4lNyHtMOyCw9LWP/2Q=="
+                      "id": "7eee98cb-3f59-4a3b-b921-6a4be85af542",
+                      "legend": "fallback fip cover",
+                      "preset": "200x200",
+                      "preview": "/9j/2wBDACgcHiMeGSgjISMtKygwPGRBPDc3PHtYXUlkkYCZlo+AjIqgtObDoKrarYqMyP/L2u71////m8H////6/+b9//j/2wBDASstLTw1PHZBQXb4pYyl+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj/wAARCAAqACoDASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAAAgMAAQUE/8QAJBAAAgMAAQIGAwAAAAAAAAAAAAECAxEhBBIFEyIxUXEUQVL/xAAXAQEBAQEAAAAAAAAAAAAAAAAAAQIE/8QAGBEBAQADAAAAAAAAAAAAAAAAAAEDETH/2gAMAwEAAhEDEQA/AO6MBigSKGLgqA7CnDhjE0/2XgGNZQ/VNNYINp9PXz6fcD8Wr+Ea265nk6u65UUuyXOGTLxO6dmrEvg151xurcJrUzPl4Q1LYS1fDMuUzybrmpu1R49kw6pWR1Ob2LOSfQ9ZuR4X2FTX1FFvZc1jRBq1Tdlev3LF9PxW/sPSgIsNSEoJFQ3uAnCE2nJa0UQgJZFYiFEA/9k=",
+                      "src": "https://www.radiofrance.fr/s3/cruiser-production/2022/02/7eee98cb-3f59-4a3b-b921-6a4be85af542/200x200_visual-fip.jpg",
+                      "type": "image",
+                      "webpSrc": "https://www.radiofrance.fr/s3/cruiser-production/2022/02/7eee98cb-3f59-4a3b-b921-6a4be85af542/200x200_visual-fip.webp",
+                      "width": 200
                     }
                   },
                   "producer": "",
-                  "song": {
-                    "id": "11cd7a76-06f5-4b5f-965d-2335a2d2930b",
-                    "year": 1977,
-                    "release": {
-                      "label": "Fip",
-                      "title": "Le album",
-                      "reference": None
-                    }
-                  },
+                  "song": None,
                   "stationName": "fip",
-                  "endTime": 1674841528,
+                  "endTime": None,
                   "media": {
                     "sources": [
                       {
@@ -89,48 +98,35 @@ METATEMPLATE = {
                         "bitrate": 32
                       }
                     ],
-                    "startTime": 1674841371,
-                    "endTime": 1674841528
+                    "startTime": None,
+                    "endTime": None
                   },
                   "localRadios": [],
-                  "remoteDTR": 71000,
-                  "nowTime": 1674841458,
-                  "nowPercent": 55.4140127388535
+                  "remoteDTR": 10000,
+                  "nowTime": 1691255905,
+                  "nowPercent": 0
                 },
                 "migrated": True,
                 "next": {
                   "firstLine": {
-                    "id": None,
-                    "title": "Le Next",
-                    "path": None
+                    "id": "ea483d20-2b2b-4977-b86c-ba576f40ccbe",
+                    "title": "Spéciales FIP",
+                    "path": "fip/podcasts/speciales-fip"
                   },
                   "secondLine": {
+                    "id": "84f9b539-95ac-4d33-887d-76e5d322d582",
+                    "title": "Spéciale Festival du Bout du Monde",
+                    "path": "fip/podcasts/speciales-fip/speciale-festival-du-bout-du-monde-5330990"
+                  },
+                  "thirdLine": {
                     "id": None,
-                    "title": "Le Artist",
+                    "title": None,
                     "path": None
                   },
-                  "startTime": 1674841528,
-                  "visuals": {
-                    "card": {
-                      "src": "https://www.radiofrance.fr/s3/cruiser-production/2019/12/2edfbbb5-2940-4f40-b0fa-0ddf188a4f92/400x400_rf_omm_0000513506_dnc.0053002059.jpg",
-                      "webpSrc": "https://www.radiofrance.fr/s3/cruiser-production/2019/12/2edfbbb5-2940-4f40-b0fa-0ddf188a4f92/400x400_rf_omm_0000513506_dnc.0053002059.webp",
-                      "legend": None,
-                      "width": 400,
-                      "height": 400,
-                      "preview": "/9j/2wBDACgcHiMeGSgjISMtKygwPGRBPDc3PHtYXUlkkYCZlo+AjIqgtObDoKrarYqMyP/L2u71////m8H////6/+b9//j/2wBDASstLTw1PHZBQXb4pYyl+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj/wAARCAAqACoDASIAAhEBAxEB/8QAGQABAAMBAQAAAAAAAAAAAAAABAIDBQEA/8QAKRAAAgIBAwMDAwUAAAAAAAAAAQIAAxEEEiETIjEFQVEUI3EzNGFygf/EABgBAAMBAQAAAAAAAAAAAAAAAAECBAMA/8QAHREAAgMAAgMAAAAAAAAAAAAAAAECERIDIjEyYf/aAAwDAQACEQMRAD8AlZpXrQM1uPzOV0WuMrYD/IMs9QXr7MHtHmWaGtKiyqCM88zLI+iCae5SCznHuJw1aghsP75z8R1jhEZj7CGp6l6FrO3PjEWUUlZ1lNXWFi5szzNGDCDq7Axz84iwvHkzKfwF2ZCanrs1fgkdsvqv+ms23qVZhwYBdNdt6gWaN+na/TVFz3L5MqtMB5TvuCOc7jkxzADAHxM3RWLbrSMZCjiaVkz5F1ORWpBfxzLYWv8AUEVJ5xywp2Zaa5BWAVO4cRFeoW0bXGOIRwOeJHR87/6mWYUfALsdodPQmbaSTu45inhfS/2g/JiW8/5E5PVhQWlbTeWd1C+wEZDVj7sTJpO2E//Z"
-                    },
-                    "player": None
-                  },
+                  "printProgMusic": False,
+                  "startTime": 1691260200,
                   "producer": "",
-                  "song": {
-                    "id": "9bfb38ac-47e7-4ba7-a314-94d76d18166f",
-                    "year": 1977,
-                    "release": {
-                      "label": "Fip",
-                      "title": "Le Next Song'",
-                      "reference": None
-                    }
-                  },
-                  "endTime": 1674841671
+                  "song": None,
+                  "endTime": 1691263800
                 }
               }

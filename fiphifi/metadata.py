@@ -55,7 +55,7 @@ class FIPMetadata(threading.Thread):
             else:
                 _json = _r.json()
             if _json.get('now', {'endTime': None})['endTime'] is None:
-                logger.debug('%s metadata server returning le nonsense.', self.name)
+                logger.debug('%s le nonsense endTime.', self.name)
                 # return int(_json.get('delayToRefresh', 10000,) / 1000)
         except requests.exceptions.JSONDecodeError:
             logger.error("%s JSON error fetching metadata from Fip.", self.name)
@@ -87,48 +87,55 @@ class FIPMetadata(threading.Thread):
                 return json.load(fh)
 
     def _getmeta(self, when):
-        try:
-            track = self.metadata[when]['firstLine']['title']
-        except (KeyError, TypeError):
-            track = 'Le track'
-        try:
-            artist = self.metadata[when]['secondLine']['title']
-        except (KeyError, TypeError):
-            artist = 'Le artist'
-        try:
-            album = self.metadata[when]['song']['release']['title']
-        except (KeyError, TypeError):
-            album = 'Le album'
-        try:
-            year = self.metadata[when]['song']['year']
-        except (KeyError, TypeError):
-            year = '1789'
-        try:
-            coverart = self.metadata[when]['visuals']['card']['src']
-        except (KeyError, TypeError):
-            coverart = 'https://www.radiofrance.fr/s3/cruiser-production/2022/02/7eee98cb-3f59-4a3b-b921-6a4be85af542/250x250_visual-fip.jpg'
-        try:
-            endtime = float(self.metadata[when]['endTime'])
-        except (KeyError, TypeError):
-            endtime = time.time() + 10
-        try:
-            starttime = float(self.metadata[when]['startTime'])
-        except (KeyError, TypeError):
-            starttime = time.time()
-        try:
-            refresh = float(self.metadata['delayToRefresh']) / 1000
-        except (KeyError, TypeError):
-            refresh = 0
+        _metadata = self.metadata.get(when, METATEMPLATE[when])
+        if _metadata['song'] is None:
+            _metadata['song'] = {'release': {'title': 'Le Album'}, 'year': 1977}
+        delayToRefresh = float(self.metadata.get('delayToRefresh', 10000)) / 1000
+        startTime = float(_metadata['startTime'] or time.time())
+        endTime = float(_metadata['endTime'] or time.time() + 10)
         return {
-            'track': track,
-            'artist': artist,
-            'album': album,
-            'year': year,
-            'coverart': coverart,
-            'endTime': endtime,
-            'startTime': starttime,
-            'delayToRefresh': refresh
+            'track': _metadata['firstLine']['title'],
+            'artist': _metadata['secondLine']['title'],
+            'album': _metadata['song']['release']['title'],
+            'year': _metadata['song']['year'],
+            'coverart': _metadata['visuals']['card']['src'],
+            'endTime': endTime,
+            'startTime': startTime,
+            'delayToRefresh': delayToRefresh
         }
+        # try:
+        #     track = self.metadata[when]['firstLine']['title']
+        # except (KeyError, TypeError):
+        #     track = 'Le track'
+        # try:
+        #     artist = self.metadata[when]['secondLine']['title']
+        # except (KeyError, TypeError):
+        #     artist = 'Le artist'
+        # try:
+        #     album = self.metadata[when]['song']['release']['title']
+        # except (KeyError, TypeError):
+        #     album = 'Le album'
+        # try:
+        #     year = self.metadata[when]['song']['year']
+        # except (KeyError, TypeError):
+        #     year = '1789'
+        # try:
+        #     coverart = self.metadata[when]['visuals']['card']['src']
+        # except (KeyError, TypeError):
+        #     coverart = 'https://www.radiofrance.fr/s3/cruiser-production/2022/02/7eee98cb-3f59-4a3b-b921-6a4be85af542/250x250_visual-fip.jpg'
+        # try:
+        #     endtime = float(self.metadata[when]['endTime'])
+        # except (KeyError, TypeError):
+        #     endtime = time.time() + 10
+        # try:
+        #     starttime = float(self.metadata[when]['startTime'])
+        # except (KeyError, TypeError):
+        #     starttime = time.time()
+        # try:
+        #     refresh = float(self.metadata['delayToRefresh']) / 1000
+        # except (KeyError, TypeError):
+        #     refresh = 0
+
 
     @property
     def current(self):
