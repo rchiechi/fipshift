@@ -26,6 +26,10 @@ def parseopts():
                         default=os.path.join(os.path.expanduser('~'), '.config'),
                         help="Set the dir to look for the config file.")
 
+    parser.add_argument('--debug', action="store_true",
+                        default=False,
+                        help="Turn on debug logging.")
+
     opts = parser.parse_args()
     config = doconfig(os.path.join(opts.configdir, 'fipshift.conf'))
     return opts, config

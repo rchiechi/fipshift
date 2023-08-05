@@ -42,6 +42,8 @@ class FIPMetadata(threading.Thread):
         logger.info('%s dying (alive: %s)', self.name, self.alive)
 
     def _updatemetadata(self, session):
+        if not self.alive:
+            return 300000
         self.last_update = time.time()
         logger.info("%s fetching metadata from Fip", self.name)
         try:
@@ -52,14 +54,14 @@ class FIPMetadata(threading.Thread):
             else:
                 _json = _r.json()
             if _json.get('now', {'endTime': None})['endTime'] is None:
-                logger.error('%s got bad json[delayToRefresh]: %s', self.name, _json.get('delayToRefresh', 0))
+                logger.error('%s metadata server returning le nonsense.', self.name)
                 time.sleep(5)
                 logger.debug('%s retrying request.', self.name)
                 self._updatemetadata(session)
             else:
                 self.metadata = _json
         except requests.exceptions.JSONDecodeError:
-            logger.error("JSON error fetching metadata from Fip.")
+            logger.error("%s JSON error fetching metadata from Fip.", self.name)
             self.endtime = time.time() + 10
             pass
         except requests.ReadTimeout:
@@ -68,19 +70,19 @@ class FIPMetadata(threading.Thread):
         if self.metadata is None:
             self.metadata = METATEMPLATE
             self.endtime = time.time() + 10
-            logger.error("Error fetching metadata from Fip.")
+            logger.error("%s error fetching metadata from Fip.", self.name)
         for _k in METATEMPLATE['now']:
             if _k not in self.metadata['now']:
                 self.metadata['now'][_k] = METATEMPLATE['now'][_k]
-                logger.debug('%s key mangled in update', _k)
+                logger.debug('%s %s key mangled in update', self.name, _k)
         return int(_json.get('delayToRefresh', 300000) / 1000)
 
     def _writetodisk(self):
         _json = self._readfromdisk()
         with self.lock:
-            _metadata = self.getcurrent()
+            _metadata = self.current
             _json[int(_metadata['startTime'])] = _metadata
-            _metadata = self.getnext()
+            _metadata = self.next
             _json[int(_metadata['startTime'])] = _metadata
             with open(self.cache, 'wt') as fh:
                 logger.debug("%s writing json to %s", self.name, self.cache)
@@ -116,18 +118,12 @@ class FIPMetadata(threading.Thread):
             endtime = float(self.metadata[when]['endTime'])
         except (KeyError, TypeError):
             endtime = time.time()
-        except (KeyError, TypeError):
-            endtime = time.time()
         try:
             starttime = float(self.metadata[when]['startTime'])
         except (KeyError, TypeError):
             starttime = time.time()
-        except (KeyError, TypeError):
-            starttime = time.time()
         try:
             refresh = float(self.metadata['delayToRefresh']) / 1000
-        except (KeyError, TypeError):
-            refresh = 0
         except (KeyError, TypeError):
             refresh = 0
         return {
@@ -142,6 +138,14 @@ class FIPMetadata(threading.Thread):
         }
 
     @property
+    def current(self):
+        return self._getmeta('now')
+
+    @property
+    def next(self):
+        return self._getmeta('next')
+
+    @property
     def cache(self):
         return self._cache
 
@@ -153,95 +157,72 @@ class FIPMetadata(threading.Thread):
     def alive(self):
         return self._alive.isSet()
 
-    @alive.setter
-    def alive(self, _bool):
-        if not _bool:
-            self._alive.clear()
-        else:
-            self._alive.set()
-
-    def getfromtime(self, _start):
-        _json = self._readfromdisk()
-        for _key in _json:
-            if _json[_key]['endTime'] > _start > _key:
-                slug = _json.pop(_key)
-                with self.lock:
-                    with open(self.cache, 'wt') as fh:
-                        json.dump(_json, fh)
-                return slug
-
-    def getcurrent(self):
-        return self._getmeta('now')
-
-    def getnext(self):
-        return self._getmeta('next')
-
     @property
     def jsoncache(self):
         return self._readfromdisk()
 
-    @property
-    def track(self):
-        return self.getcurrent()['track']
+    # @property
+    # def track(self):
+    #     return self.current['track']
 
-    @property
-    def artist(self):
-        return self.getcurrent()['artist']
+    # @property
+    # def artist(self):
+    #     return self.current['artist']
 
-    @property
-    def album(self):
-        return self.getcurrent()['album']
+    # @property
+    # def album(self):
+    #     return self.current['album']
 
-    @property
-    def year(self):
-        return self.getcurrent()['year']
+    # @property
+    # def year(self):
+    #     return self.current['year']
 
-    @property
-    def coverart(self):
-        return self.getcurrent()['coverart']
+    # @property
+    # def coverart(self):
+    #     return self.current['coverart']
 
-    @property
-    def slug(self):
-        if self.album == 'Le album':
-            return f'{self.track} - {self.artist}'
-        return f'{self.track} - {self.artist} - {self.album}'
+    # @property
+    # def slug(self):
+    #     if self.album == 'Le album':
+    #         return f'{self.track} - {self.artist}'
+    #     return f'{self.track} - {self.artist} - {self.album}'
 
-    @property
-    def remains(self):
-        _remains = self.endtime - time.time()
-        if _remains < 0:
-            _remains = 0
-        return _remains
+    # @property
+    # def remains(self):
+    #     _remains = self.endtime - time.time()
+    #     if _remains < 0:
+    #         _remains = 0
+    #     return _remains
 
-    @property
-    def duration(self):
-        _duration = self.endtime - self.starttime
-        if _duration < 0:
-            _duration = 0
-        return _duration
+    # @property
+    # def duration(self):
+    #     _duration = self.endtime - self.starttime
+    #     if _duration < 0:
+    #         _duration = 0
+    #     return _duration
 
-    @property
-    def starttime(self):
-        return self.getcurrent()['startTime']
+    # @property
+    # def starttime(self):
+    #     return self.current['startTime']
 
-    @property
-    def endtime(self):
-        return self.getcurrent()['endTime']
+    # @property
+    # def endtime(self):
+    #     return self.current['endTime']
 
-    @endtime.setter
-    def endtime(self, _time):
-        self.metadata['now']['endTime'] = _time
+    # @endtime.setter
+    # def endtime(self, _time):
+    #     self.metadata['now']['endTime'] = _time
 
-    @property
-    def lastupdate(self):
-        return time.time() - self.last_update
+    # @property
+    # def lastupdate(self):
+    #     return time.time() - self.last_update
 
-    @property
-    def refresh(self):
-        _refresh = self.getcurrent()['delayToRefresh'] - self.lastupdate
-        if _refresh < 0:
-            _refresh = 0
-        return _refresh
+    # @property
+    # def refresh(self):
+    #     _refresh = self.current['delayToRefresh'] - self.lastupdate
+    #     if _refresh < 0:
+    #         _refresh = 0
+    #     return _refresh
 
 # Metadata channel
 

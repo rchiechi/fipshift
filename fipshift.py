@@ -50,8 +50,10 @@ if not os.path.exists(TMPDIR):
 cleantmpdir(TMPDIR)
 
 logger = logging.getLogger(__package__)
-logger.setLevel(logging.DEBUG)
-# logger.setLevel(logging.INFO)
+if opts.debug:
+    logger.setLevel(logging.DEBUG)
+else:
+    logger.setLevel(logging.INFO)
 _logfile = os.path.join(TMPDIR, os.path.basename(sys.argv[0]).split('.')[0] + '.log')
 loghandler = logging.FileHandler(_logfile)
 loghandler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - [%(levelname)s] %(message)s'))
