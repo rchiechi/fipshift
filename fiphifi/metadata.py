@@ -42,14 +42,14 @@ class FIPMetadata(threading.Thread):
         logger.info('%s dying (alive: %s)', self.name, self.alive)
 
     def _updatemetadata(self, session):
-        self._nexttonow()
+        # self._nexttonow()
         self.last_update = time.time()
         self._newtrack = True
         try:
-            logger.debug("%s: Fetching metadata from Fip", self.name)
+            logger.info("%s: Fetching metadata from Fip", self.name)
             r = session.get(self.metaurl, timeout=5)
             _json = r.json()
-            if _json.get('now', {'endTime':None})['endTime'] is None:
+            if _json.get('now', {'endTime': None})['endTime'] is None:
                 time.sleep(1)
                 self._updatemetadata(session)
             else:
@@ -69,7 +69,7 @@ class FIPMetadata(threading.Thread):
             if _k not in self.metadata['now']:
                 self.metadata['now'][_k] = METATEMPLATE['now'][_k]
                 logger.debug('%s key mangled in update', _k)
-        return _json.get('delayToRefresh', 300000)/1000
+        return _json.get('delayToRefresh', 300000) / 1000
 
     def _writetodisk(self):
         _json = self._readfromdisk()
@@ -87,7 +87,7 @@ class FIPMetadata(threading.Thread):
                 return json.load(fh)
 
     def _nexttonow(self):
-        _next = self.metadata.get('next', {"startTime": time.time()+10})['startTime']
+        _next = self.metadata.get('next', {"startTime": time.time() + 10})['startTime']
         if _next is None:
             return
         if time.time() > _next:
@@ -98,41 +98,41 @@ class FIPMetadata(threading.Thread):
     def _getmeta(self, when):
         try:
             track = self.metadata[when]['firstLine']['title']
-        except TypeError:
+        except (KeyError, TypeError):
             track = 'Le track'
         try:
             artist = self.metadata[when]['secondLine']['title']
-        except TypeError:
+        except (KeyError, TypeError):
             artist = 'Le artist'
         try:
             album = self.metadata[when]['song']['release']['title']
-        except TypeError:
+        except (KeyError, TypeError):
             album = 'Le album'
         try:
             year = self.metadata[when]['song']['year']
-        except TypeError:
+        except (KeyError, TypeError):
             year = '1789'
         try:
             coverart = self.metadata[when]['visuals']['card']['src']
-        except TypeError:
+        except (KeyError, TypeError):
             coverart = 'https://www.radiofrance.fr/s3/cruiser-production/2022/02/7eee98cb-3f59-4a3b-b921-6a4be85af542/250x250_visual-fip.jpg'
         try:
             endtime = float(self.metadata[when]['endTime'])
-        except TypeError:
+        except (KeyError, TypeError):
             endtime = time.time()
-        except ValueError:
+        except (KeyError, TypeError):
             endtime = time.time()
         try:
             starttime = float(self.metadata[when]['startTime'])
-        except TypeError:
+        except (KeyError, TypeError):
             starttime = time.time()
-        except ValueError:
+        except (KeyError, TypeError):
             starttime = time.time()
         try:
             refresh = float(self.metadata['delayToRefresh']) / 1000
-        except TypeError:
+        except (KeyError, TypeError):
             refresh = 0
-        except ValueError:
+        except (KeyError, TypeError):
             refresh = 0
         return {
             'track': track,

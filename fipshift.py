@@ -9,15 +9,16 @@ import signal
 import time
 import subprocess
 import queue
-import re
-import shutil
-import datetime
+from typing_extensions import TypedDict
+# import re
+# import shutil
+# import datetime
 import json
-from tempfile import TemporaryDirectory
+# from tempfile import TemporaryDirectory
 import requests  # type: ignore
 from fiphifi.util import RestartTimeout, cleantmpdir, killbuffer  # type: ignore
 from fiphifi.playlist import FipPlaylist  # type: ignore
-from fiphifi.fetcher import FipChunks  # type: ignore
+# from fiphifi.fetcher import FipChunks  # type: ignore
 from fiphifi.sender import AACStream  # type: ignore
 from fiphifi.options import parseopts  # type: ignore
 from fiphifi.metadata import FIPMetadata  # type: ignore
@@ -26,6 +27,7 @@ from fiphifi.metadata import FIPMetadata  # type: ignore
 # pylint: disable=missing-class-docstring, missing-function-docstring
 
 opts, config = parseopts()
+Children = TypedDict('Children', {'playlist': FipPlaylist, 'metadata': FIPMetadata, 'sender': AACStream})
 
 try:
     TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
@@ -60,7 +62,7 @@ logger = logging.getLogger(__package__)
 # NOTE: Setting DEBUG fills log with subprocess ffmpeg output
 logger.setLevel(logging.DEBUG)
 # logger.setLevel(logging.INFO)
-_logfile = os.path.join(TMPDIR, os.path.basename(sys.argv[0]).split('.')[0]+'.log')
+_logfile = os.path.join(TMPDIR, os.path.basename(sys.argv[0]).split('.')[0] + '.log')
 loghandler = logging.FileHandler(_logfile)
 loghandler.setFormatter(logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s'))
 logger.addHandler(loghandler)
@@ -68,6 +70,7 @@ streamhandler = logging.StreamHandler()
 streamhandler.setFormatter(logging.Formatter('%(asctime)s %(process)d %(levelname)s %(message)s'))
 logger.addHandler(streamhandler)
 logger.info("Logging to %s", _logfile)
+logging.getLogger("urllib3").setLevel(logging.WARN)
 
 ABSPATH = os.path.join(os.path.dirname(os.path.realpath(__file__)))
 
@@ -81,64 +84,60 @@ def restart_threads(signum, frame):
 
 
 signal.signal(signal.SIGHUP, restart_threads)
+ALIVE = threading.Event()
+URLQ = queue.Queue()
 
-children = {"playlist": {"queue": queue.Queue(), "alive": threading.Event(), "restarts": 0},
-            "metadata": {"alive": threading.Event(), "restarts": 0},
-            "sender": {"alive": threading.Event(), "restarts": 0}
-            }
+children: Children = {}
+children["playlist"] = FipPlaylist(ALIVE, URLQ)
+children["metadata"] = FIPMetadata(ALIVE, tmpdir=TMPDIR)
+children["sender"] = AACStream(ALIVE, URLQ,
+                               delay=opts.delay,
+                               tmpdir=TMPDIR,
+                               ffmpeg=FFMPEG,
+                               tmpidr=TMPDIR,
+                               # config=config,
+                               host=config['USEROPTS']['HOST'],
+                               port=config['USEROPTS']['PORT'],
+                               mount=config['USEROPTS']['MOUNT'],
+                               auth=(config['USEROPTS']['USER'], config['USEROPTS']['PASSWORD']))
 
-children["playlist"]["thread"] = FipPlaylist(children["playlist"]["alive"],
-                                             children["playlist"]["queue"])
-children["metadata"]["thread"] = FIPMetadata(children["metadata"]["alive"],
-                                             tmpdir=TMPDIR)
-children["sender"]["thread"] = AACStream(children["sender"]["alive"],
-                                         children["playlist"]["queue"],
-                                         delay=opts.delay,
-                                         tmpdir=TMPDIR,
-                                         ffmpeg=FFMPEG,
-                                         tmpidr=TMPDIR,
-                                         host=config['USEROPTS']['HOST'],
-                                         port=config['USEROPTS']['PORT'],
-                                         mount=config['USEROPTS']['MOUNT'],
-                                         auth=(config['USEROPTS']['USER'], config['USEROPTS']['PASSWORD']))
-
-for child in children:
-    children[child]["alive"].set()  # type: ignore
-
-children["playlist"]["thread"].start()  # type: ignore
-children["metadata"]["thread"].start()  # type: ignore
+ALIVE.set()
+children["playlist"].start()
+children["metadata"].start()
 epoch = time.time()
 
 try:
     _runtime = time.time() - epoch
     while _runtime < opts.delay:
-        _remains = (opts.delay - _runtime)/60 or 1
+        _remains = (opts.delay - _runtime) / 60 or 1
         logger.info('Buffering for %0.0f more minutes', _remains)
         time.sleep(60)
         _runtime = time.time() - epoch
 
 except KeyboardInterrupt:
     print("Killing threads")
-    killbuffer('KeyboardInterrupt', None)
+    ALIVE.clear()
+    for child in children:
+        children[child].join()
     cleantmpdir(TMPDIR)
     sys.exit()
 
-children["sender"]["thread"].start()  # type: ignore
-logger.info("Started %s", children["sender"]["thread"].name)  # type: ignore
-time.sleep(5)
+children["sender"].start()  # type: ignore
+logger.info("Started %s", children["sender"].name)
 
 try:
     while True:
         time.sleep(1)
-        _start = children["sender"]["thread"].timestamp  # type: ignore
-        _json = children["metadata"]["thread"].jsoncache  # type: ignore
+        _start = children["sender"].timestamp
+        _json = children["metadata"].jsoncache
         track, artist, album = 'Le track', 'Le artist', 'Le album'
         _meta = {}
         for _key in _json:
+            logger.debug('Checking %s > %s > %s', _json[_key]['endTime'], _start, _key)
             if _json[_key]['endTime'] > _start > _key:
                 _meta = _json.pop(_key)
-                with children["metadata"]["thread"].lock:  # type: ignore
-                    with open(children["metadata"]["thread"].cache, 'wt') as fh:  # type: ignore
+                with children["metadata"].lock:  # type: ignore
+                    with open(children["metadata"].cache, 'wt') as fh:  # type: ignore
                         json.dump(_json, fh)
                 try:
                     track = _meta['firstLine']['title']
@@ -153,8 +152,9 @@ try:
                 except TypeError:
                     pass
         if not _meta:
+            # logger.debug('No metadata matched for %s', _start)
             continue
-        _url = children["sender"]["thread"].iceserver  # type: ignore
+        _url = children["sender"].iceserver  # type: ignore
         _params = {'mode': 'updinfo',
                    'mount': f"/{config['USEROPTS']['MOUNT']}",
                    'song': f'{track} - {artist} - {album}'
@@ -163,64 +163,12 @@ try:
                            auth=requests.auth.HTTPBasicAuth('source', config['USEROPTS']['PASSWORD']))
         if 'Metadata update successful' in req.text:
             logger.debug('Metadata updated successfully')
-        logger.debug("Delay: %s / Offset: %s", children["sender"]["thread"].offset, opts.delay)  # type: ignore
-        #     def __updatemetadata(self, _meta):
-        #         if not self.playing:
-        #             logger.debug("%s not updating while not playing", self.name)
-        #             return False
-        #         _params = {
-        #             'mode': 'updinfo',
-        #             'mount': f'/{self.mount}',
-        #             'song': _meta
-        #         }
-        #         _url = f'{self.iceserver}/admin/metadata?{_params}'
-        #         req = requests.get(_url, params=_params, auth=self.auth)
-        #         if 'Metadata update successful' in req.text:
-        #             logger.debug('Metadata updated successfully')
-        #             return True
-        #         else:
-        #             logger.debug('Error updated metadata: %s', req.text.strip())
-        #         return False
-        
-        # for child in ("fetcher", "playlist"):
-        #     if not RESTART:
-        #         if children["playlist"]["thread"].lastupdate < 30:  # type: ignore
-        #             continue
-        #     RESTART = False
-        #     logger.warning('Attempting restart %s.', children[child]["thread"].name)  # type: ignore
-        #     children[child]["alive"].clear()  # type: ignore
-        #     children[child]["thread"].join(60)  # type: ignore
-        #     # if child == "fetcher":
-        #     #     children[child]["thread"] = FipChunks(children[child]["alive"],
-        #     #                                             children["playlist"]["queue"],
-        #     #                                             mp3_queue=children["fetcher"]["queue"],
-        #     #                                             ffmpeg=FFMPEG, tmpdir=TMPDIR, tag=opts.tag, delay=opts.delay)
-        #     if child == "playlist":
-        #         children[child]["thread"] = FipPlaylist(children[child]["alive"],
-        #                                     children["playlist"]["queue"])
-        #     children[child]["alive"].set()  # type: ignore
-        #     children[child]["thread"].start()  # type: ignore
-        #     children[child]["restarts"] += 1  # type: ignore
-        # if children[child]["restarts"] > 10:  # type: ignore
-        #     logger.error('Cannot restart %s, attempting to restart %s', children[child]["thread"].name, __file__)  # type: ignore
-        #     killbuffer('RESTARTTIMEOUT', None)
-        #     os.execv(__file__, sys.argv)
-        # time.sleep(1)
-        # if time.time() - epoch > opts.restart and opts.restart > 0:
-        #     logger.warning("\nReached restart timeout, terminating...\n")
-        #     raise(RestartTimeout(None, "Restarting"))
+        logger.debug("Delay: %s / Offset: %s", children["sender"].offset, opts.delay)  # type: ignore
 
-except KeyboardInterrupt:
-    killbuffer('KeyboardInterrupt', None)
+except (KeyboardInterrupt, SystemExit):
+    ALIVE.clear()
     for child in children:
-        children[child]["alive"].clear()
-    for child in children:
-        children[child]["thread"].join()
-
-except SystemExit:
-    killbuffer('SystemExit', None)
-    cleantmpdir(TMPDIR)
-    sys.exit()
+        children[child].join()
 
 except RestartTimeout:
     killbuffer('RestartTimeout', None)

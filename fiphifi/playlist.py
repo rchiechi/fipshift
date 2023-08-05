@@ -13,10 +13,10 @@ class FipPlaylist(threading.Thread):
 
     delay = 5
 
-    def __init__(self, alive, pl_queue):
+    def __init__(self, _alive, pl_queue):
         threading.Thread.__init__(self)
         self.name = 'FipPlaylist Thread'
-        self._alive = alive
+        self._alive = _alive
         self.buff = pl_queue
         self.history = []
         self.last_update = time.time()
@@ -102,13 +102,6 @@ class FipPlaylist(threading.Thread):
     @property
     def alive(self):
         return self._alive.isSet()
-
-    @alive.setter
-    def alive(self, _bool):
-        if not _bool:
-            self._alive.clear()
-        else:
-            self._alive.set()
 
     @property
     def lastupdate(self):

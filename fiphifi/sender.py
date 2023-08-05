@@ -1,29 +1,26 @@
 import os
-# import sys
 import time
 import logging
 import threading
-# import queue
 import subprocess
-# import re
 import requests  # type: ignore
 
 # 'https://stream.radiofrance.fr/msl4/fip/prod1transcoder1/fip_aac_hifi_4_1673363954_368624.ts?id=radiofrance'
 
 logger = logging.getLogger(__package__)
 
+
 class FIFO(threading.Thread):
 
-    def __init__(self, alive, urlqueue, tmpdir):
+    def __init__(self, _alive, _fifo, urlq):
         threading.Thread.__init__(self)
-        self._alive = alive
-        self.urlq = urlqueue
-        self._fifo = os.path.join(tmpdir, 'fipshift.fifo')
+        self._alive = _alive
+        self.urlq = urlq
+        self._fifo = _fifo
         self._timestamp = 0
 
     def run(self):
         logger.info('Starting FIFO')
-        os.mkfifo(self._fifo)
         fifo = open(self._fifo, 'wb')
         session = requests.Session()
         try:
@@ -33,9 +30,9 @@ class FIFO(threading.Thread):
                 fifo.write(req.content)
         except BrokenPipeError:
             pass
-        fifo.close()
-        os.unlink(self._fifo)
-        logger.info("FIFO ended")
+        finally:
+            fifo.close()
+            logger.info("FIFO ended")
 
     @property
     def timestamp(self):
@@ -49,18 +46,21 @@ class FIFO(threading.Thread):
     def alive(self):
         return self._alive.isSet()
 
+
 class AACStream(threading.Thread):
 
     playing = False
     fifo = None
+    session = None
 
-    def __init__(self, alive, urlqueue, delay, **kwargs):
+    def __init__(self, _alive, urlqueue, delay, **kwargs):
         threading.Thread.__init__(self)
         self.name = 'AAC Sender Thread'
-        self._alive = alive
+        self._alive = _alive
         self.urlq = urlqueue
         self._delay = delay
         self.tmpdir = kwargs.get('tmpdir', '/tmp')
+        self._fifo = os.path.join(self.tmpdir, 'fipshift.fifo')
         self.ffmpeg = kwargs.get('ffmpeg', '/usr/bin/ffmpeg')
         _server = kwargs.get('host', 'localhost')
         _port = kwargs.get('port', '8000')
@@ -68,46 +68,58 @@ class AACStream(threading.Thread):
         self._iceserver = f'{_server}:{_port}'
         _auth = kwargs.get('auth', ['', ''])
         self.pw = _auth[1]
-        # self.auth = requests.auth.HTTPBasicAuth(_auth[0], _auth[1])
-        self._timesamp = 0
+        self._timestamp = 0
 
     def run(self):
         logger.info('Starting %s', self.name)
-        self.fifo = FIFO(self._alive, self.urlq, self.tmpdir)
+        self._cleanup()
+        if not self.alive:
+            logger.warn("%s called without alive set.", self.name)
+        logger.info('Creating %s', self._fifo)
+        os.mkfifo(self._fifo)
+        logger.debug('Opening %s', self._fifo)
+        self.fifo = FIFO(self._alive, self._fifo, self.urlq)
         self.fifo.start()
+        logger.info('%s starting ffmpeg', self.name)
+        ffmpeg_proc = self._startstream()
+        try:
+            while self.alive:
+                self._writechunk()
+                if ffmpeg_proc.poll() is not None:
+                    self.playing = False
+                    ffmpeg_proc = self._startstream()
+                logger.debug('Offset: %s / Delay: %s', self.offset, self.delay)
+            logger.info('%s dying (alive: %s)', self.name, self.alive)
+            self.fifo.close()
+        except BrokenPipeError:
+            pass
+        finally:
+            self.playing = False
+            self._cleanup()
+
+    def _cleanup(self):
+        if os.path.exists(self._fifo):
+            os.unlink(self._fifo)
+
+    def _startstream(self):
+        time.sleep(1)
+        self.playing = True
         _ffmpegcmd = [self.ffmpeg,
                       '-loglevel', 'fatal',
                       '-re',
                       '-i', self.fifo.pipe,
+                      '-content_type', 'audio/aac',
+                      '-ice_name', 'FipShift',
+                      '-ice_description', 'Time-shifted FIP stream',
+                      '-ice_genre', 'Eclectic',
                       '-c:a', 'copy',
                       '-f', 'adts',
                       f'icecast://source:{self.pw}@{self._iceserver}/{self.mount}']
-        if not self.alive:
-            logger.warn("%s called without alive set.", self.name)
-        while self.alive:
-            # self._timestamp, _url = self.urlq.get()
-            logger.info('%s buffering for 30 seconds', self.name)
-            time.sleep(30)
-            logger.info('%s starting ffmpeg', self.name)
-            _p = subprocess.run(_ffmpegcmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            if _p.stdout:
-                logger.error(str(_p.stdout, encoding='utf-8'))
-            # logger.debug('Offset: %s / Delay: %s', self.offset, self.delay)
-        logger.info('%s dying (alive: %s)', self.name, self.alive)
-        self.fifo.join()
-        if os.path.exists(self.fifo.pipe):
-            os.unlink(self.fifo.pipe)
+        return subprocess.run(_ffmpegcmd)
 
     @property
     def alive(self):
         return self._alive.isSet()
-
-    @alive.setter
-    def alive(self, _bool):
-        if not _bool:
-            self._alive.clear()
-        else:
-            self._alive.set()
 
     @property
     def timestamp(self):
