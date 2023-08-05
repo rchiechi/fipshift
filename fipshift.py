@@ -25,35 +25,20 @@ opts, config = parseopts()
 Children = TypedDict('Children', {'playlist': FipPlaylist, 'metadata': FIPMetadata, 'sender': AACStream})
 epoch = time.time()
 
-try:
-    TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
-    _ = config['USEROPTS']['FFMPEG']
-except KeyError as msg:
-    print(msg)
-    print("Bad config file, please delete it from %s and try again." % opts.configdir)
-    sys.exit(1)
-
-if opts.ffmpeg:
-    FFMPEG = opts.ffmpeg
-elif os.path.exists(config['USEROPTS']['FFMPEG']):
-    FFMPEG = config['USEROPTS']['FFMPEG']
-else:
-    p = subprocess.run(['which', 'ffmpeg'], capture_output=True)
-    if p.returncode == 0:
-        FFMPEG = p.stdout.strip()
-    else:
-        print("I could not locate the ffmpeg binary in the PATH.")
-        sys.exit()
-
-if not os.path.exists(TMPDIR):
-    os.mkdir(TMPDIR)
-cleantmpdir(TMPDIR)
 
 logger = logging.getLogger(__package__)
 if opts.debug:
     logger.setLevel(logging.DEBUG)
 else:
     logger.setLevel(logging.INFO)
+
+try:
+    TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
+    _ = config['USEROPTS']['FFMPEG']
+except KeyError:
+    logger.error("Bad config file, please delete it from %s and try again.", opts.configdir)
+    sys.exit(1)
+
 _logfile = os.path.join(TMPDIR, os.path.basename(sys.argv[0]).split('.')[0] + '.log')
 loghandler = logging.FileHandler(_logfile)
 loghandler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - [%(levelname)s] %(message)s'))
@@ -66,6 +51,26 @@ logging.getLogger("urllib3").setLevel(logging.WARN)
 logger.debug("Debug logging enabled.")
 
 ABSPATH = os.path.join(os.path.dirname(os.path.realpath(__file__)))
+
+
+
+
+if opts.ffmpeg:
+    FFMPEG = opts.ffmpeg
+elif os.path.exists(config['USEROPTS']['FFMPEG']):
+    FFMPEG = config['USEROPTS']['FFMPEG']
+else:
+    p = subprocess.run(['which', 'ffmpeg'], capture_output=True)
+    if p.returncode == 0:
+        FFMPEG = p.stdout.strip()
+    else:
+        logger.error("I could not locate the ffmpeg binary in the PATH.")
+        sys.exit(1)
+
+if not os.path.exists(TMPDIR):
+    os.mkdir(TMPDIR)
+logger.debug("Cleaned %s files in %s.", cleantmpdir(TMPDIR), TMPDIR)
+
 
 logger.info("Starting buffer threads.")
 
@@ -159,4 +164,4 @@ finally:
         logger.info("Joining %s", children[child].name)
         children[child].join(timeout=60)
 
-cleantmpdir(TMPDIR)
+logger.debug("Cleaned %s files in %s.", cleantmpdir(TMPDIR), TMPDIR)

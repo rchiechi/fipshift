@@ -12,7 +12,7 @@ def cleantmpdir(tmpdir):
             # if _f[-3:] in ('.ts', '.mp3', '.aac') or _f == 'spool.bin':
             os.remove(os.path.join(root, _f))
             n += 1
-    print("\033[2K\rCleaned: %s files in %s. " % (n, tmpdir))
+    return n
 
 
 def killbuffer(signum, frame):  # pylint: disable=unused-argument
