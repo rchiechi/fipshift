@@ -16,7 +16,7 @@ class FIFO(threading.Thread):
 
     def __init__(self, alive, urlqueue, tmpdir):
         threading.Thread.__init__(self)
-        self.alive = alive
+        self._alive = alive
         self.urlq = urlqueue
         self._fifo = os.path.join(tmpdir, 'fipshift.fifo')
         self._timestamp = 0
@@ -27,7 +27,7 @@ class FIFO(threading.Thread):
         fifo = open(self._fifo, 'wb')
         session = requests.Session()
         try:
-            while self.alive.isSet():
+            while self.alive:
                 self._timestamp, _url = self.urlq.get()
                 req = session.get(_url, timeout=1)
                 fifo.write(req.content)
@@ -44,6 +44,10 @@ class FIFO(threading.Thread):
     @property
     def pipe(self):
         return self._fifo
+
+    @property
+    def alive(self):
+        return self._alive.isSet()
 
 class AACStream(threading.Thread):
 

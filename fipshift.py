@@ -212,6 +212,10 @@ try:
 
 except KeyboardInterrupt:
     killbuffer('KeyboardInterrupt', None)
+    for child in children:
+        children[child]["alive"].clear()
+    for child in children:
+        children[child]["thread"].join()
 
 except SystemExit:
     killbuffer('SystemExit', None)

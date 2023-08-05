@@ -51,7 +51,7 @@ class FIPMetadata(threading.Thread):
             _json = r.json()
             if _json.get('now', {'endTime':None})['endTime'] is None:
                 time.sleep(1)
-                self.__updatemetadata(session)
+                self._updatemetadata(session)
             else:
                 self.metadata = _json
         except requests.exceptions.JSONDecodeError:
