@@ -12,22 +12,28 @@ logger = logging.getLogger(__package__)
 
 class FIFO(threading.Thread):
 
-    def __init__(self, _alive, _fifo, urlq):
+    def __init__(self, _alive, _fifo, urlq, _skip):
         threading.Thread.__init__(self)
         self._alive = _alive
         self.urlq = urlq
         self._fifo = _fifo
         self._timestamp = 0
+        self._skip = _skip
 
     def run(self):
         logger.info('Starting FIFO')
+        self._skip.clear()
         fifo = open(self._fifo, 'wb')
         session = requests.Session()
         try:
             while self.alive:
                 self._timestamp, _url = self.urlq.get()
-                req = session.get(_url, timeout=1)
-                fifo.write(req.content)
+                if not self.skip:
+                    req = session.get(_url, timeout=1)
+                    fifo.write(req.content)
+                else:
+                    logger.debug("FIFO skip enabled.")
+                    time.sleep(0.1)
         except BrokenPipeError:
             pass
         finally:
@@ -41,6 +47,10 @@ class FIFO(threading.Thread):
     @property
     def alive(self):
         return self._alive.isSet()
+
+    @property
+    def skip(self):
+        return self._skip.isSet()
 
 
 class AACStream(threading.Thread):
@@ -74,15 +84,24 @@ class AACStream(threading.Thread):
         logger.info('Creating %s', self._fifo)
         os.mkfifo(self._fifo)
         logger.debug('Opening %s', self._fifo)
-        self.fifo = FIFO(self._alive, self._fifo, self.urlq)
+        skip = threading.Event()
+        self.fifo = FIFO(self._alive, self._fifo, self.urlq, skip)
         self.fifo.start()
         logger.info('%s starting ffmpeg', self.name)
         ffmpeg_proc = self._startstream()
+        loop_counter = 0
         while self.alive:
             if ffmpeg_proc.poll() is not None:
                 self.playing = False
                 ffmpeg_proc = self._startstream()
-            logger.debug('Offset: %s / Delay: %s', self.offset, self.delay)
+            if 60 < self.offset - self.delay < 100000:  # Offset throws huge numbers when timestamp returns 0
+                logger.debug('Offset: %0.0f / Delay: %0.0f', self.offset, self.delay)
+                skip.set()
+            elif skip.isSet():
+                skip.clear()
+            if loop_counter > 60:
+                logger.debug('Offset: %0.0f / Delay: %0.0f', self.offset, self.delay)
+                loop_counter = 0
             time.sleep(1)
         logger.info('%s dying (alive: %s)', self.name, self.alive)
         self._cleanup()
@@ -115,7 +134,7 @@ class AACStream(threading.Thread):
     @property
     def timestamp(self):
         if self.fifo is not None:
-            return self.fifo.timestamp
+            return float(self.fifo.timestamp)
         else:
             return 0
 

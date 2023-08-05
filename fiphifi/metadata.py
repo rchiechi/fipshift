@@ -38,7 +38,9 @@ class FIPMetadata(threading.Thread):
             elif self.remains > 0:
                 continue
             _delay = self._updatemetadata(requests.Session())
-            time.sleep(_delay)
+            self._writetodisk()
+            for _ in range(_delay):
+                time.sleep(1)
         logger.info('%s dying (alive: %s)', self.name, self.alive)
 
     def _updatemetadata(self, session):
@@ -46,7 +48,7 @@ class FIPMetadata(threading.Thread):
         self.last_update = time.time()
         self._newtrack = True
         try:
-            logger.info("%s: Fetching metadata from Fip", self.name)
+            logger.info("%s fetching metadata from Fip", self.name)
             r = session.get(self.metaurl, timeout=5)
             _json = r.json()
             if _json.get('now', {'endTime': None})['endTime'] is None:
@@ -69,16 +71,17 @@ class FIPMetadata(threading.Thread):
             if _k not in self.metadata['now']:
                 self.metadata['now'][_k] = METATEMPLATE['now'][_k]
                 logger.debug('%s key mangled in update', _k)
-        return _json.get('delayToRefresh', 300000) / 1000
+        return int(_json.get('delayToRefresh', 300000) / 1000)
 
     def _writetodisk(self):
         _json = self._readfromdisk()
         with self.lock:
             _metadata = self.getcurrent()
-            _json[_metadata['startTime']] = _metadata
+            _json[int(_metadata['startTime'])] = _metadata
             _metadata = self.getnext()
-            _json[_metadata['startTime']] = _metadata
+            _json[int(_metadata['startTime'])] = _metadata
             with open(self.cache, 'wt') as fh:
+                logger.debug("%s writing json to %s", self.name, self.cache)
                 json.dump(_json, fh)
 
     def _readfromdisk(self):

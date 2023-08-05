@@ -133,24 +133,25 @@ try:
         track, artist, album = 'Le track', 'Le artist', 'Le album'
         _meta = {}
         for _key in _json:
-            logger.debug('Checking %s > %s > %s', _json[_key]['endTime'], _start, _key)
-            if _json[_key]['endTime'] > _start > _key:
+            logger.debug('Checking %0.0f > %0.0f > %0.0f', _json[_key]['endTime'], _start, _key)
+            if int(_json[_key]['endTime']) > int(_start) > int(_key):
                 _meta = _json.pop(_key)
                 with children["metadata"].lock:  # type: ignore
                     with open(children["metadata"].cache, 'wt') as fh:  # type: ignore
                         json.dump(_json, fh)
                 try:
-                    track = _meta['firstLine']['title']
-                except TypeError:
-                    pass
+                    track = _meta['track']
+                except (KeyError, TypeError):
+                    print(_meta)
                 try:
-                    artist = _meta['secondLine']['title']
-                except TypeError:
-                    pass
+                    artist = _meta['artist']
+                except (KeyError, TypeError):
+                    print(_meta)
                 try:
-                    album = _meta['release']['title']
-                except TypeError:
-                    pass
+                    album = _meta['album']
+                except (KeyError, TypeError):
+                    print(_meta)
+                break
         if not _meta:
             # logger.debug('No metadata matched for %s', _start)
             continue
@@ -168,6 +169,7 @@ try:
 except (KeyboardInterrupt, SystemExit):
     ALIVE.clear()
     for child in children:
+        print(f"Joining {child}")
         children[child].join()
 
 except RestartTimeout:
