@@ -133,6 +133,7 @@ try:
         track, artist, album = 'Le track', 'Le artist', 'Le album'
         _meta = {}
         for _key in _json:
+            # logger.debug('Checking %s > %s > %s', int(_json[_key]['endTime']), int(_start), int(_key))
             if int(_json[_key]['endTime']) > int(_start) > int(_key):
                 _meta = _json.pop(_key)
                 with children["metadata"].lock:  # type: ignore
@@ -159,7 +160,7 @@ try:
                    'mount': f"/{config['USEROPTS']['MOUNT']}",
                    'song': f'{track} - {artist} - {album}'
                    }
-        req = requests.get(_url, params=_params,
+        req = requests.get(f'http://{_url}', params=_params,
                            auth=requests.auth.HTTPBasicAuth('source', config['USEROPTS']['PASSWORD']))
         if 'Metadata update successful' in req.text:
             logger.debug('Metadata updated successfully')
