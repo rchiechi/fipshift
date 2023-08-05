@@ -102,7 +102,8 @@ except KeyboardInterrupt:
 
 children["sender"].start()  # type: ignore
 logger.info("Started %s", children["sender"].name)
-
+slug = ''
+last_slug = ''
 try:
     while True:
         time.sleep(1)
@@ -131,15 +132,18 @@ try:
                 break
         if not _meta:
             continue
+        slug = f'"{track}" by {artist} on {album}'
+        if slug == last_slug:
+            continue
         _url = children["sender"].iceserver
         _params = {'mode': 'updinfo',
                    'mount': f"/{config['USEROPTS']['MOUNT']}",
-                   'song': f'"{track}" by {artist} on {album}'}
+                   'song': slug}
         req = requests.get(f'http://{_url}/admin/metadata', params=_params,
                            auth=requests.auth.HTTPBasicAuth('source', config['USEROPTS']['PASSWORD']))
         if 'Metadata update successful' in req.text:
-            logger.info('Metadata udpate: "%s" by %s on %s', track, artist, album)
-            time.sleep(9)
+            logger.info('Metadata udpate: %s', slug)
+            last_slug = slug
         else:
             logger.warning('Error updating metdata: %s', req.text)
 

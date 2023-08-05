@@ -41,9 +41,9 @@ METATEMPLATE = {
                   "producer": "",
                   "song": {
                     "id": "11cd7a76-06f5-4b5f-965d-2335a2d2930b",
-                    "year": 1966,
+                    "year": 1977,
                     "release": {
-                      "label": "ATLANTIC",
+                      "label": "Fip",
                       "title": "Le album",
                       "reference": None
                     }
@@ -101,12 +101,12 @@ METATEMPLATE = {
                 "next": {
                   "firstLine": {
                     "id": None,
-                    "title": "Fish fare",
+                    "title": "Le Next",
                     "path": None
                   },
                   "secondLine": {
                     "id": None,
-                    "title": "Freddie King",
+                    "title": "Le Artist",
                     "path": None
                   },
                   "startTime": 1674841528,
@@ -124,10 +124,10 @@ METATEMPLATE = {
                   "producer": "",
                   "song": {
                     "id": "9bfb38ac-47e7-4ba7-a314-94d76d18166f",
-                    "year": 1961,
+                    "year": 1977,
                     "release": {
-                      "label": "MODERN BLUES",
-                      "title": "Just pickin'",
+                      "label": "Fip",
+                      "title": "Le Next Song'",
                       "reference": None
                     }
                   },

@@ -45,9 +45,15 @@ class FIPMetadata(threading.Thread):
         self.last_update = time.time()
         logger.info("%s fetching metadata from Fip", self.name)
         try:
-            _json = session.get(self.metaurl, timeout=5).json()
+            _json = {}
+            _r = session.get(self.metaurl, timeout=5)
+            if _r.status_code != 200:
+                logger.warning('%s error fetching metadata: %s', self.name, _r.status_code)
+            else:
+                _json = _r.json()
             if _json.get('now', {'endTime': None})['endTime'] is None:
-                time.sleep(1)
+                logger.error('%s got bad json[delayToRefresh]: %s', self.name, _json.get('delayToRefresh', 0))
+                time.sleep(5)
                 logger.debug('%s retrying request.', self.name)
                 self._updatemetadata(session)
             else:
