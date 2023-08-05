@@ -53,8 +53,6 @@ logger.debug("Debug logging enabled.")
 ABSPATH = os.path.join(os.path.dirname(os.path.realpath(__file__)))
 
 
-
-
 if opts.ffmpeg:
     FFMPEG = opts.ffmpeg
 elif os.path.exists(config['USEROPTS']['FFMPEG']):
