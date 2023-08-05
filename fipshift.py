@@ -5,7 +5,6 @@ import os
 import sys
 import threading
 import logging
-import signal
 import time
 import subprocess
 import queue
