@@ -9,6 +9,20 @@ from fiphifi.constants import METAURL, METATEMPLATE  # type: ignore
 logger = logging.getLogger(__package__)
 
 
+def send_metadata(url, mount, slug, auth):
+    _params = {'mode': 'updinfo',
+               'mount': f"/{mount}",
+               'song': slug}
+    req = requests.get(f'http://{url}/admin/metadata', params=_params,
+                       auth=requests.auth.HTTPBasicAuth(*auth))
+    if 'Metadata update successful' in req.text:
+        logger.info('Metadata udpate: %s', slug)
+        return True
+    else:
+        logger.warning('Error updating metdata (%s): %s', url, req.text)
+        return False
+
+
 class FIPMetadata(threading.Thread):
 
     metadata = METATEMPLATE

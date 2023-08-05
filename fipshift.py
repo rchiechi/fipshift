@@ -10,12 +10,12 @@ import subprocess
 import queue
 from typing_extensions import TypedDict
 import json
-import requests  # type: ignore
+# import requests  # type: ignore
 from fiphifi.util import cleantmpdir  # type: ignore
 from fiphifi.playlist import FipPlaylist  # type: ignore
 from fiphifi.sender import AACStream  # type: ignore
 from fiphifi.options import parseopts  # type: ignore
-from fiphifi.metadata import FIPMetadata  # type: ignore
+from fiphifi.metadata import FIPMetadata, send_metadata  # type: ignore
 
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
@@ -87,16 +87,38 @@ ALIVE.set()
 children["playlist"].start()
 children["metadata"].start()
 
+logger.info('Starting vamp stream.')
+
+_c = config['USEROPTS']
+_ffmpegcmd = [FFMPEG,
+              '-loglevel', 'fatal',
+              '-re',
+              '-i', 'https://icecast.radiofrance.fr/fip-hifi.aac?id=radiofrance',
+              '-content_type', 'audio/aac',
+              '-ice_name', 'FipShift',
+              '-ice_description', 'Time-shifted FIP stream',
+              '-ice_genre', 'Eclectic',
+              '-c:a', 'copy',
+              '-f', 'adts',
+              f"icecast://{_c['USER']}:{_c['PASSWORD']}@{_c['HOST']}:{_c['PORT']}/{_c['MOUNT']}"]
+ffmpeg_proc = subprocess.Popen(_ffmpegcmd)
+time.sleep(1)
+
 try:
     _runtime = time.time() - epoch
     while _runtime < opts.delay:
         _remains = (opts.delay - _runtime) / 60 or 1
         logger.info('Buffering for %0.0f more minutes', _remains)
+        send_metadata(f"{_c['HOST']}:{_c['PORT']}",
+                      _c['MOUNT'],
+                      f"Realtime Stream: T-{_remains:0.0f} minutes",
+                      (config['USEROPTS']['USER'], config['USEROPTS']['PASSWORD']))
         time.sleep(60)
         _runtime = time.time() - epoch
 
 except KeyboardInterrupt:
     logger.info("Killing threads")
+    ffmpeg_proc.terminate()
     ALIVE.clear()
     for child in children:
         if children[child].is_alive():
@@ -105,6 +127,7 @@ except KeyboardInterrupt:
     cleantmpdir(TMPDIR)
     sys.exit()
 
+ffmpeg_proc.terminate()
 children["sender"].start()  # type: ignore
 logger.info("Started %s", children["sender"].name)
 slug = ''
@@ -140,17 +163,22 @@ try:
         slug = f'"{track}" by {artist} on {album}'
         if slug == last_slug:
             continue
-        _url = children["sender"].iceserver
-        _params = {'mode': 'updinfo',
-                   'mount': f"/{config['USEROPTS']['MOUNT']}",
-                   'song': slug}
-        req = requests.get(f'http://{_url}/admin/metadata', params=_params,
-                           auth=requests.auth.HTTPBasicAuth('source', config['USEROPTS']['PASSWORD']))
-        if 'Metadata update successful' in req.text:
-            logger.info('Metadata udpate: %s', slug)
+        if send_metadata(children["sender"].iceserver,
+                         config['USEROPTS']['MOUNT'],
+                         slug,
+                         (config['USEROPTS']['USER'], config['USEROPTS']['PASSWORD'])):
             last_slug = slug
-        else:
-            logger.warning('Error updating metdata: %s', req.text)
+        # _url = children["sender"].iceserver
+        # _params = {'mode': 'updinfo',
+        #            'mount': f"/{config['USEROPTS']['MOUNT']}",
+        #            'song': slug}
+        # req = requests.get(f'http://{_url}/admin/metadata', params=_params,
+        #                    auth=requests.auth.HTTPBasicAuth('source', config['USEROPTS']['PASSWORD']))
+        # if 'Metadata update successful' in req.text:
+        #     logger.info('Metadata udpate: %s', slug)
+        #     last_slug = slug
+        # else:
+        #     logger.warning('Error updating metdata: %s', req.text)
 
 except (KeyboardInterrupt, SystemExit):
     logger.warning("Main thread killed.")
