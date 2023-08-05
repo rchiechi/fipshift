@@ -134,11 +134,11 @@ try:
         _url = children["sender"].iceserver
         _params = {'mode': 'updinfo',
                    'mount': f"/{config['USEROPTS']['MOUNT']}",
-                   'song': f'{track} by {artist} on {album}'}
+                   'song': f'"{track}" by {artist} on {album}'}
         req = requests.get(f'http://{_url}/admin/metadata', params=_params,
                            auth=requests.auth.HTTPBasicAuth('source', config['USEROPTS']['PASSWORD']))
         if 'Metadata update successful' in req.text:
-            logger.info('Metadata udpate: %s on %s by %s', track, artist, album)
+            logger.info('Metadata udpate: "%s" by %s on %s', track, artist, album)
             time.sleep(9)
         else:
             logger.warning('Error updating metdata: %s', req.text)
