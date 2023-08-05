@@ -133,7 +133,6 @@ try:
         track, artist, album = 'Le track', 'Le artist', 'Le album'
         _meta = {}
         for _key in _json:
-            logger.debug('Checking %0.0f > %0.0f > %0.0f', _json[_key]['endTime'], _start, _key)
             if int(_json[_key]['endTime']) > int(_start) > int(_key):
                 _meta = _json.pop(_key)
                 with children["metadata"].lock:  # type: ignore
