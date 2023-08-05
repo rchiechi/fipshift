@@ -2,7 +2,7 @@ import time
 import logging
 import threading
 import re
-from datetime import datetime as dt
+import datetime as dt
 from fiphifi.constants import FIPBASEURL, FIPLIST, TSRE, STRPTIME  # type: ignore
 import requests  # type: ignore
 
@@ -84,7 +84,8 @@ class FipPlaylist(threading.Thread):
             if '#EXT-X-PROGRAM-DATE-TIME' in _l:
                 _dt = ':'.join(_l.strip().split(':')[1:])
                 try:
-                    _timestamp = dt.strptime(_dt, STRPTIME).timestamp()
+                    _dt = dt.datetime.strptime(_dt, STRPTIME) - dt.timedelta(hours=4)
+                    _timestamp = _dt.timestamp()  # Fip reports timestamps four hours in the future?
                 except ValueError:
                     _timestamp = 0
             if _l[0] == '#':

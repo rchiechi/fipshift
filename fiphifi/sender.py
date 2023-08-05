@@ -83,6 +83,7 @@ class AACStream(threading.Thread):
                 self.playing = False
                 ffmpeg_proc = self._startstream()
             logger.debug('Offset: %s / Delay: %s', self.offset, self.delay)
+            time.sleep(1)
         logger.info('%s dying (alive: %s)', self.name, self.alive)
         self._cleanup()
 
