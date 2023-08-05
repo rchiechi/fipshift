@@ -48,7 +48,7 @@ class FIPMetadata(threading.Thread):
             _json = session.get(self.metaurl, timeout=5).json()
             if _json.get('now', {'endTime': None})['endTime'] is None:
                 time.sleep(1)
-                logger.debug('%s retrying request.')
+                logger.debug('%s retrying request.', self.name)
                 self._updatemetadata(session)
             else:
                 self.metadata = _json
