@@ -54,10 +54,10 @@ logger.setLevel(logging.DEBUG)
 # logger.setLevel(logging.INFO)
 _logfile = os.path.join(TMPDIR, os.path.basename(sys.argv[0]).split('.')[0] + '.log')
 loghandler = logging.FileHandler(_logfile)
-loghandler.setFormatter(logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s'))
+loghandler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - [%(levelname)s] %(message)s'))
 logger.addHandler(loghandler)
 streamhandler = logging.StreamHandler()
-streamhandler.setFormatter(logging.Formatter('%(asctime)s %(process)d %(levelname)s %(message)s'))
+streamhandler.setFormatter(logging.Formatter('%(asctime)s %(process)d [%(levelname)s] %(message)s'))
 logger.addHandler(streamhandler)
 logger.info("Logging to %s", _logfile)
 logging.getLogger("urllib3").setLevel(logging.WARN)
@@ -95,7 +95,7 @@ except KeyboardInterrupt:
     ALIVE.clear()
     for child in children:
         if children[child].is_alive():
-            logger.info("Joining %s", child)
+            logger.info("Joining %s", children[child].name)
             children[child].join(timeout=30)
     cleantmpdir(TMPDIR)
     sys.exit()
@@ -144,12 +144,12 @@ try:
             logger.warning('Error updating metdata: %s', req.text)
 
 except (KeyboardInterrupt, SystemExit):
-    logger.warn("Main thread killed.")
+    logger.warning("Main thread killed.")
 
 finally:
     ALIVE.clear()
     for child in children:
-        logger.info("Joining %s", child)
+        logger.info("Joining %s", children[child].name)
         children[child].join(timeout=60)
 
 cleantmpdir(TMPDIR)
