@@ -44,37 +44,31 @@ class FIPMetadata(threading.Thread):
     def _updatemetadata(self, session):
         if not self.alive:
             return 300000
-        self.last_update = time.time()
         logger.info("%s fetching metadata from Fip", self.name)
+        self.last_update = time.time()
         try:
             _json = {}
             _r = session.get(self.metaurl, timeout=5)
             if _r.status_code != 200:
                 logger.warning('%s error fetching metadata: %s', self.name, _r.status_code)
+                return 5
             else:
                 _json = _r.json()
             if _json.get('now', {'endTime': None})['endTime'] is None:
-                logger.error('%s metadata server returning le nonsense.', self.name)
-                time.sleep(5)
-                logger.debug('%s retrying request.', self.name)
-                self._updatemetadata(session)
+                logger.debug('%s metadata server returning le nonsense.', self.name)
+                return int(_json.get('delayToRefresh', 10000,) / 1000)
             else:
                 self.metadata = _json
         except requests.exceptions.JSONDecodeError:
             logger.error("%s JSON error fetching metadata from Fip.", self.name)
-            self.endtime = time.time() + 10
-            pass
+            return 5
         except requests.ReadTimeout:
             logger.error("%s: GET request timed out.", self.name)
-            pass
-        if self.metadata is None:
-            self.metadata = METATEMPLATE
-            self.endtime = time.time() + 10
-            logger.error("%s error fetching metadata from Fip.", self.name)
-        for _k in METATEMPLATE['now']:
-            if _k not in self.metadata['now']:
-                self.metadata['now'][_k] = METATEMPLATE['now'][_k]
-                logger.debug('%s %s key mangled in update', self.name, _k)
+            return 5
+        # for _k in METATEMPLATE['now']:
+        #     if _k not in self.metadata['now']:
+        #         self.metadata['now'][_k] = METATEMPLATE['now'][_k]
+        #         logger.debug('%s %s key mangled in update', self.name, _k)
         return int(_json.get('delayToRefresh', 300000) / 1000)
 
     def _writetodisk(self):
@@ -117,7 +111,7 @@ class FIPMetadata(threading.Thread):
         try:
             endtime = float(self.metadata[when]['endTime'])
         except (KeyError, TypeError):
-            endtime = time.time()
+            endtime = time.time() + 10
         try:
             starttime = float(self.metadata[when]['startTime'])
         except (KeyError, TypeError):
@@ -161,6 +155,13 @@ class FIPMetadata(threading.Thread):
     def jsoncache(self):
         return self._readfromdisk()
 
+    @property
+    def remains(self):
+        _remains = self.current['endTime'] - time.time()
+        if _remains < 0:
+            _remains = 0
+        return _remains
+
     # @property
     # def track(self):
     #     return self.current['track']
@@ -186,13 +187,6 @@ class FIPMetadata(threading.Thread):
     #     if self.album == 'Le album':
     #         return f'{self.track} - {self.artist}'
     #     return f'{self.track} - {self.artist} - {self.album}'
-
-    # @property
-    # def remains(self):
-    #     _remains = self.endtime - time.time()
-    #     if _remains < 0:
-    #         _remains = 0
-    #     return _remains
 
     # @property
     # def duration(self):
@@ -231,25 +225,25 @@ class FIPMetadata(threading.Thread):
 # User-Agent: (Mozilla Compatible)
 
 
-if __name__ == '__main__':
-    import sys
-    logger.setLevel(logging.DEBUG)
-    streamhandler = logging.StreamHandler()
-    streamhandler.setFormatter(logging.Formatter('%(asctime)s %(process)d %(levelname)s %(message)s'))
-    logger.addHandler(streamhandler)
-    alive = threading.Event()
-    alive.set()
-    fipmeta = FIPMetadata(alive)
-    fipmeta.start()
-    time.sleep(3)
-    while fipmeta.remains > 0:
-        sys.stdout.write(f"\rWaiting {fipmeta.remains:.0f}s for cache to fill...")
-        sys.stdout.flush()
-        time.sleep(1)
-    try:
-        while True:
-            time.sleep(5)
-            print(f'{fipmeta.slug}: {fipmeta.remains:.0f} / {fipmeta.duration:.0f}')
-    except KeyboardInterrupt:
-        alive.clear()
-        fipmeta.join()
+# if __name__ == '__main__':
+#     import sys
+#     logger.setLevel(logging.DEBUG)
+#     streamhandler = logging.StreamHandler()
+#     streamhandler.setFormatter(logging.Formatter('%(asctime)s %(process)d %(levelname)s %(message)s'))
+#     logger.addHandler(streamhandler)
+#     alive = threading.Event()
+#     alive.set()
+#     fipmeta = FIPMetadata(alive)
+#     fipmeta.start()
+#     time.sleep(3)
+#     while fipmeta.remains > 0:
+#         sys.stdout.write(f"\rWaiting {fipmeta.remains:.0f}s for cache to fill...")
+#         sys.stdout.flush()
+#         time.sleep(1)
+#     try:
+#         while True:
+#             time.sleep(5)
+#             print(f'{fipmeta.slug}: {fipmeta.remains:.0f} / {fipmeta.duration:.0f}')
+#     except KeyboardInterrupt:
+#         alive.clear()
+#         fipmeta.join()

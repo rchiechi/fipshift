@@ -63,6 +63,7 @@ streamhandler.setFormatter(logging.Formatter('%(asctime)s %(process)d [%(levelna
 logger.addHandler(streamhandler)
 logger.info("Logging to %s", _logfile)
 logging.getLogger("urllib3").setLevel(logging.WARN)
+logger.debug("Debug logging enabled.")
 
 ABSPATH = os.path.join(os.path.dirname(os.path.realpath(__file__)))
 
@@ -93,7 +94,7 @@ try:
         _runtime = time.time() - epoch
 
 except KeyboardInterrupt:
-    print("Killing threads")
+    logger.info("Killing threads")
     ALIVE.clear()
     for child in children:
         if children[child].is_alive():
