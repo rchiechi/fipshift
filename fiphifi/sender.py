@@ -39,10 +39,6 @@ class FIFO(threading.Thread):
         return self._timestamp
 
     @property
-    def pipe(self):
-        return self._fifo
-
-    @property
     def alive(self):
         return self._alive.isSet()
 
@@ -82,22 +78,16 @@ class AACStream(threading.Thread):
         self.fifo.start()
         logger.info('%s starting ffmpeg', self.name)
         ffmpeg_proc = self._startstream()
-        try:
-            while self.alive:
-                self._writechunk()
-                if ffmpeg_proc.poll() is not None:
-                    self.playing = False
-                    ffmpeg_proc = self._startstream()
-                logger.debug('Offset: %s / Delay: %s', self.offset, self.delay)
-            logger.info('%s dying (alive: %s)', self.name, self.alive)
-            self.fifo.close()
-        except BrokenPipeError:
-            pass
-        finally:
-            self.playing = False
-            self._cleanup()
+        while self.alive:
+            if ffmpeg_proc.poll() is not None:
+                self.playing = False
+                ffmpeg_proc = self._startstream()
+            logger.debug('Offset: %s / Delay: %s', self.offset, self.delay)
+        logger.info('%s dying (alive: %s)', self.name, self.alive)
+        self._cleanup()
 
     def _cleanup(self):
+        self.playing = False
         if os.path.exists(self._fifo):
             os.unlink(self._fifo)
 
@@ -107,7 +97,7 @@ class AACStream(threading.Thread):
         _ffmpegcmd = [self.ffmpeg,
                       '-loglevel', 'fatal',
                       '-re',
-                      '-i', self.fifo.pipe,
+                      '-i', self._fifo,
                       '-content_type', 'audio/aac',
                       '-ice_name', 'FipShift',
                       '-ice_description', 'Time-shifted FIP stream',
@@ -115,7 +105,7 @@ class AACStream(threading.Thread):
                       '-c:a', 'copy',
                       '-f', 'adts',
                       f'icecast://source:{self.pw}@{self._iceserver}/{self.mount}']
-        return subprocess.run(_ffmpegcmd)
+        return subprocess.Popen(_ffmpegcmd)
 
     @property
     def alive(self):
