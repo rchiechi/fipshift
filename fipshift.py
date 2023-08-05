@@ -104,11 +104,13 @@ _ffmpegcmd = [FFMPEG,
 ffmpeg_proc = subprocess.Popen(_ffmpegcmd)
 
 try:
-    _runtime = opts.delay + 10
+    _runtime = opts.delay - 60
     while _runtime < opts.delay:
         _remains = (opts.delay - _runtime) / 60 or 1
         logger.info('Buffering for %0.0f more minutes', _remains)
         time.sleep(60)
+        if ffmpeg_proc.poll() is not None:
+            ffmpeg_proc = subprocess.Popen(_ffmpegcmd)
         send_metadata(f"{_c['HOST']}:{_c['PORT']}",
                       _c['MOUNT'],
                       f"Realtime Stream: T-{_remains:0.0f} minutes",
