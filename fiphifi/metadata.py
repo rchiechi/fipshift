@@ -56,9 +56,7 @@ class FIPMetadata(threading.Thread):
                 _json = _r.json()
             if _json.get('now', {'endTime': None})['endTime'] is None:
                 logger.debug('%s metadata server returning le nonsense.', self.name)
-                return int(_json.get('delayToRefresh', 10000,) / 1000)
-            else:
-                self.metadata = _json
+                # return int(_json.get('delayToRefresh', 10000,) / 1000)
         except requests.exceptions.JSONDecodeError:
             logger.error("%s JSON error fetching metadata from Fip.", self.name)
             return 5
@@ -69,6 +67,7 @@ class FIPMetadata(threading.Thread):
         #     if _k not in self.metadata['now']:
         #         self.metadata['now'][_k] = METATEMPLATE['now'][_k]
         #         logger.debug('%s %s key mangled in update', self.name, _k)
+        self.metadata = _json
         return int(_json.get('delayToRefresh', 300000) / 1000)
 
     def _writetodisk(self):
