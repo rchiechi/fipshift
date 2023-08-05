@@ -34,10 +34,10 @@ class FIFO(threading.Thread):
                 else:
                     logger.debug("FIFO skip enabled.")
                     time.sleep(0.1)
+            fifo.close()
         except BrokenPipeError:
             pass
         finally:
-            fifo.close()
             logger.info("FIFO ended")
 
     @property
@@ -94,7 +94,7 @@ class AACStream(threading.Thread):
             if ffmpeg_proc.poll() is not None:
                 self.playing = False
                 ffmpeg_proc = self._startstream()
-            if 60 < self.offset - self.delay < 100000:  # Offset throws huge numbers when timestamp returns 0
+            if 60 < self.delta < 100000:  # Offset throws huge numbers when timestamp returns 0
                 logger.debug('Offset: %0.0f / Delay: %0.0f', self.offset, self.delay)
                 skip.set()
             elif skip.isSet():
@@ -141,6 +141,10 @@ class AACStream(threading.Thread):
     @property
     def offset(self):
         return time.time() - self.timestamp
+
+    @property
+    def delta(self):
+        return self.offset - self.delay
 
     @property
     def iceserver(self):

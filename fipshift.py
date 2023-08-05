@@ -142,15 +142,16 @@ try:
                 try:
                     track = _meta['track']
                 except (KeyError, TypeError):
-                    print(_meta)
+                    pass
                 try:
                     artist = _meta['artist']
                 except (KeyError, TypeError):
-                    print(_meta)
+                    pass
                 try:
                     album = _meta['album']
                 except (KeyError, TypeError):
-                    print(_meta)
+                    pass
+                # logger.debug('Found new metadata.')
                 break
         if not _meta:
             # logger.debug('No metadata matched for %s', _start)
@@ -160,11 +161,13 @@ try:
                    'mount': f"/{config['USEROPTS']['MOUNT']}",
                    'song': f'{track} - {artist} - {album}'
                    }
-        req = requests.get(f'http://{_url}', params=_params,
+        req = requests.get(f'http://{_url}/admin/metadata', params=_params,
                            auth=requests.auth.HTTPBasicAuth('source', config['USEROPTS']['PASSWORD']))
         if 'Metadata update successful' in req.text:
-            logger.debug('Metadata updated successfully')
-        logger.debug("Delay: %s / Offset: %s", children["sender"].offset, opts.delay)  # type: ignore
+            logger.info('Metadata updated successfully: %s - %s - %s', track, artist, album)
+        else:
+            logger.warning('Error updating metdata: %s', req.text)
+        # logger.debug("Offset: %0.0f / Delay: %0.0f", children["sender"].offset, opts.delay)
 
 except (KeyboardInterrupt, SystemExit):
     ALIVE.clear()

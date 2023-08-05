@@ -95,8 +95,7 @@ class FipPlaylist(threading.Thread):
                 self.history.append(_l)
         for _url in _urlz:
             self.buff.put(_url)
-            # logger.debug("Queued %s", _url)
-        logger.debug("%s queued %s urls", self.name, len(_urlz))
+        # logger.debug("%s queued %s urls", self.name, len(_urlz))
         self.last_update = time.time()
         self.delay = 15
 
