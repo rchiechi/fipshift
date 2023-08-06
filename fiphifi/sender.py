@@ -3,6 +3,7 @@ import time
 import logging
 import threading
 import subprocess
+import queue
 import requests  # type: ignore
 
 # 'https://stream.radiofrance.fr/msl4/fip/prod1transcoder1/fip_aac_hifi_4_1673363954_368624.ts?id=radiofrance'
@@ -12,28 +13,24 @@ logger = logging.getLogger(__package__)
 
 class FIFO(threading.Thread):
 
-    def __init__(self, _alive, _fifo, urlq, _skip):
+    def __init__(self, _alive, _fifo, urlq):
         threading.Thread.__init__(self)
         self._alive = _alive
         self.urlq = urlq
         self._fifo = _fifo
         self._timestamp = 0
-        self._skip = _skip
+        self._lastsend = 0
 
     def run(self):
         logger.info('Starting FIFO')
-        self._skip.clear()
         fifo = open(self._fifo, 'wb')
         session = requests.Session()
         try:
             while self.alive:
                 self._timestamp, _url = self.urlq.get()
-                if not self.skip:
-                    req = session.get(_url, timeout=1)
-                    fifo.write(req.content)
-                else:
-                    logger.debug("FIFO skip enabled.")
-                    time.sleep(0.1)
+                req = session.get(_url, timeout=1)
+                fifo.write(req.content)
+                self._lastsend = time.time()
             fifo.close()
         except BrokenPipeError:
             pass
@@ -49,8 +46,8 @@ class FIFO(threading.Thread):
         return self._alive.isSet()
 
     @property
-    def skip(self):
-        return self._skip.isSet()
+    def lastsend(self):
+        return time.time() - self._lastsend
 
 
 class AACStream(threading.Thread):
@@ -82,29 +79,37 @@ class AACStream(threading.Thread):
         logger.info('Creating %s', self._fifo)
         os.mkfifo(self._fifo)
         logger.debug('Opening %s', self._fifo)
-        skip = threading.Event()
-        self.fifo = FIFO(self._alive, self._fifo, self.urlq, skip)
+        self.fifo = FIFO(self._alive, self._fifo, self.urlq)
         self.fifo.start()
         logger.info('%s starting ffmpeg', self.name)
         ffmpeg_proc = self._startstream()
-        loop_counter = 0
+        offset_tolerace = int(0.05 * self.delay) or 16
+        logger.debug('%s setting offset tolerance to %ss', self.name, offset_tolerace)
         while self.alive:
             if not self.fifo.is_alive():
                 logger.warning('%s FIFO died, trying to restart.', self.name)
-                self.fifo = FIFO(self._alive, self._fifo, self.urlq, skip)
+                self.fifo = FIFO(self._alive, self._fifo, self.urlq)
                 self.fifo.start()
             if ffmpeg_proc.poll() is not None:
                 logger.warning('%s ffmpeg died, trying to restart.', self.name)
                 self.playing = False
                 ffmpeg_proc = self._startstream()
-            if 60 < self.delta < 100000:  # Offset throws huge numbers when timestamp returns 0
+            if offset_tolerace < self.delta < 100000:  # Offset throws huge numbers when timestamp returns 0
                 logger.debug('Offset: %0.0f / Delay: %0.0f', self.offset, self.delay)
-                skip.set()
-            elif skip.isSet():
-                skip.clear()
-            if loop_counter > 60:
+                skipped = 1
+                try:
+                    _timestamp, _ = self.urlq.get(timeout=5)
+                    while time.time() - _timestamp > self.delay:
+                        _timestamp, _ = self.urlq.get(timeout=5)
+                        skipped += 1
+                except queue.Empty:
+                    pass
+                logger.info("%s skipped %s urls to keep delay.", self.name, skipped)
+                time.sleep(8)
+                while self.fifo.lastsend > 1:
+                    logger.debug('%s waiting 1s for fifo to catch up.', self.name)
+                    time.sleep(1)
                 logger.debug('Offset: %0.0f / Delay: %0.0f', self.offset, self.delay)
-                loop_counter = 0
             time.sleep(1)
         logger.info('%s dying (alive: %s)', self.name, self.alive)
         self._cleanup()

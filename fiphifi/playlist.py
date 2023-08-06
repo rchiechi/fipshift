@@ -29,9 +29,9 @@ class FipPlaylist(threading.Thread):
         fip_error = False
         while self.alive:
             try:
+                retries = 0
                 req = requests.get(FIPLIST, timeout=2)
                 self.parselist(req.text)
-                retries = 0
             except requests.exceptions.ConnectionError as error:
                 fip_error = True
                 logger.warning("%s: A ConnectionError has occured: %s", self.name, error)
@@ -67,25 +67,6 @@ class FipPlaylist(threading.Thread):
     def prunehistory(self, until):
         with self.lock:
             self._history = self._history[until:]
-
-    # def __guess(self):
-    #     if not self.history:
-    #         return
-    #     logger.warn("Guessing at next TS file")
-    #     self.delay = 5
-    #     _last = self.history[-1]
-    #     m = re.search(TSRE, _last)
-    #     if m is None:
-    #         logger.error("Error guessing : (")
-    #         return
-    #     if len(m.groups()) < 3:
-    #         logger.error("Error parsing ts file")
-    #         return
-    #     _url, _first, _second = m.groups()[0:3]
-    #     _i = int(_second)
-    #     for _ in range(5):
-    #         _i += 1
-    #         self.buff.put(f'{FIPBASEURL}{_url}{_first}{_i}')
 
     def parselist(self, _m3u):
         if not _m3u:

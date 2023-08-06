@@ -11,7 +11,7 @@ import queue
 from typing_extensions import TypedDict
 import json
 # import requests  # type: ignore
-from fiphifi.util import cleantmpdir, checkcache, writecache  # type: ignore
+from fiphifi.util import cleantmpdir, checkcache, writecache, vampstream  # type: ignore
 from fiphifi.playlist import FipPlaylist  # type: ignore
 from fiphifi.sender import AACStream  # type: ignore
 from fiphifi.options import parseopts  # type: ignore
@@ -93,18 +93,7 @@ if URLQ.empty():
     logger.info('Starting vamp stream.')
 
     _c = config['USEROPTS']
-    _ffmpegcmd = [FFMPEG,
-                  '-loglevel', 'fatal',
-                  '-re',
-                  '-i', 'https://icecast.radiofrance.fr/fip-hifi.aac?id=radiofrance',
-                  '-content_type', 'audio/aac',
-                  '-ice_name', 'FipShift',
-                  '-ice_description', 'Time-shifted FIP stream',
-                  '-ice_genre', 'Eclectic',
-                  '-c:a', 'copy',
-                  '-f', 'adts',
-                  f"icecast://{_c['USER']}:{_c['PASSWORD']}@{_c['HOST']}:{_c['PORT']}/{_c['MOUNT']}"]
-    ffmpeg_proc = subprocess.Popen(_ffmpegcmd)
+    ffmpeg_proc = vampstream(FFMPEG, _c)
     try:
         _runtime = time.time() - epoch
         while _runtime < opts.delay:
@@ -113,11 +102,12 @@ if URLQ.empty():
             time.sleep(60)
             if ffmpeg_proc.poll() is not None:
                 logger.warning('Restarting vamp stream.')
-                ffmpeg_proc = subprocess.Popen(_ffmpegcmd)
+                # ffmpeg_proc = subprocess.Popen(_ffmpegcmd)
+                ffmpeg_proc = vampstream(FFMPEG, _c)
             send_metadata(f"{_c['HOST']}:{_c['PORT']}",
                           _c['MOUNT'],
                           f"Realtime Stream: T-{_remains:0.0f} minutes",
-                          (config['USEROPTS']['USER'], config['USEROPTS']['PASSWORD']))
+                          (_c['USER'], _c['PASSWORD']))
             writecache(CACHE, children["playlist"].history)
             _runtime = time.time() - epoch
     except KeyboardInterrupt:

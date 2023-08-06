@@ -1,7 +1,7 @@
 import os
 import time
 import json
-import queue
+import subprocess
 # import sys
 # import subprocess
 # from fiphifi.metadata import send_metadata  # type: ignore
@@ -91,3 +91,18 @@ def writecache(cache, _urlz):
         os.remove(cache)
     with open(cache, 'w') as fh:
         json.dump(_urlz, fh)
+
+
+def vampstream(FFMPEG, _c):
+    _ffmpegcmd = [FFMPEG,
+                  '-loglevel', 'fatal',
+                  '-re',
+                  '-i', 'https://icecast.radiofrance.fr/fip-hifi.aac?id=radiofrance',
+                  '-content_type', 'audio/aac',
+                  '-ice_name', 'FipShift',
+                  '-ice_description', 'Time-shifted FIP stream',
+                  '-ice_genre', 'Eclectic',
+                  '-c:a', 'copy',
+                  '-f', 'adts',
+                  f"icecast://{_c['USER']}:{_c['PASSWORD']}@{_c['HOST']}:{_c['PORT']}/{_c['MOUNT']}"]
+    return subprocess.Popen(_ffmpegcmd)
