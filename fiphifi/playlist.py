@@ -18,7 +18,8 @@ class FipPlaylist(threading.Thread):
         self.name = 'FipPlaylist Thread'
         self._alive = _alive
         self.buff = pl_queue
-        self.history = []
+        self._history = []
+        self.lock = threading.Lock()
         self.last_update = time.time()
 
     def run(self):
@@ -27,17 +28,18 @@ class FipPlaylist(threading.Thread):
             logger.warn("%s called without alive set.", self.name)
         fip_error = False
         while self.alive:
-            req = requests.get(FIPLIST, timeout=2)
             try:
+                req = requests.get(FIPLIST, timeout=2)
                 self.parselist(req.text)
                 retries = 0
             except requests.exceptions.ConnectionError as error:
                 fip_error = True
                 logger.warning("%s: A ConnectionError has occured: %s", self.name, error)
-                self.__guess()
-            except requests.exceptions.Timeout:
+                # self.__guess()
+            except (requests.exceptions.ReadTimeout, requests.exceptions.Timeout):
+                fip_error = True
                 logger.warning("%s requst timed out", self.name)
-                self.__guess()
+                # self.__guess()
             finally:
                 if fip_error:
                     retries += 1
@@ -49,27 +51,41 @@ class FipPlaylist(threading.Thread):
                         logger.warning("%s error, retrying (%s)", self.name, retries)
                         continue
                 time.sleep(self.delay)
-            if len(self.history) > 1024:
+            if len(self._history) > self.buff.qsize():
                 logger.debug("%s pruning history.", self.name)
-                self.history = self.history[1024:]
+                self.prunehistory(self.buff.qsize())
         logger.info('%s dying (alive: %s)', self.name, self.alive)
 
-    def __guess(self):
-        logger.warn("Guessing at next TS file")
-        self.delay = 5
-        _last = self.history[-1]
-        m = re.search(TSRE, _last)
-        if m is None:
-            logger.error("Error guessing : (")
-            return
-        if len(m.groups()) < 3:
-            logger.error("Error parsing ts file")
-            return
-        _url, _first, _second = m.groups()[0:3]
-        _i = int(_second)
-        for _ in range(5):
-            _i += 1
-            self.buff.put(f'{FIPBASEURL}{_url}{_first}{_i}')
+    def puthistory(self, _url):
+        with self.lock:
+            self._history.append(_url)
+
+    def gethistory(self):
+        with self.lock:
+            return self._history[:]
+
+    def prunehistory(self, until):
+        with self.lock:
+            self._history = self._history[until:]
+
+    # def __guess(self):
+    #     if not self.history:
+    #         return
+    #     logger.warn("Guessing at next TS file")
+    #     self.delay = 5
+    #     _last = self.history[-1]
+    #     m = re.search(TSRE, _last)
+    #     if m is None:
+    #         logger.error("Error guessing : (")
+    #         return
+    #     if len(m.groups()) < 3:
+    #         logger.error("Error parsing ts file")
+    #         return
+    #     _url, _first, _second = m.groups()[0:3]
+    #     _i = int(_second)
+    #     for _ in range(5):
+    #         _i += 1
+    #         self.buff.put(f'{FIPBASEURL}{_url}{_first}{_i}')
 
     def parselist(self, _m3u):
         if not _m3u:
@@ -90,12 +106,11 @@ class FipPlaylist(threading.Thread):
                     _timestamp = 0
             if _l[0] == '#':
                 continue
-            if _l not in self.history:
+            _url = [_timestamp, f'{FIPBASEURL}{_l.strip()}']
+            if _url not in self._history:
                 _urlz.append([_timestamp, f'{FIPBASEURL}{_l.strip()}'])
-                self.history.append(_l)
-        for _url in _urlz:
-            self.buff.put(_url)
-        # logger.debug("%s queued %s urls", self.name, len(_urlz))
+                self.puthistory(_url)
+                self.buff.put(_url)
         self.last_update = time.time()
         self.delay = 15
 
@@ -106,3 +121,7 @@ class FipPlaylist(threading.Thread):
     @property
     def lastupdate(self):
         return time.time() - self.last_update
+
+    @property
+    def history(self):
+        return self.gethistory()

@@ -11,7 +11,7 @@ import queue
 from typing_extensions import TypedDict
 import json
 # import requests  # type: ignore
-from fiphifi.util import cleantmpdir  # type: ignore
+from fiphifi.util import cleantmpdir, checkcache, writecache  # type: ignore
 from fiphifi.playlist import FipPlaylist  # type: ignore
 from fiphifi.sender import AACStream  # type: ignore
 from fiphifi.options import parseopts  # type: ignore
@@ -68,11 +68,12 @@ if not os.path.exists(TMPDIR):
     os.mkdir(TMPDIR)
 logger.debug("Cleaned %s files in %s.", cleantmpdir(TMPDIR), TMPDIR)
 
-
 logger.info("Starting buffer threads.")
 
+CACHE = os.path.join(TMPDIR, 'fipshift.cache')
 ALIVE = threading.Event()
 URLQ = queue.Queue()
+checkcache(CACHE, URLQ)
 
 children: Children = {}
 children["playlist"] = FipPlaylist(ALIVE, URLQ)
@@ -83,58 +84,65 @@ children["sender"] = AACStream(ALIVE, URLQ,
                                ffmpeg=FFMPEG,
                                tmpidr=TMPDIR,
                                config=config)
+
 ALIVE.set()
 children["playlist"].start()
 children["metadata"].start()
 
-logger.info('Starting vamp stream.')
+if URLQ.empty():
+    logger.info('Starting vamp stream.')
 
-_c = config['USEROPTS']
-_ffmpegcmd = [FFMPEG,
-              '-loglevel', 'fatal',
-              '-re',
-              '-i', 'https://icecast.radiofrance.fr/fip-hifi.aac?id=radiofrance',
-              '-content_type', 'audio/aac',
-              '-ice_name', 'FipShift',
-              '-ice_description', 'Time-shifted FIP stream',
-              '-ice_genre', 'Eclectic',
-              '-c:a', 'copy',
-              '-f', 'adts',
-              f"icecast://{_c['USER']}:{_c['PASSWORD']}@{_c['HOST']}:{_c['PORT']}/{_c['MOUNT']}"]
-ffmpeg_proc = subprocess.Popen(_ffmpegcmd)
-
-try:
-    _runtime = opts.delay - 60
-    while _runtime < opts.delay:
-        _remains = (opts.delay - _runtime) / 60 or 1
-        logger.info('Buffering for %0.0f more minutes', _remains)
-        time.sleep(60)
-        if ffmpeg_proc.poll() is not None:
-            ffmpeg_proc = subprocess.Popen(_ffmpegcmd)
-        send_metadata(f"{_c['HOST']}:{_c['PORT']}",
-                      _c['MOUNT'],
-                      f"Realtime Stream: T-{_remains:0.0f} minutes",
-                      (config['USEROPTS']['USER'], config['USEROPTS']['PASSWORD']))
+    _c = config['USEROPTS']
+    _ffmpegcmd = [FFMPEG,
+                  '-loglevel', 'fatal',
+                  '-re',
+                  '-i', 'https://icecast.radiofrance.fr/fip-hifi.aac?id=radiofrance',
+                  '-content_type', 'audio/aac',
+                  '-ice_name', 'FipShift',
+                  '-ice_description', 'Time-shifted FIP stream',
+                  '-ice_genre', 'Eclectic',
+                  '-c:a', 'copy',
+                  '-f', 'adts',
+                  f"icecast://{_c['USER']}:{_c['PASSWORD']}@{_c['HOST']}:{_c['PORT']}/{_c['MOUNT']}"]
+    ffmpeg_proc = subprocess.Popen(_ffmpegcmd)
+    try:
         _runtime = time.time() - epoch
+        while _runtime < opts.delay:
+            _remains = (opts.delay - _runtime) / 60 or 1
+            logger.info('Buffering for %0.0f more minutes', _remains)
+            time.sleep(60)
+            if ffmpeg_proc.poll() is not None:
+                logger.warning('Restarting vamp stream.')
+                ffmpeg_proc = subprocess.Popen(_ffmpegcmd)
+            send_metadata(f"{_c['HOST']}:{_c['PORT']}",
+                          _c['MOUNT'],
+                          f"Realtime Stream: T-{_remains:0.0f} minutes",
+                          (config['USEROPTS']['USER'], config['USEROPTS']['PASSWORD']))
+            writecache(CACHE, children["playlist"].history)
+            _runtime = time.time() - epoch
+    except KeyboardInterrupt:
+        logger.info("Killing threads")
+        ffmpeg_proc.terminate()
+        ALIVE.clear()
+        for child in children:
+            if children[child].is_alive():
+                logger.info("Joining %s", children[child].name)
+                children[child].join(timeout=30)
+        cleantmpdir(TMPDIR)
+        sys.exit()
+    finally:
+        ffmpeg_proc.terminate()
+else:
+    logger.info('Loaded %s entries from cache.', URLQ.qsize())
 
-except KeyboardInterrupt:
-    logger.info("Killing threads")
-    ffmpeg_proc.terminate()
-    ALIVE.clear()
-    for child in children:
-        if children[child].is_alive():
-            logger.info("Joining %s", children[child].name)
-            children[child].join(timeout=30)
-    cleantmpdir(TMPDIR)
-    sys.exit()
 
-ffmpeg_proc.terminate()
 children["sender"].start()  # type: ignore
 logger.info("Started %s", children["sender"].name)
 slug = ''
 last_slug = ''
 try:
     while True:
+        writecache(CACHE, children["playlist"].history)
         time.sleep(1)
         _start = children["sender"].timestamp
         _json = children["metadata"].jsoncache
@@ -169,5 +177,11 @@ finally:
     for child in children:
         logger.info("Joining %s", children[child].name)
         children[child].join(timeout=60)
-
-logger.debug("Cleaned %s files in %s.", cleantmpdir(TMPDIR), TMPDIR)
+    _urlz = []
+    while not URLQ.empty():
+        try:
+            _urlz.append(URLQ.get_nowait())
+        except queue.Empty:
+            break
+    writecache(CACHE, _urlz)
+    logger.debug("Cleaned %s files in %s.", cleantmpdir(TMPDIR), TMPDIR)

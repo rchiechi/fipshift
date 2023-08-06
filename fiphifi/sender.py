@@ -89,7 +89,12 @@ class AACStream(threading.Thread):
         ffmpeg_proc = self._startstream()
         loop_counter = 0
         while self.alive:
+            if not self.fifo.is_alive():
+                logger.warning('%s FIFO died, trying to restart.', self.name)
+                self.fifo = FIFO(self._alive, self._fifo, self.urlq, skip)
+                self.fifo.start()
             if ffmpeg_proc.poll() is not None:
+                logger.warning('%s ffmpeg died, trying to restart.', self.name)
                 self.playing = False
                 ffmpeg_proc = self._startstream()
             if 60 < self.delta < 100000:  # Offset throws huge numbers when timestamp returns 0

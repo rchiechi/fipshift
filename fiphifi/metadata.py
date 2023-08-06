@@ -34,12 +34,13 @@ class FIPMetadata(threading.Thread):
         self._alive = _alive
         self._lock = threading.Lock()
         self._cache = os.path.join(tmpdir, 'metadata.json')
-        with open(self.cache, 'wt') as fh:
-            json.dump({}, fh)
         self.last_update = time.time()
 
     def run(self):
         logger.info(f"Starting {self.name}")
+        if not os.path.exists(self.cache):
+            with open(self.cache, 'wt') as fh:
+                json.dump({}, fh)
         if not self.alive:
             logger.warn("%s called without alive set.", self.name)
         self._updatemetadata()
@@ -94,9 +95,14 @@ class FIPMetadata(threading.Thread):
                 json.dump(_json, fh)
 
     def _readfromdisk(self):
+        _metadata = {}
         with self.lock:
             with open(self.cache, 'rt') as fh:
-                return json.load(fh)
+                try:
+                    _metadata = json.load(fh)
+                except json.JSONDecodeError:
+                    pass
+        return _metadata
 
     def _getmeta(self, when):
         _metadata = self.metadata.get(when, METATEMPLATE[when])
