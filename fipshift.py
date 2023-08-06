@@ -22,7 +22,7 @@ from fiphifi.metadata import FIPMetadata, send_metadata  # type: ignore
 
 opts, config = parseopts()
 Children = TypedDict('Children', {'playlist': FipPlaylist, 'metadata': FIPMetadata, 'sender': AACStream})
-epoch = time.time()
+# epoch = time.time()
 
 
 logger = logging.getLogger(__package__)
@@ -73,7 +73,7 @@ logger.info("Starting buffer threads.")
 CACHE = os.path.join(TMPDIR, 'fipshift.cache')
 ALIVE = threading.Event()
 URLQ = queue.Queue()
-checkcache(CACHE, URLQ)
+epoch = checkcache(CACHE, URLQ)
 
 children: Children = {}
 children["playlist"] = FipPlaylist(ALIVE, URLQ)
@@ -89,41 +89,41 @@ ALIVE.set()
 children["playlist"].start()
 children["metadata"].start()
 
-if URLQ.empty():
-    logger.info('Starting vamp stream.')
-
-    _c = config['USEROPTS']
-    ffmpeg_proc = vampstream(FFMPEG, _c)
-    try:
-        _runtime = time.time() - epoch
-        while _runtime < opts.delay:
-            _remains = (opts.delay - _runtime) / 60 or 1
-            logger.info('Buffering for %0.0f more minutes', _remains)
-            time.sleep(60)
-            if ffmpeg_proc.poll() is not None:
-                logger.warning('Restarting vamp stream.')
-                # ffmpeg_proc = subprocess.Popen(_ffmpegcmd)
-                ffmpeg_proc = vampstream(FFMPEG, _c)
-            send_metadata(f"{_c['HOST']}:{_c['PORT']}",
-                          _c['MOUNT'],
-                          f"Realtime Stream: T-{_remains:0.0f} minutes",
-                          (_c['USER'], _c['PASSWORD']))
-            writecache(CACHE, children["playlist"].history)
-            _runtime = time.time() - epoch
-    except KeyboardInterrupt:
-        logger.info("Killing threads")
-        ffmpeg_proc.terminate()
-        ALIVE.clear()
-        for child in children:
-            if children[child].is_alive():
-                logger.info("Joining %s", children[child].name)
-                children[child].join(timeout=30)
-        cleantmpdir(TMPDIR)
-        sys.exit()
-    finally:
-        ffmpeg_proc.terminate()
-else:
+if not URLQ.empty():
     logger.info('Loaded %s entries from cache.', URLQ.qsize())
+
+logger.info('Starting vamp stream.')
+_c = config['USEROPTS']
+ffmpeg_proc = vampstream(FFMPEG, _c)
+try:
+    _runtime = time.time() - epoch
+    while _runtime < opts.delay:
+        _remains = (opts.delay - _runtime) / 60 or 1
+        logger.info('Buffering for %0.0f more minutes', _remains)
+        time.sleep(60)
+        if ffmpeg_proc.poll() is not None:
+            logger.warning('Restarting vamp stream.')
+            # ffmpeg_proc = subprocess.Popen(_ffmpegcmd)
+            ffmpeg_proc = vampstream(FFMPEG, _c)
+        send_metadata(f"{_c['HOST']}:{_c['PORT']}",
+                      _c['MOUNT'],
+                      f"Realtime Stream: T-{_remains:0.0f} minutes",
+                      (_c['USER'], _c['PASSWORD']))
+        writecache(CACHE, children["playlist"].history)
+        _runtime = time.time() - epoch
+except KeyboardInterrupt:
+    logger.info("Killing threads")
+    ffmpeg_proc.terminate()
+    ALIVE.clear()
+    for child in children:
+        if children[child].is_alive():
+            logger.info("Joining %s", children[child].name)
+            children[child].join(timeout=30)
+    cleantmpdir(TMPDIR)
+    sys.exit()
+finally:
+    ffmpeg_proc.terminate()
+
 
 
 children["sender"].start()  # type: ignore

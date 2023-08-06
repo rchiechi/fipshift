@@ -75,7 +75,7 @@ def cleantmpdir(tmpdir):
 
 def checkcache(cache, pl_queue):
     if not os.path.exists(cache):
-        return
+        return time.time()
     with open(cache) as fh:
         try:
             _urlz = json.load(fh)
@@ -83,7 +83,8 @@ def checkcache(cache, pl_queue):
                 pl_queue.put(_url)
         except json.JSONDecodeError:
             os.remove(cache)
-            pass
+            return time.time()
+    return _urlz[0][0]
 
 
 def writecache(cache, _urlz):
