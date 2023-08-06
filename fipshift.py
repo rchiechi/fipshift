@@ -124,8 +124,6 @@ except KeyboardInterrupt:
 finally:
     ffmpeg_proc.terminate()
 
-
-
 children["sender"].start()  # type: ignore
 logger.info("Started %s", children["sender"].name)
 slug = ''
