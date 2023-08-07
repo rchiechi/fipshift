@@ -1,5 +1,5 @@
 # fipshift
-Time shift the FIP MP3 icecast stream for listening from a different time zone.
+Time shift the FIP AAC icecast stream for listening from a different time zone.
 
 # usage
 `./fipshift.py -d <delay time in hours>`
@@ -11,6 +11,8 @@ There will be occasional skips in the stream when it catches up (the delayed str
 
 # requirements
 
+- [Requests](https://requests.readthedocs.io/en/latest/)
+- [ffmpeg](https://ffmpeg.org/)
 - [ices2](https://icecast.org/ices/)
 
 
