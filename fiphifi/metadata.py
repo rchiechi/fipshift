@@ -106,7 +106,11 @@ class FIPMetadata(threading.Thread):
 
     def _getmeta(self, when):
         _metadata = self.metadata.get(when, METATEMPLATE[when])
-        if _metadata['song'] is None:
+        # if _metadata['song'] is None:
+        #     _metadata['song'] = {}
+        try:
+            _metadata.get('song', {}).get('release', {}).get('title', 'Le Album')
+        except AttributeError:
             _metadata['song'] = {}
         metadata = {'delayToRefresh': float(self.metadata.get('delayToRefresh', 10000)) / 1000,
                     'track': _metadata.get('firstLine', {}).get('title', 'Le Title'),
