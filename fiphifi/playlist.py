@@ -26,23 +26,23 @@ class FipPlaylist(threading.Thread):
         logger.info('Starting %s', self.name)
         if not self.alive:
             logger.warn("%s called without alive set.", self.name)
+        retries = 0
         fip_error = False
         while self.alive:
             try:
-                retries = 0
                 req = requests.get(FIPLIST, timeout=2)
                 self.parselist(req.text)
+                retries = 0
             except requests.exceptions.ConnectionError as error:
                 fip_error = True
                 logger.warning("%s: A ConnectionError has occured: %s", self.name, error)
-                # self.__guess()
             except (requests.exceptions.ReadTimeout, requests.exceptions.Timeout):
                 fip_error = True
                 logger.warning("%s requst timed out", self.name)
-                # self.__guess()
             finally:
                 if fip_error:
                     retries += 1
+                    time.sleep(retries)
                     fip_error = False
                     if retries > 9:
                         logger.error("%s Maximum retries reached, bailing.", self.name)
