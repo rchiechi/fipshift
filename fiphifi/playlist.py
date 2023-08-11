@@ -45,8 +45,8 @@ class FipPlaylist(threading.Thread):
                     time.sleep(retries)
                     fip_error = False
                     if retries > 9:
-                        logger.error("%s Maximum retries reached, bailing.", self.name)
-                        break
+                        logger.error("%s Maximum retries reached, restarting throttle.", self.name)
+                        retries = 0
                     else:
                         logger.warning("%s error, retrying (%s)", self.name, retries)
                         continue
