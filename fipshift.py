@@ -134,7 +134,7 @@ try:
         time.sleep(1)
         for child in children:
             if not children[child].is_alive():
-                logger.error(f"{child.name} died, exiting.")
+                logger.error(f"{children[child].name} died, exiting.")
                 raise SystemExit
         _start = children["sender"].timestamp
         _json = children["metadata"].jsoncache
