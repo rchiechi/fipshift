@@ -133,7 +133,7 @@ try:
         writecache(CACHE, children["playlist"].history)
         time.sleep(1)
         for child in children:
-            if not child.is_alive():
+            if not children[child].is_alive():
                 logger.error(f"{child.name} died, exiting.")
                 raise SystemExit
         _start = children["sender"].timestamp
