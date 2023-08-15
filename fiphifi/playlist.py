@@ -1,9 +1,9 @@
 import time
 import logging
 import threading
-import re
+# import re
 import datetime as dt
-from fiphifi.constants import FIPBASEURL, FIPLIST, TSRE, STRPTIME  # type: ignore
+from fiphifi.constants import FIPBASEURL, FIPLIST, STRPTIME  # type: ignore
 import requests  # type: ignore
 
 logger = logging.getLogger(__package__)

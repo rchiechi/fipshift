@@ -32,7 +32,7 @@ class FIFO(threading.Thread):
                 fifo.write(req.content)
                 self._lastsend = time.time()
             fifo.close()
-        except (requests.exceptions.ReadTimeout, BrokenPipeError):
+        except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, BrokenPipeError):
             pass
         finally:
             logger.info("FIFO ended")

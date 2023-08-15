@@ -132,6 +132,10 @@ try:
     while True:
         writecache(CACHE, children["playlist"].history)
         time.sleep(1)
+        for child in children:
+            if not child.is_alive():
+                logger.error(f"{child.name} died, exiting.")
+                raise SystemExit
         _start = children["sender"].timestamp
         _json = children["metadata"].jsoncache
         track, artist, album = 'Le track', 'Le artist', 'Le album'
