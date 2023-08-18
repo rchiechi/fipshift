@@ -38,7 +38,8 @@ class FIFO(threading.Thread):
                     fifo.write(silence)
                 self._lastsend = time.time()
             fifo.close()
-        except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, BrokenPipeError):
+        except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, BrokenPipeError) as msg:
+            logger.debug(f"FIFO died because of {msg}")
             pass
         finally:
             logger.info("FIFO ended")
