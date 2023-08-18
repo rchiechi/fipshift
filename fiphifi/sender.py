@@ -9,7 +9,7 @@ import requests  # type: ignore
 # 'https://stream.radiofrance.fr/msl4/fip/prod1transcoder1/fip_aac_hifi_4_1673363954_368624.ts?id=radiofrance'
 
 logger = logging.getLogger(__package__)
-
+SILENTAAC = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'silence_4s.ts')
 
 class FIFO(threading.Thread):
 
@@ -23,13 +23,19 @@ class FIFO(threading.Thread):
 
     def run(self):
         logger.info('Starting FIFO')
+        with open(SILENTAAC, 'rb') as fh:
+            silence = fh.read()
         fifo = open(self._fifo, 'wb')
         session = requests.Session()
         try:
             while self.alive:
-                self._timestamp, _url = self.urlq.get()
-                req = session.get(_url, timeout=1)
-                fifo.write(req.content)
+                try:
+                    self._timestamp, _url = self.urlq.get()
+                    req = session.get(_url, timeout=1)
+                    fifo.write(req.content)
+                except queue.Empty:
+                    logger.debug('FIFO sending 4s of silence.')
+                    fifo.write(silence)
                 self._lastsend = time.time()
             fifo.close()
         except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, BrokenPipeError):
