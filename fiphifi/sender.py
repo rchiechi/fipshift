@@ -30,7 +30,7 @@ class FIFO(threading.Thread):
         try:
             while self.alive:
                 try:
-                    self._timestamp, _url = self.urlq.get()
+                    self._timestamp, _url = self.urlq.get_nowait()
                     req = session.get(_url, timeout=1)
                     fifo.write(req.content)
                 except queue.Empty:
