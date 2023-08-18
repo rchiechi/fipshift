@@ -34,7 +34,7 @@ class FIFO(threading.Thread):
                     req = session.get(_url, timeout=1)
                     fifo.write(req.content)
                 except queue.Empty:
-                    logger.debug('FIFO sending 4s of silence.')
+                    logger.warning('FIFO sending 4s of silence.')
                     fifo.write(silence)
                 self._lastsend = time.time()
             fifo.close()
