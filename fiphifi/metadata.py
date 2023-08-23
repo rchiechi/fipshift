@@ -106,8 +106,8 @@ class FIPMetadata(threading.Thread):
 
     def _getmeta(self, when):
         _metadata = self.metadata.get(when, METATEMPLATE[when])
-        # if _metadata['song'] is None:
-        #     _metadata['song'] = {}
+        if _metadata is None:
+            _metadata = {}
         try:
             _metadata.get('song', {}).get('release', {}).get('title', 'Le Album')
         except AttributeError:
