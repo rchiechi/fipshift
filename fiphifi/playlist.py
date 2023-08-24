@@ -30,7 +30,7 @@ class FipPlaylist(threading.Thread):
         fip_error = False
         while self.alive:
             try:
-                req = requests.get(FIPLIST, timeout=2)
+                req = requests.get(FIPLIST, timeout=self.delay)
                 self.parselist(req.text)
                 retries = 0
             except requests.exceptions.ConnectionError as error:
@@ -42,7 +42,6 @@ class FipPlaylist(threading.Thread):
             finally:
                 if fip_error:
                     retries += 1
-                    time.sleep(1)
                     fip_error = False
                     if retries > 9:
                         logger.error("%s Maximum retries reached, dying.", self.name)
