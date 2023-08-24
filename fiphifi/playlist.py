@@ -42,7 +42,7 @@ class FipPlaylist(threading.Thread):
             finally:
                 if fip_error:
                     retries += 1
-                    time.sleep(retries)
+                    time.sleep(1)
                     fip_error = False
                     if retries > 9:
                         logger.error("%s Maximum retries reached, dying.", self.name)
