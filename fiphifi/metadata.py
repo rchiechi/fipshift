@@ -110,8 +110,13 @@ class FIPMetadata(threading.Thread):
             _metadata = {}
         try:
             _metadata.get('song', {}).get('release', {}).get('title', 'Le Album')
+            _metadata.get('secondLine', {}).get('title', 'Le Artist')
+            _metadata.get('firstLine', {}).get('title', 'Le Title')
         except AttributeError:
             _metadata['song'] = {}
+            _metadata['firstLine'] = {}
+            _metadata['secondLine'] = {}
+            
         metadata = {'delayToRefresh': float(self.metadata.get('delayToRefresh', 10000)) / 1000,
                     'track': _metadata.get('firstLine', {}).get('title', 'Le Title'),
                     'artist': _metadata.get('secondLine', {}).get('title', 'Le Artist'),
