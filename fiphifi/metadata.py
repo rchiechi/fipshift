@@ -106,7 +106,7 @@ class FIPMetadata(threading.Thread):
 
     def _getmeta(self, when):
         _metadata = self.metadata.get(when, METATEMPLATE[when])
-        if _metadata is not isinstance(_metadata, dict):
+        if not isinstance(_metadata, dict):
             logger.warn("%s metadata is: %s", self.name, _metadata)
             _metadata = {}
         try:
