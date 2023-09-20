@@ -106,7 +106,8 @@ class FIPMetadata(threading.Thread):
 
     def _getmeta(self, when):
         _metadata = self.metadata.get(when, METATEMPLATE[when])
-        if _metadata is None:
+        if _metadata is None or isinstance(_metadata, str):
+            logger.warn("%s metadata is: %s", self.name, _metadata)
             _metadata = {}
         try:
             _metadata.get('song', {}).get('release', {}).get('title', 'Le Album')
