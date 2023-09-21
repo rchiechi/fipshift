@@ -32,7 +32,7 @@ METATEMPLATE = {
                             },
                             "song": {
                                           "id": "4022bb60-3c72-4675-9968-5327b5e38740",
-                                          "year": 1997,
+                                          "year": 1977,
                                           "release": {
                                                         "title": "Le Album",
                                                         "label": "Le Label"
@@ -62,7 +62,7 @@ METATEMPLATE = {
                             },
                             "song": {
                                           "id": "946d8322-8e92-4f39-baec-3103904a73a7",
-                                          "year": 1997,
+                                          "year": 1977,
                                           "release": {
                                                         "title": "Le Album",
                                                         "label": "Le Label"
