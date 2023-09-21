@@ -107,16 +107,17 @@ class FIPMetadata(threading.Thread):
     def _getmeta(self, when):
         _metadata = self.metadata.get(when, METATEMPLATE[when])
         if isinstance(_metadata, list):
+            logger.warn("%s metadata is a list: %s", self.name, _metadata)
             _metadata = _metadata[0]
         if not isinstance(_metadata, dict):
             logger.warn("%s metadata is: %s", self.name, _metadata)
-            _metadata = METATEMPLATE[when]
+            _metadata = {}
         try:
             _metadata.get('song', {}).get('release', {}).get('title', 'Le Album')
         except AttributeError:
             logger.warn("%s error parsing song: %s", self.name, _metadata)
             _metadata['song'] = METATEMPLATE[when]['song']
-            
+
         metadata = {'delayToRefresh': float(self.metadata.get('delayToRefresh', 10000)) / 1000,
                     'track': _metadata.get('firstLine', 'Le Title'),
                     'artist': _metadata.get('secondLine', 'Le Artist'),
