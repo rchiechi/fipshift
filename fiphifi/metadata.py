@@ -106,23 +106,17 @@ class FIPMetadata(threading.Thread):
 
     def _getmeta(self, when):
         _metadata = self.metadata.get(when, METATEMPLATE[when])
-        if isinstance(_metadata, list):
-            _metadata = _metadata[0]
         if not isinstance(_metadata, dict):
             logger.warn("%s metadata is: %s", self.name, _metadata)
-            _metadata = {}
+            _metadata = METATEMPLATE[when]
         try:
             _metadata.get('song', {}).get('release', {}).get('title', 'Le Album')
-            _metadata.get('secondLine', {}).get('title', 'Le Artist')
-            _metadata.get('firstLine', {}).get('title', 'Le Title')
         except AttributeError:
-            _metadata['song'] = {}
-            _metadata['firstLine'] = {}
-            _metadata['secondLine'] = {}
+            _metadata['song'] = METATEMPLATE[when]['song']
             
         metadata = {'delayToRefresh': float(self.metadata.get('delayToRefresh', 10000)) / 1000,
-                    'track': _metadata.get('firstLine', {}).get('title', 'Le Title'),
-                    'artist': _metadata.get('secondLine', {}).get('title', 'Le Artist'),
+                    'track': _metadata.get('firstLine', 'Le Title'),
+                    'artist': _metadata.get('secondLine', 'Le Artist'),
                     'album': _metadata.get('song', {}).get('release', {}).get('title', 'Le Album'),
                     'year': _metadata.get('song', {}).get('year', 1977),
                     'coverart': _metadata.get('visuals', {}).get('card', {}).get('src'),
