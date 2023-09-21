@@ -119,14 +119,14 @@ class FIPMetadata(threading.Thread):
             logger.warn("%s error parsing song: %s", self.name, _metadata)
             _metadata['song'] = METATEMPLATE['now']['song']
 
-        metadata = {'delayToRefresh': float(self.metadata.get('delayToRefresh', 10000)) / 1000,
+        metadata = {'delayToRefresh': float(_metadata.get('delayToRefresh', 10000)) / 1000,
                     'track': _metadata.get('firstLine', 'Le Title'),
                     'artist': _metadata.get('secondLine', 'Le Artist'),
                     'album': _metadata.get('song', {}).get('release', {}).get('title', 'Le Album'),
                     'year': _metadata.get('song', {}).get('year', 1977),
                     'coverart': _metadata.get('visuals', {}).get('card', {}).get('src'),
-                    'startTime': float(_metadata['startTime'] or time.time()),
-                    'endTime': float(_metadata['endTime'] or time.time() + 10)}
+                    'startTime': float(_metadata.get('startTime', 0) or time.time()),
+                    'endTime': float(_metadata.get('endTime', 0) or time.time() + 10)}
         return metadata
 
     @property
