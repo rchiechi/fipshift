@@ -111,6 +111,8 @@ class FIPMetadata(threading.Thread):
         if not isinstance(_metadata, dict):
             logger.warn("%s metadata is: %s", self.name, _metadata)
             _metadata = {}
+        if _metadata.get('song', None) is None:
+            _metadata['song'] = METATEMPLATE['now']['song']
         try:
             _metadata.get('song', {}).get('release', {}).get('title', 'Le Album')
         except AttributeError:
