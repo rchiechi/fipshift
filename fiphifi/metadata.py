@@ -112,6 +112,7 @@ class FIPMetadata(threading.Thread):
         try:
             _metadata.get('song', {}).get('release', {}).get('title', 'Le Album')
         except AttributeError:
+            logger.warn("%s error parsing song: %s", self.name, _metadata)
             _metadata['song'] = METATEMPLATE[when]['song']
             
         metadata = {'delayToRefresh': float(self.metadata.get('delayToRefresh', 10000)) / 1000,
