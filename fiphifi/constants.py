@@ -39,7 +39,7 @@ METATEMPLATE = {
                                           }
                             }
               },
-              "migrated": true,
+              "migrated": True,
               "next": [{
                             "firstLine": "Le Song",
                             "secondLine": "Le Artist",
