@@ -3,7 +3,8 @@ import re
 FIPBASEURL = 'https://stream.radiofrance.fr'
 FIPLIST = 'https://stream.radiofrance.fr/fip/fip_hifi.m3u8?id=radiofrance'
 # METAURL = 'https://www.radiofrance.fr/api/v2.1/stations/fip/live'
-METAURL = 'https://www.radiofrance.fr/api/v2.1/stations/fip/live/webradios/fip'
+# METAURL = 'https://www.radiofrance.fr/api/v2.1/stations/fip/live/webradios/fip'
+METAURL = 'https://www.radiofrance.fr/fip/api/live/webradios/fip'
 AACRE = re.compile(f'^{FIPBASEURL}/.*(fip_.*\.ts).*$')
 TSRE= re.compile('(.*/fip_aac_hifi_\d_)(\d+)_(\d+)')
 STRPTIME = "%Y-%m-%dT%H:%M:%SZ"
@@ -32,7 +33,7 @@ METATEMPLATE = {
                             },
                             "song": {
                                           "id": "4022bb60-3c72-4675-9968-5327b5e38740",
-                                          "year": 1977,
+                                          "year": 1997,
                                           "release": {
                                                         "title": "Le Album",
                                                         "label": "Le Label"
@@ -62,7 +63,7 @@ METATEMPLATE = {
                             },
                             "song": {
                                           "id": "946d8322-8e92-4f39-baec-3103904a73a7",
-                                          "year": 1977,
+                                          "year": 1997,
                                           "release": {
                                                         "title": "Le Album",
                                                         "label": "Le Label"
