@@ -140,9 +140,9 @@ try:
         _json = children["metadata"].jsoncache
         track, artist, album = 'Le track', 'Le artist', 'Le album'
         _meta = {}
-        for _key in _json:
-            if int(_json[_key]['endTime']) > int(_start) > int(_key):
-                _meta = _json.pop(_key)
+        for _timeidx in _json:
+            if int(_json[_timeidx]['endTime']) > int(_start) > int(_timeidx):
+                _meta = _json.pop(_timeidx)
                 with children["metadata"].lock:
                     with open(children["metadata"].cache, 'wt') as fh:
                         json.dump(_json, fh)
