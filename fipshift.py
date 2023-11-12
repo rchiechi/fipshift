@@ -141,7 +141,7 @@ try:
         track, artist, album = 'Le track', 'Le artist', 'Le album'
         _meta = {}
         for _timeidx in _json:
-            if int(_json[_timeidx]['endTime']) > int(_start) > int(_timeidx):
+            if int(_json[_timeidx]['endTime']) > int(_start) >= int(_timeidx):
                 _meta = _json.pop(_timeidx)
                 with children["metadata"].lock:
                     with open(children["metadata"].cache, 'wt') as fh:
