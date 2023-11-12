@@ -35,7 +35,7 @@ class FipPlaylist(threading.Thread):
             self.offset = 4
         else:
             self.offset = 5
-        logger.info(f'Using offset of {_offset} hours in playlist')
+        logger.info(f'Using offset of -{self.offset} hours in playlist')
         while self.alive:
             try:
                 req = requests.get(FIPLIST, timeout=self.delay)
