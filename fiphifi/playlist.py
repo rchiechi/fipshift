@@ -80,8 +80,13 @@ class FipPlaylist(threading.Thread):
             if '#EXT-X-PROGRAM-DATE-TIME' in _l:
                 _dt = ':'.join(_l.strip().split(':')[1:])
                 try:
-                    # _dt = dt.datetime.strptime(_dt, STRPTIME) - dt.timedelta(hours=4)  # Fip reports timestamps four hours in the future?
-                    _dt = dt.datetime.strptime(_dt, STRPTIME)
+                    #  Fip reports timestamps five hours in the future during standard time
+                    #  four hours during daylight savings in the US
+                    if time.localtime().tm_isdst:
+                        _offset = 4
+                    else:
+                        _offset = 5
+                    _dt = dt.datetime.strptime(_dt, STRPTIME) - dt.timedelta(hours=_offset) 
                     _timestamp = _dt.timestamp()  
                 except ValueError:
                     _timestamp = 0

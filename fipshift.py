@@ -149,6 +149,7 @@ try:
                 track = _meta.get('track')
                 artist = _meta.get('artist')
                 album = _meta.get('album')
+                logger.info(f'Updating metadata at {_timeidx}')
                 break
         if not _meta:
             slug = last_slug
