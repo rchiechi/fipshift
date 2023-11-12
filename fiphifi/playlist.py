@@ -21,6 +21,7 @@ class FipPlaylist(threading.Thread):
         self._history = []
         self.lock = threading.Lock()
         self.last_update = time.time()
+        self.offset = 0
 
     def run(self):
         logger.info('Starting %s', self.name)
@@ -28,6 +29,13 @@ class FipPlaylist(threading.Thread):
             logger.warn("%s called without alive set.", self.name)
         retries = 0
         fip_error = False
+        #  Fip reports timestamps five hours in the future during standard time
+        #  four hours during daylight savings in the US
+        if time.localtime().tm_isdst:
+            self.offset = 4
+        else:
+            self.offset = 5
+        logger.info(f'Using offset of {_offset} hours in playlist')
         while self.alive:
             try:
                 req = requests.get(FIPLIST, timeout=self.delay)
@@ -80,14 +88,8 @@ class FipPlaylist(threading.Thread):
             if '#EXT-X-PROGRAM-DATE-TIME' in _l:
                 _dt = ':'.join(_l.strip().split(':')[1:])
                 try:
-                    #  Fip reports timestamps five hours in the future during standard time
-                    #  four hours during daylight savings in the US
-                    if time.localtime().tm_isdst:
-                        _offset = 4
-                    else:
-                        _offset = 5
-                    logger.debug(f'Using offset of {_offset} hours in playlist')
-                    _dt = dt.datetime.strptime(_dt, STRPTIME) - dt.timedelta(hours=_offset) 
+
+                    _dt = dt.datetime.strptime(_dt, STRPTIME) - dt.timedelta(hours=self.offset) 
                     _timestamp = _dt.timestamp()  
                 except ValueError:
                     _timestamp = 0
