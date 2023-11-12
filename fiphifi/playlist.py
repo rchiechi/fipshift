@@ -86,6 +86,7 @@ class FipPlaylist(threading.Thread):
                         _offset = 4
                     else:
                         _offset = 5
+                    logger.debug(f'Using offset of {_offset} hours in playlist')
                     _dt = dt.datetime.strptime(_dt, STRPTIME) - dt.timedelta(hours=_offset) 
                     _timestamp = _dt.timestamp()  
                 except ValueError:
