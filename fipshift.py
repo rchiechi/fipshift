@@ -153,7 +153,7 @@ try:
                 break
         if _meta:
             slug = f'"{track}" by {artist} on {album}'
-        if send_metadata(children["sender"].iceserver,
+            send_metadata(children["sender"].iceserver,
                          config['USEROPTS']['MOUNT'],
                          slug,
                          (config['USEROPTS']['USER'], config['USEROPTS']['PASSWORD'])):
