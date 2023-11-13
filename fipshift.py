@@ -127,7 +127,7 @@ finally:
 children["sender"].start()  # type: ignore
 logger.info("Started %s", children["sender"].name)
 slug = ''
-# last_slug = ''
+last_slug = ''
 try:
     while True:
         writecache(CACHE, children["playlist"].history)
@@ -153,11 +153,11 @@ try:
                 break
         if _meta:
             slug = f'"{track}" by {artist} on {album}'
-            send_metadata(children["sender"].iceserver,
+        if send_metadata(children["sender"].iceserver,
                          config['USEROPTS']['MOUNT'],
                          slug,
                          (config['USEROPTS']['USER'], config['USEROPTS']['PASSWORD'])):
-            # last_slug = slug
+            last_slug = slug
 
 except (KeyboardInterrupt, SystemExit):
     logger.warning("Main thread killed.")
