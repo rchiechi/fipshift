@@ -151,8 +151,9 @@ try:
                 album = _meta.get('album')
                 logger.info(f'Updating metadata at {_timeidx}')
                 break
-        if _meta:
-            slug = f'"{track}" by {artist} on {album}'
+        if not _meta:
+            continue
+        slug = f'"{track}" by {artist} on {album}'
         if slug != last_slug:
             if send_metadata(children["sender"].iceserver,
                              config['USEROPTS']['MOUNT'],
