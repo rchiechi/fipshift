@@ -153,11 +153,12 @@ try:
                 break
         if _meta:
             slug = f'"{track}" by {artist} on {album}'
-        if send_metadata(children["sender"].iceserver,
-                         config['USEROPTS']['MOUNT'],
-                         slug,
-                         (config['USEROPTS']['USER'], config['USEROPTS']['PASSWORD'])):
-            last_slug = slug
+        if slug != last_slug:
+            if send_metadata(children["sender"].iceserver,
+                             config['USEROPTS']['MOUNT'],
+                             slug,
+                             (config['USEROPTS']['USER'], config['USEROPTS']['PASSWORD'])):
+                last_slug = slug
 
 except (KeyboardInterrupt, SystemExit):
     logger.warning("Main thread killed.")
