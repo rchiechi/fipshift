@@ -20,11 +20,12 @@ class FIFO(threading.Thread):
         self._fifo = _fifo
         self._timestamp = 0
         self._lastsend = 0
+        with open(SILENTAAC, 'rb') as fh:
+            self.silence = fh.read()
 
     def run(self):
         logger.info('Starting FIFO')
-        with open(SILENTAAC, 'rb') as fh:
-            silence = fh.read()
+
         fifo = open(self._fifo, 'wb')
         session = requests.Session()
         try:
@@ -35,11 +36,11 @@ class FIFO(threading.Thread):
                     fifo.write(req.content)
                 except queue.Empty:
                     logger.warning('FIFO sending 4s of silence.')
-                    fifo.write(silence)
+                    fifo.write(self.silence)
                 self._lastsend = time.time()
             fifo.close()
         except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, BrokenPipeError) as msg:
-            logger.debug(f"FIFO died because of {msg}")
+            logger.error(f"FIFO died because of {msg}")
             pass
         finally:
             logger.info("FIFO ended")
@@ -102,7 +103,7 @@ class AACStream(threading.Thread):
                 self.playing = False
                 ffmpeg_proc = self._startstream()
             if offset_tolerace < self.delta < 100000:  # Offset throws huge numbers when timestamp returns 0
-                logger.debug('Offset: %0.0f / Delay: %0.0f', self.offset, self.delay)
+                logger.info('Offset: %0.0f / Delay: %0.0f', self.offset, self.delay)
                 skipped = 1
                 try:
                     _timestamp, _ = self.urlq.get(timeout=5)
