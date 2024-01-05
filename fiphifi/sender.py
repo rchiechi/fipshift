@@ -34,12 +34,12 @@ class FIFO(threading.Thread):
                     self._timestamp, _url = self.urlq.get_nowait()
                     req = session.get(_url, timeout=1)
                     fifo.write(req.content)
-                except queue.Empty:
-                    logger.warning('FIFO sending 4s of silence.')
+                except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, queue.Empty) as msg:
+                    logger.warning('FIFO sending 4s of silence after "%s".', msg)
                     fifo.write(self.silence)
                 self._lastsend = time.time()
             fifo.close()
-        except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, BrokenPipeError) as msg:
+        except BrokenPipeError as msg:
             logger.error(f"FIFO died because of {msg}")
             pass
         finally:
