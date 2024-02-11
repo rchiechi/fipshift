@@ -74,7 +74,7 @@ class FIPMetadata(threading.Thread):
             if _json.get('now', {'endTime': None})['endTime'] is None:
                 logger.debug('%s le nonsense endTime.', self.name)
                 return 5
-        except requests.exceptions.JSONDecodeError:
+        except json.JSONDecodeError:
             logger.error("%s JSON error fetching metadata from Fip.", self.name)
             return 5
         except requests.ReadTimeout:
