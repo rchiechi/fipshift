@@ -34,7 +34,10 @@ class FIFO(threading.Thread):
                     self._timestamp, _url = self.urlq.get_nowait()
                     req = session.get(_url, timeout=1)
                     fifo.write(req.content)
-                except (requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, queue.Empty) as msg:
+                except (requests.exceptions.ConnectTimeout,
+                        requests.exceptions.ReadTimeout,
+                        requests.exceptions.ConnectionError,
+                        queue.Empty) as msg:
                     logger.warning('FIFO sending 4s of silence after "%s".', msg)
                     fifo.write(self.silence)
                 self._lastsend = time.time()

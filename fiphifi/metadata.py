@@ -77,8 +77,11 @@ class FIPMetadata(threading.Thread):
         except json.JSONDecodeError:
             logger.error("%s JSON error fetching metadata from Fip.", self.name)
             return 5
-        except requests.ReadTimeout:
+        except requests.exceptions.ReadTimeout:
             logger.error("%s: GET request timed out.", self.name)
+            return 5
+        except requests.exceptions.ConnectionError:
+            logger.error("%s: ConnectionError.", self.name)
             return 5
         self.metadata = _json
         return int(_json.get('delayToRefresh', 300000) / 1000)
