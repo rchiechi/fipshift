@@ -124,8 +124,8 @@ class FIPMetadata(threading.Thread):
             _metadata['song'] = METATEMPLATE['now']['song']
 
         metadata = {'delayToRefresh': float(self.metadata.get('delayToRefresh', 10000)) / 1000,
-                    'track': _metadata.get('firstLine', 'Le Title'),
-                    'artist': _metadata.get('secondLine', 'Le Artist'),
+                    'track': _metadata.get('firstLine', {'tile':'Le Title'})['title'],
+                    'artist': _metadata.get('secondLine', {'title':'Le Artist'})['title'],
                     'album': _metadata.get('song', {}).get('release', {}).get('title', 'Le Album'),
                     'year': _metadata.get('song', {}).get('year', 1977),
                     'coverart': _metadata.get('visuals', {}).get('card', {}).get('src'),
