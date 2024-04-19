@@ -2,57 +2,6 @@ import os
 import time
 import json
 import subprocess
-# import sys
-# import subprocess
-# from fiphifi.metadata import send_metadata  # type: ignore
-# import logging
-# import threading
-
-# logger = logging.getLogger(__package__)
-
-# def waitdelay(logger, epoch, delay, config, FFMPEG):
-#     logger.info('Starting vamp stream.')
-
-#     _c = config['USEROPTS']
-#     _ffmpegcmd = [FFMPEG,
-#                   '-loglevel', 'fatal',
-#                   '-re',
-#                   '-i', 'https://icecast.radiofrance.fr/fip-hifi.aac?id=radiofrance',
-#                   '-content_type', 'audio/aac',
-#                   '-ice_name', 'FipShift',
-#                   '-ice_description', 'Time-shifted FIP stream',
-#                   '-ice_genre', 'Eclectic',
-#                   '-c:a', 'copy',
-#                   '-f', 'adts',
-#                   f"icecast://{_c['USER']}:{_c['PASSWORD']}@{_c['HOST']}:{_c['PORT']}/{_c['MOUNT']}"]
-#     ffmpeg_proc = subprocess.Popen(_ffmpegcmd)
-
-#     try:
-#         _runtime = time.time() - epoch
-#         while _runtime < delay:
-#             _remains = (delay - _runtime) / 60 or 1
-#             logger.info('Buffering for %0.0f more minutes', _remains)
-#             time.sleep(60)
-#             if ffmpeg_proc.poll() is not None:
-#                 logger.warning('Restarting vamp stream.')
-#                 ffmpeg_proc = subprocess.Popen(_ffmpegcmd)
-#             send_metadata(f"{_c['HOST']}:{_c['PORT']}",
-#                           _c['MOUNT'],
-#                           f"Realtime Stream: T-{_remains:0.0f} minutes",
-#                           (config['USEROPTS']['USER'], config['USEROPTS']['PASSWORD']))
-#             _runtime = time.time() - epoch
-
-#     except KeyboardInterrupt:
-#         logger.info("Killing threads")
-#         ffmpeg_proc.terminate()
-#         ALIVE.clear()
-#         for child in children:
-#             if children[child].is_alive():
-#                 logger.info("Joining %s", children[child].name)
-#                 children[child].join(timeout=30)
-#         cleantmpdir(TMPDIR)
-#         sys.exit()
-
 
 def cleantmpdir(tmpdir):
     n = 0
@@ -68,6 +17,10 @@ def cleantmpdir(tmpdir):
                     n += 1
             if _f[-6:].lower() == '.cache':
                 if time.time() - os.stat(_old).st_mtime > 120:
+                    os.remove(_old)
+                    n += 1
+            if _f[-3:].lower() == '.ts':
+                if time.time() - os.stat(_old).st_mtime > 300:
                     os.remove(_old)
                     n += 1
     return n

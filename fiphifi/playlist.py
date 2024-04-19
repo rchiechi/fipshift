@@ -89,8 +89,8 @@ class FipPlaylist(threading.Thread):
                 _dt = ':'.join(_l.strip().split(':')[1:])
                 try:
 
-                    _dt = dt.datetime.strptime(_dt, STRPTIME) - dt.timedelta(hours=self.offset) 
-                    _timestamp = _dt.timestamp()  
+                    _dt = dt.datetime.strptime(_dt, STRPTIME) - dt.timedelta(hours=self.offset)
+                    _timestamp = _dt.timestamp()
                 except ValueError:
                     _timestamp = 0
             if _l[0] == '#':

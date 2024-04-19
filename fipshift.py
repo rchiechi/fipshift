@@ -168,7 +168,7 @@ finally:
     ALIVE.clear()
     for child in children:
         logger.info("Joining %s", children[child].name)
-        children[child].join(timeout=60)
+        children[child].join(timeout=30)
     _urlz = []
     while not URLQ.empty():
         try:
