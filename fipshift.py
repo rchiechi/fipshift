@@ -177,3 +177,4 @@ finally:
             break
     writecache(CACHE, _urlz)
     logger.debug("Cleaned %s files in %s.", cleantmpdir(TMPDIR), TMPDIR)
+    sys.exit()
