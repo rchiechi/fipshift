@@ -27,16 +27,15 @@ def cleantmpdir(tmpdir):
 
 
 def checkcache(cache, pl_queue):
-    if not os.path.exists(cache):
-        return time.time()
-    with open(cache) as fh:
-        try:
-            _urlz = json.load(fh)
-            for _url in _urlz:
-                pl_queue.put(_url)
-        except json.JSONDecodeError:
-            os.remove(cache)
-            return time.time()
+    _urlz = [[time.time()]]
+    if os.path.exists(cache):
+        with open(cache) as fh:
+            try:
+                _urlz = json.load(fh)
+                for _url in _urlz:
+                    pl_queue.put(_url)
+            except json.JSONDecodeError:
+                os.remove(cache)
     return _urlz[0][0]
 
 
