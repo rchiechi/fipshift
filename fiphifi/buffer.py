@@ -106,7 +106,7 @@ class FIFO(threading.Thread):
                 try:
                     self._timestamp, _ts = self.tsq.get_nowait()
                     if _ts in self.history:
-                        logger.warning('Not sending duplicate %s', os.path.basename(_ts))
+                        logger.debug('Not sending duplicate %s', os.path.basename(_ts))
                         continue
                     with open(_ts, 'rb') as fh:
                         fifo.write(fh.read())
