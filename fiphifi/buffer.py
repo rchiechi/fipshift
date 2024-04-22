@@ -26,25 +26,29 @@ class Buffer(threading.Thread):
     def run(self):
         logger.info('Starting Buffer')
         session = requests.Session()
-        self.fifo = FIFO(self._alive, self._fifo, self._queue)
+        fifo_alive = threading.Event()
+        fifo_alive.set()
+        self.fifo = FIFO(fifo_alive, self._fifo, self._queue)
         self.fifo.start()
         try:
             while self.alive:
                 try:
                     self._timestamp, _url = self.urlq.get(timeout=TSLENGTH)
-                    req = session.get(_url, timeout=3)
+                    req = session.get(_url, timeout=TSLENGTH)
                     _ts = os.path.join(self.tmpdir, os.path.basename(_url.split('?')[0]))
                     logger.debug('%s writing %s to %s', self.name, _url, _ts)
                     with open(_ts, 'wb') as fh:
                         fh.write(req.content)
                         logger.debug('%s wrote %s', self.name, _ts)
-                    self._queue.put([self._timestamp, _ts])
+                    self._queue.put([self._timestamp, _ts], timeout=30)
                 except (requests.exceptions.ConnectTimeout,
                         requests.exceptions.ReadTimeout,
                         requests.exceptions.ConnectionError,
-                        queue.Empty) as msg:
-                    logger.warning('%s timed out fetching upstream: "%s".', self.name, str(msg))
+                        ):
+                    logger.warning('%s timed out fetching upstream url %s.', self.name, _url)
                     time.sleep(2)
+                except queue.Empty:
+                    logger.warning('%s url queue empty.', self.name)
                 if not self.fifo.is_alive() and self.alive:
                     logger.warning('%s: FIFO died, trying to restart.', self.name)
                     self.fifo = FIFO(self._alive, self._fifo, self._queue)
@@ -53,6 +57,7 @@ class Buffer(threading.Thread):
             logger.error("%s died because of %s", self.name, str(msg))
             pass
         finally:
+            fifo_alive.clear()
             self._cleanup()
 
     def _cleanup(self):
@@ -110,9 +115,12 @@ class FIFO(threading.Thread):
                     self.history.append(_ts)
                     if len(self.history) > 2 * BUFFERSIZE:
                         self.history = self.history[2 * BUFFERSIZE:]
-                except (FileNotFoundError, queue.Empty) as msg:
-                    logger.warning('FIFO sending 4s of silence after "%s".', msg)
+                except (FileNotFoundError) as msg:
+                    logger.warning('FIFO error opening %s, sending 4s of silence.', msg)
                     fifo.write(self.silence)
+                except queue.Empty:
+                    logger.debug('FIFO file queue empty, waiting %ss.', TSLENGTH)
+                    time.sleep(TSLENGTH)
                 self._lastsend = time.time()
             logger.info("FIFO dying")
             fifo.close()

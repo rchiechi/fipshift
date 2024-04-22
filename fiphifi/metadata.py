@@ -56,7 +56,7 @@ class FIPMetadata(threading.Thread):
             for _ in range(_delay):
                 if self.alive:
                     time.sleep(1)
-        logger.info('%s dying (alive: %s)', self.name, self.alive)
+        logger.info('%s ended (alive: %s)', self.name, self.alive)
 
     def _updatemetadata(self):
         if not self.alive:

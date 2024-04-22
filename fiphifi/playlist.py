@@ -61,7 +61,7 @@ class FipPlaylist(threading.Thread):
             if len(self._history) > self.buff.qsize():
                 logger.debug("%s pruning history.", self.name)
                 self.prunehistory(self.buff.qsize())
-        logger.info('%s dying (alive: %s)', self.name, self.alive)
+        logger.info('%s ended (alive: %s)', self.name, self.alive)
 
     def puthistory(self, _url):
         with self.lock:

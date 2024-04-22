@@ -15,8 +15,9 @@ SILENTAAC = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'silence_4
 class AACStream(threading.Thread):
 
     playing = False
-    fifo = None
+    # fifo = None
     session = None
+    buffer = None
 
     def __init__(self, _alive, urlqueue, delay, config, **kwargs):
         threading.Thread.__init__(self)
@@ -35,13 +36,14 @@ class AACStream(threading.Thread):
 
     def run(self):
         logger.info('Starting %s', self.name)
-        self._cleanup()
         if not self.alive:
             logger.warn("%s called without alive set.", self.name)
         # logger.info('Creating %s', self._fifo)
         # os.mkfifo(self._fifo)
         # logger.debug('Opening %s', self._fifo)
-        self.buffer = Buffer(self._alive, self.urlq, fifo=self._fifo, tmpdir=self.tmpdir)
+        buffer_alive = threading.Event()
+        buffer_alive.set()
+        self.buffer = Buffer(buffer_alive, self.urlq, fifo=self._fifo, tmpdir=self.tmpdir)
         self.buffer.start()
         logger.info('%s starting ffmpeg', self.name)
         ffmpeg_fh = open(os.path.join(self.tmpdir, 'ffmpeg.log'), 'w')
@@ -72,6 +74,7 @@ class AACStream(threading.Thread):
                 logger.debug('Offset: %0.0f / Delay: %0.0f', self.offset, self.delay)
             time.sleep(1)
         logger.info('%s dying (alive: %s)', self.name, self.alive)
+        buffer_alive.clear()
         ffmpeg_proc.terminate()
         time.sleep(3)
         ffmpeg_proc.kill()
@@ -80,8 +83,10 @@ class AACStream(threading.Thread):
 
     def _cleanup(self):
         self.playing = False
-        # if os.path.exists(self._fifo):
-        #     os.unlink(self._fifo)
+        if self.buffer is not None:
+            self.buffer.join(10)
+            if self.buffer.is_alive():
+                logger.warning("%s refusing to die.", self.buffer.name)
         logger.info('%s exiting.', self.name)
 
     def _startstream(self, fh):
