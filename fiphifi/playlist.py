@@ -1,7 +1,6 @@
 import time
 import logging
 import threading
-# import re
 import datetime as dt
 from fiphifi.constants import FIPBASEURL, FIPLIST, STRPTIME  # type: ignore
 import requests  # type: ignore
@@ -12,6 +11,7 @@ logger = logging.getLogger(__package__)
 class FipPlaylist(threading.Thread):
 
     delay = 5
+    duration = 4
 
     def __init__(self, _alive, pl_queue):
         threading.Thread.__init__(self)
@@ -31,10 +31,11 @@ class FipPlaylist(threading.Thread):
         fip_error = False
         #  Fip reports timestamps five hours in the future during standard time
         #  four hours during daylight savings in the US
-        if time.localtime().tm_isdst:
-            self.offset = 4
-        else:
-            self.offset = 5
+        # if time.localtime().tm_isdst:
+        #     self.offset = 4
+        # else:
+        #     self.offset = 5
+        self.offset = time.gmtime().tm_hour - dt.datetime.now().hour
         logger.info(f'Using offset of -{self.offset} hours in playlist')
         while self.alive:
             try:
@@ -81,7 +82,7 @@ class FipPlaylist(threading.Thread):
             self.delay = 0.5
             return
         _urlz = []
-        _dt = ''
+        _timestamp = 0
         for _l in _m3u.split('\n'):
             if not _l:
                 continue
@@ -93,6 +94,11 @@ class FipPlaylist(threading.Thread):
                     _timestamp = _dt.timestamp()
                 except ValueError:
                     _timestamp = 0
+            if '#EXT-X-TARGETDURATION' in _l:
+                try:
+                    self.duration = int(_l.strip().split(':')[-1])
+                except (IndexError, ValueError):
+                    logger.warning("Error finding duration from %s", _l.strip())
             if _l[0] == '#':
                 continue
             _url = [_timestamp, f'{FIPBASEURL}{_l.strip()}']

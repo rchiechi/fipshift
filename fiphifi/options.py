@@ -1,8 +1,10 @@
 '''Parse command line args and config files'''
 import os
+import datetime
 import argparse
 import configparser
 import shutil
+import zoneinfo
 
 
 def parseopts():
@@ -14,9 +16,9 @@ def parseopts():
                                      formatter_class=argparse
                                      .ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('-d', '--delay', action=StoreHours, default=21600,
-                        type=int,
-                        help="Delay time in hours.")
+    parser.add_argument('-z', '--timezone', action=StoreDelay, default="America/New_York",
+                        type=str,
+                        help="Local timezone.")
 
     parser.add_argument('--ffmpeg', action="store", default='',
                         type=str,
@@ -34,6 +36,21 @@ def parseopts():
     config = doconfig(os.path.join(opts.configdir, 'fipshift.conf'))
     return opts, config
 
+class StoreDelay(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        super().__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, values)
+        try:
+            here = datetime.datetime(1979, 1, 1, 0, tzinfo=zoneinfo.ZoneInfo(values))
+            there = datetime.datetime(1979, 1, 1, 0, tzinfo=zoneinfo.ZoneInfo('Europe/Paris'))
+            setattr(namespace, 'delay', (here - there).seconds)
+        except zoneinfo.ZoneInfoNotFoundError:
+            print(f"Invalid timezone: {values}")
+            setattr(namespace, 'delay', 120)  # for debugging
 
 def doconfig(config_file):
     '''Parse config file or write a default file.'''

@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import logging
 import threading
@@ -87,15 +88,14 @@ class AACStream(threading.Thread):
         logger.info('%s exiting.', self.name)
 
     def _startstream(self, fh):
-        _i = 60
-        if not os.path.exists(self._fifo):
+        for _i in range(60, -1, -1):
+            if os.path.exists(self._fifo):
+                break
             time.sleep(1)
             logger.debug('%s waiting %ss for %s to be created.', self.name, _i, self._fifo)
-            _i -= 1
             if _i < 1:
                 logger.error("%s does not exist!", self._fifo)
-                self._alive.clear()
-                return subprocess.Popen([self.ffmpeg])
+                sys.exit()
         self.playing = True
         _ffmpegcmd = [self.ffmpeg,
                       '-loglevel', 'warning',
@@ -109,7 +109,7 @@ class AACStream(threading.Thread):
                       '-c:a', 'copy',
                       '-f', 'adts',
                       f'icecast://{self.un}:{self.pw}@{self._iceserver}/{self.mount}']
-        return subprocess.Popen(_ffmpegcmd, stdout=fh, stderr=subprocess.STDOUT)
+        return subprocess.Popen(_ffmpegcmd, stdin=subprocess.PIPE, stdout=fh, stderr=subprocess.STDOUT)
 
     @property
     def alive(self):

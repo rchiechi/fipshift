@@ -27,7 +27,7 @@ def cleantmpdir(tmpdir):
 
 
 def checkcache(cache, pl_queue):
-    _urlz = [[time.time()]]
+    _urlz = []
     if os.path.exists(cache):
         with open(cache) as fh:
             try:
@@ -36,8 +36,10 @@ def checkcache(cache, pl_queue):
                     pl_queue.put(_url)
             except json.JSONDecodeError:
                 os.remove(cache)
-    return _urlz[0][0]
-
+    try:
+        return _urlz[0][0]
+    except IndexError:
+        return time.time()
 
 def writecache(cache, _urlz):
     if os.path.exists(cache):

@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 import logging
 import threading
@@ -51,7 +52,7 @@ class Buffer(threading.Thread):
                     logger.warning('%s url queue empty.', self.name)
                 if not self.fifo.is_alive() and self.alive:
                     logger.warning('%s: FIFO died, trying to restart.', self.name)
-                    self.fifo = FIFO(self._alive, self._fifo, self._queue)
+                    self.fifo = FIFO(fifo_alive, self._fifo, self._queue)
                     self.fifo.start()
         except Exception as msg:
             logger.error("%s died %s", self.name, str(msg))
@@ -92,17 +93,23 @@ class FIFO(threading.Thread):
         self._timestamp = 0
         self._lastsend = 0
         self.history = []
-        logger.info('Creating %s', self._fifo)
-        os.mkfifo(self._fifo)
-        logger.debug('Opening %s', self._fifo)
         with open(SILENTAAC, 'rb') as fh:
             self.silence = fh.read()
 
     def run(self):
         logger.info('Starting FIFO')
+        if os.path.exists(self._fifo):
+            logger.info('Removing stale %s', self._fifo)
+            os.unlink(self._fifo)
+        logger.info('Creating %s', self._fifo)
+        os.mkfifo(self._fifo)
+        logger.debug('Opening %s', self._fifo)
         fifo = open(self._fifo, 'wb')
         try:
             while self.alive:
+                if not os.path.exists(self._fifo):
+                    logger.warning('FIFO: %s does not exist', self._fifo)
+                    sys.exit()
                 try:
                     self._timestamp, _ts = self.tsq.get_nowait()
                     if _ts in self.history:
