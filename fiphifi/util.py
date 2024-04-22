@@ -49,6 +49,7 @@ def writecache(cache, _urlz):
 def vampstream(FFMPEG, _c):
     _ffmpegcmd = [FFMPEG,
                   '-loglevel', 'fatal',
+                  '-nostdin',
                   '-re',
                   '-i', 'https://icecast.radiofrance.fr/fip-hifi.aac?id=radiofrance',
                   '-content_type', 'audio/aac',

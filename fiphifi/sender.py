@@ -99,6 +99,7 @@ class AACStream(threading.Thread):
         self.playing = True
         _ffmpegcmd = [self.ffmpeg,
                       '-loglevel', 'warning',
+                      '-nostdin',
                       '-re',
                       '-i', self._fifo,
                       '-content_type', 'audio/aac',
