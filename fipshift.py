@@ -100,11 +100,12 @@ try:
     _runtime = time.time() - epoch
     while _runtime < opts.delay:
         _remains = (opts.delay - _runtime) / 60 or 1
-        logger.info('Buffering for %0.0f more minutes', _remains)
+        logger.info('(%0.0f%%) Buffering for %0.0f more %s',
+                    (URLQ.qsize() * TSLENGTH / opts.delay)*100,
+                    _remains, 'mins' if _remains > 1 else 'min')
         time.sleep(60)
         if ffmpeg_proc.poll() is not None:
             logger.warning('Restarting vamp stream.')
-            # ffmpeg_proc = subprocess.Popen(_ffmpegcmd)
             ffmpeg_proc = vampstream(FFMPEG, _c)
         send_metadata(f"{_c['HOST']}:{_c['PORT']}",
                       _c['MOUNT'],
@@ -152,6 +153,7 @@ try:
                 artist = _meta.get('artist')
                 album = _meta.get('album')
                 logger.info(f'Updating metadata at {_timeidx}')
+                logger.info(f'Buffer at {(URLQ.qsize() * TSLENGTH / opts.delay)*100:0.0f}%.')
                 break
         if not _meta:
             continue
@@ -174,12 +176,17 @@ finally:
         if children[child].is_alive():
             logger.warning("%s refusing to die.", children[child].name)
     _urlz = []
+    _qsize = URLQ.qsize()
     logger.info("Caching urls")
     while not URLQ.empty():
         try:
             _urlz.append(URLQ.get_nowait())
         except queue.Empty:
             break
-    writecache(CACHE, _urlz)
+    if len(_urlz) == _qsize:
+        writecache(CACHE, _urlz)
+        logger.info("Cached %s urls.", _qsize)
+    else:
+        logger.error("Could not cache entire queue %s/%s", len(_urlz), _qsize)
     logger.debug("Cleaned %s files in %s.", cleantmpdir(TMPDIR), TMPDIR)
     sys.exit()
