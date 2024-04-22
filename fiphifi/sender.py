@@ -15,7 +15,6 @@ SILENTAAC = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'silence_4
 class AACStream(threading.Thread):
 
     playing = False
-    # fifo = None
     session = None
     buffer = None
 
@@ -38,9 +37,6 @@ class AACStream(threading.Thread):
         logger.info('Starting %s', self.name)
         if not self.alive:
             logger.warn("%s called without alive set.", self.name)
-        # logger.info('Creating %s', self._fifo)
-        # os.mkfifo(self._fifo)
-        # logger.debug('Opening %s', self._fifo)
         buffer_alive = threading.Event()
         buffer_alive.set()
         self.buffer = Buffer(buffer_alive, self.urlq, fifo=self._fifo, tmpdir=self.tmpdir)
@@ -60,7 +56,7 @@ class AACStream(threading.Thread):
                 self.playing = False
                 ffmpeg_proc = self._startstream(ffmpeg_fh)
             if offset_tolerace < self.delta < 100000:  # Offset throws huge numbers when timestamp returns 0
-                logger.info('Offset: %0.0f / Delay: %0.0f', self.offset, self.delay)
+                logger.info('Offset: %0.0f / Delay: %0.0f / Tolerance: %0.0f', self.offset, self.delay, offset_tolerace)
                 skipped = 1
                 try:
                     _timestamp, _ = self.urlq.get(timeout=5)
@@ -84,7 +80,7 @@ class AACStream(threading.Thread):
     def _cleanup(self):
         self.playing = False
         if self.buffer is not None:
-            self.buffer.join(10)
+            self.buffer.join(30)
             if self.buffer.is_alive():
                 logger.warning("%s refusing to die.", self.buffer.name)
         logger.info('%s exiting.', self.name)

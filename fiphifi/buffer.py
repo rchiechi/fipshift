@@ -54,7 +54,7 @@ class Buffer(threading.Thread):
                     self.fifo = FIFO(self._alive, self._fifo, self._queue)
                     self.fifo.start()
         except Exception as msg:
-            logger.error("%s died because of %s", self.name, str(msg))
+            logger.error("%s died %s", self.name, str(msg))
             pass
         finally:
             fifo_alive.clear()
@@ -112,9 +112,7 @@ class FIFO(threading.Thread):
                         fifo.write(fh.read())
                         logger.debug("FIFO sent %s", fh.name)
                     os.unlink(_ts)
-                    self.history.append(_ts)
-                    if len(self.history) > 2 * BUFFERSIZE:
-                        self.history = self.history[2 * BUFFERSIZE:]
+                    self._add_to_history(_ts)
                 except (FileNotFoundError) as msg:
                     logger.warning('FIFO error opening %s, sending 4s of silence.', msg)
                     fifo.write(self.silence)
@@ -125,17 +123,28 @@ class FIFO(threading.Thread):
             logger.info("FIFO dying")
             fifo.close()
         except BrokenPipeError as msg:
-            logger.error(f"FIFO died because of {msg}")
+            if self.alive:
+                logger.error(f"FIFO died because of {msg}")
             pass
         finally:
             if os.path.exists(self._fifo):
                 os.unlink(self._fifo)
             logger.info("FIFO ended")
 
+    def _add_to_history(self, _ts):
+        if len(self.history) > 2 * BUFFERSIZE:
+            self.history = self.history[2 * BUFFERSIZE:]
+        self.history.append(_ts)
+        try:
+            _last = int(_ts.split("_")[-1].split('.')[0])
+            _prior = int(self.history[-2].split("_")[-1].split('.')[0])
+        except (ValueError, IndexError):
+            logger.debug("FIFO: error finding sequence of %s", _ts)
+            return False
+        if _last - _prior != 1:
+            logger.warn("FIFO: sent files out of order: %s -> %s", _prior, _last)
+
     @property
     def alive(self):
         return self._alive.isSet()
 
-    @property
-    def lastsend(self):
-        return time.time() - self._lastsend
