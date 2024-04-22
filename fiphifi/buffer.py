@@ -4,11 +4,11 @@ import logging
 import threading
 import queue
 import requests
+from .constants import BUFFERSIZE, TSLENGTH
 
 logger = logging.getLogger(__package__)
 SILENTAAC = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'silence_4s.ts')
-BUFFERSIZE = 10
-# TSLENGTH = 4
+
 
 class Buffer(threading.Thread):
 
@@ -31,7 +31,7 @@ class Buffer(threading.Thread):
         try:
             while self.alive:
                 try:
-                    self._timestamp, _url = self.urlq.get_nowait()
+                    self._timestamp, _url = self.urlq.get(timeout=TSLENGTH)
                     req = session.get(_url, timeout=3)
                     _ts = os.path.join(self.tmpdir, os.path.basename(_url.split('?')[0]))
                     logger.debug('%s writing %s to %s', self.name, _url, _ts)
@@ -45,7 +45,7 @@ class Buffer(threading.Thread):
                         queue.Empty) as msg:
                     logger.warning('%s timed out fetching upstream: "%s".', self.name, str(msg))
                     time.sleep(2)
-                if not self.fifo.is_alive():
+                if not self.fifo.is_alive() and self.alive:
                     logger.warning('%s: FIFO died, trying to restart.', self.name)
                     self.fifo = FIFO(self._alive, self._fifo, self._queue)
                     self.fifo.start()
@@ -53,11 +53,17 @@ class Buffer(threading.Thread):
             logger.error("%s died because of %s", self.name, str(msg))
             pass
         finally:
-            logger.info("%s ended", self.name)
+            self._cleanup()
+
+    def _cleanup(self):
+        self.fifo.join(10)
+        if self.fifo.is_alive():
+            logger.warning("%s could not kill FIFO thread", self.name)
+        logger.info('%s exiting.', self.name)
 
     @property
     def timestamp(self):
-        return float(self._timestamp)
+        return float(self._timestamp - (TSLENGTH * BUFFERSIZE))
 
     @property
     def alive(self):
@@ -80,6 +86,10 @@ class FIFO(threading.Thread):
         self._fifo = _fifo
         self._timestamp = 0
         self._lastsend = 0
+        self.history = []
+        logger.info('Creating %s', self._fifo)
+        os.mkfifo(self._fifo)
+        logger.debug('Opening %s', self._fifo)
         with open(SILENTAAC, 'rb') as fh:
             self.silence = fh.read()
 
@@ -90,19 +100,28 @@ class FIFO(threading.Thread):
             while self.alive:
                 try:
                     self._timestamp, _ts = self.tsq.get_nowait()
+                    if _ts in self.history:
+                        logger.warning('Not sending duplicate %s', os.path.basename(_ts))
+                        continue
                     with open(_ts, 'rb') as fh:
                         fifo.write(fh.read())
                         logger.debug("FIFO sent %s", fh.name)
                     os.unlink(_ts)
+                    self.history.append(_ts)
+                    if len(self.history) > 2 * BUFFERSIZE:
+                        self.history = self.history[2 * BUFFERSIZE:]
                 except (FileNotFoundError, queue.Empty) as msg:
                     logger.warning('FIFO sending 4s of silence after "%s".', msg)
                     fifo.write(self.silence)
                 self._lastsend = time.time()
+            logger.info("FIFO dying")
             fifo.close()
         except BrokenPipeError as msg:
             logger.error(f"FIFO died because of {msg}")
             pass
         finally:
+            if os.path.exists(self._fifo):
+                os.unlink(self._fifo)
             logger.info("FIFO ended")
 
     @property

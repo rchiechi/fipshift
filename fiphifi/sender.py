@@ -38,24 +38,25 @@ class AACStream(threading.Thread):
         self._cleanup()
         if not self.alive:
             logger.warn("%s called without alive set.", self.name)
-        logger.info('Creating %s', self._fifo)
-        os.mkfifo(self._fifo)
-        logger.debug('Opening %s', self._fifo)
+        # logger.info('Creating %s', self._fifo)
+        # os.mkfifo(self._fifo)
+        # logger.debug('Opening %s', self._fifo)
         self.buffer = Buffer(self._alive, self.urlq, fifo=self._fifo, tmpdir=self.tmpdir)
         self.buffer.start()
         logger.info('%s starting ffmpeg', self.name)
-        ffmpeg_proc = self._startstream()
-        offset_tolerace = int(0.05 * self.delay) or 16
+        ffmpeg_fh = open(os.path.join(self.tmpdir, 'ffmpeg.log'), 'w')
+        ffmpeg_proc = self._startstream(ffmpeg_fh)
+        offset_tolerace = int(0.1 * self.delay) or 16
         logger.debug('%s setting offset tolerance to %ss', self.name, offset_tolerace)
         while self.alive:
-            if not self.buffer.is_alive():
+            if not self.buffer.is_alive() and self.alive:
                 logger.warning('%s Buffer died, trying to restart.', self.name)
                 self.buffer = Buffer(self._alive, self.urlq, fifo=self._fifo, tmpdir=self.tmpdir)
                 self.buffer.start()
             if ffmpeg_proc.poll() is not None:
                 logger.warning('%s ffmpeg died, trying to restart.', self.name)
                 self.playing = False
-                ffmpeg_proc = self._startstream()
+                ffmpeg_proc = self._startstream(ffmpeg_fh)
             if offset_tolerace < self.delta < 100000:  # Offset throws huge numbers when timestamp returns 0
                 logger.info('Offset: %0.0f / Delay: %0.0f', self.offset, self.delay)
                 skipped = 1
@@ -71,18 +72,31 @@ class AACStream(threading.Thread):
                 logger.debug('Offset: %0.0f / Delay: %0.0f', self.offset, self.delay)
             time.sleep(1)
         logger.info('%s dying (alive: %s)', self.name, self.alive)
+        ffmpeg_proc.terminate()
+        time.sleep(3)
+        ffmpeg_proc.kill()
+        ffmpeg_fh.close()
         self._cleanup()
 
     def _cleanup(self):
         self.playing = False
-        if os.path.exists(self._fifo):
-            os.unlink(self._fifo)
+        # if os.path.exists(self._fifo):
+        #     os.unlink(self._fifo)
+        logger.info('%s exiting.', self.name)
 
-    def _startstream(self):
-        time.sleep(1)
+    def _startstream(self, fh):
+        _i = 60
+        if not os.path.exists(self._fifo):
+            time.sleep(1)
+            logger.debug('%s waiting %ss for %s to be created.', self.name, _i, self._fifo)
+            _i -= 1
+            if _i < 1:
+                logger.error("%s does not exist!", self._fifo)
+                self._alive.clear()
+                return subprocess.Popen([self.ffmpeg])
         self.playing = True
         _ffmpegcmd = [self.ffmpeg,
-                      '-loglevel', 'fatal',
+                      '-loglevel', 'warning',
                       '-re',
                       '-i', self._fifo,
                       '-content_type', 'audio/aac',
@@ -92,7 +106,7 @@ class AACStream(threading.Thread):
                       '-c:a', 'copy',
                       '-f', 'adts',
                       f'icecast://{self.un}:{self.pw}@{self._iceserver}/{self.mount}']
-        return subprocess.Popen(_ffmpegcmd)
+        return subprocess.Popen(_ffmpegcmd, stdout=fh, stderr=subprocess.STDOUT)
 
     @property
     def alive(self):

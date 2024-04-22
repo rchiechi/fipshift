@@ -16,6 +16,7 @@ from fiphifi.playlist import FipPlaylist  # type: ignore
 from fiphifi.sender import AACStream  # type: ignore
 from fiphifi.options import parseopts  # type: ignore
 from fiphifi.metadata import FIPMetadata, send_metadata  # type: ignore
+from fiphifi.constants import BUFFERSIZE, TSLENGTH
 
 
 # pylint: disable=missing-class-docstring, missing-function-docstring
@@ -126,6 +127,7 @@ finally:
 
 children["sender"].start()  # type: ignore
 logger.info("Started %s", children["sender"].name)
+time.sleep(TSLENGTH * BUFFERSIZE)  # Wait for buffer to fill
 slug = ''
 last_slug = ''
 try:
@@ -169,7 +171,10 @@ finally:
     for child in children:
         logger.info("Joining %s", children[child].name)
         children[child].join(timeout=30)
+        if children[child].is_alive():
+            logger.warning("%s refusing to die.", children[child].name)
     _urlz = []
+    logger.info("Caching urls")
     while not URLQ.empty():
         try:
             _urlz.append(URLQ.get_nowait())
