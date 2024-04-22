@@ -20,6 +20,10 @@ def parseopts():
                         type=str,
                         help="Local timezone.")
 
+    # parser.add_argument('-d', '--delay', action=StoreHours, default=21600,
+    #                     type=int,
+    #                     help="Delay time in hours defaults to difference between local and CET.")
+
     parser.add_argument('--ffmpeg', action="store", default='',
                         type=str,
                         help="Path to ffmpeg if not in PATH.")
@@ -33,6 +37,8 @@ def parseopts():
                         help="Turn on debug logging.")
 
     opts = parser.parse_args()
+    if not hasattr(opts, 'delay'):
+        setattr(opts, 'delay', 21600)
     config = doconfig(os.path.join(opts.configdir, 'fipshift.conf'))
     return opts, config
 
