@@ -141,7 +141,7 @@ try:
                 raise SystemExit
         _start = children["sender"].timestamp
         _json = children["metadata"].jsoncache
-        track, artist, album = 'Le song', '¯\\_(ツ)_/¯', 'Le album'
+        track, artist, album = 'Le song', r'¯\_(ツ)_/¯', 'Le album'
         _meta = {}
         for _timeidx in _json:
             if int(_json[_timeidx]['endTime']) > int(_start) >= int(_timeidx):
