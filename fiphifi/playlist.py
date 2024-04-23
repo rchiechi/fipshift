@@ -2,8 +2,8 @@ import time
 import logging
 import threading
 import datetime as dt
-import re
-from fiphifi.constants import FIPBASEURL, FIPLIST, STRPTIME, TSRE  # type: ignore
+from fiphifi.util import parsets
+from fiphifi.constants import FIPBASEURL, FIPLIST, STRPTIME  # type: ignore
 import requests  # type: ignore
 
 logger = logging.getLogger(__package__)
@@ -106,10 +106,8 @@ class FipPlaylist(threading.Thread):
         self.delay = 15
 
     def _cache_url(self, _url):
-        _m = re.match(TSRE, _url[1])
-        try:
-            tsid = [int(_m.group(2)), int(_m.group(3))]
-        except (AttributeError, IndexError, ValueError):
+        tsid = parsets(_url)
+        if tsid == [0,0]:
             logger.warning('Malformed url: %s', _url[1])
             return
         if tsid in self.cached:

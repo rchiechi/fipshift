@@ -2,6 +2,16 @@ import os
 import time
 import json
 import subprocess
+import re
+from .constants import TSRE
+
+def parsets(ts):
+    _m = re.match(TSRE, ts[1])
+    try:
+        tsid = [int(_m.group(2)), int(_m.group(3))]
+    except (AttributeError, IndexError, ValueError):
+        tsid = [0,0]
+    return tsid
 
 def cleantmpdir(tmpdir):
     n = 0

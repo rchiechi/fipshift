@@ -5,7 +5,8 @@ import logging
 import threading
 import queue
 import requests
-from .constants import BUFFERSIZE, TSLENGTH
+from fiphifi.util import parsets
+from fiphifi.constants import BUFFERSIZE, TSLENGTH
 
 logger = logging.getLogger(__package__)
 SILENTAAC = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'silence_4s.ts')
@@ -144,13 +145,9 @@ class FIFO(threading.Thread):
         self.history.append(_ts)
         if len(self.history) < 2:
             return
-        try:
-            _last = int(_ts.split("_")[-1].split('.')[0])
-            _prior = int(self.history[-2].split("_")[-1].split('.')[0])
-        except (ValueError, IndexError):
-            logger.debug("FIFO: error finding sequence of %s", _ts)
-            return False
-        if _last - _prior != 1:
+        _last = parsets(_ts)
+        _prior = parsets(self.history[-2])
+        if _last[1] - _prior[1] != 1:
             logger.warn("FIFO: sent files out of order: %s -> %s", _prior, _last)
 
     @property
