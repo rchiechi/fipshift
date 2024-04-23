@@ -142,7 +142,7 @@ class FIFO(threading.Thread):
         if len(self.history) > 2 * BUFFERSIZE:
             self.history = self.history[2 * BUFFERSIZE:]
         self.history.append(_ts)
-        if len(self.history < 2):
+        if len(self.history) < 2:
             return
         try:
             _last = int(_ts.split("_")[-1].split('.')[0])

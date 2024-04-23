@@ -127,6 +127,9 @@ except KeyboardInterrupt:
     sys.exit()
 finally:
     ffmpeg_proc.terminate()
+    time.sleep(1)
+    if ffmpeg_proc.returncode is None:
+        ffmpeg_proc.kill()
 
 children["sender"].start()  # type: ignore
 logger.info("Started %s", children["sender"].name)

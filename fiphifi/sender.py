@@ -28,6 +28,7 @@ class AACStream(threading.Thread):
         self._delay = delay
         self.tmpdir = kwargs.get('tmpdir', '/tmp')
         self.ffmpeg = config['USEROPTS']['FFMPEG']
+        self.ffmpeg_pidfile = os.path.join(self.tmpdir, 'ffmpeg.pid')
         self.mount = config['USEROPTS']['MOUNT']
         self._iceserver = f"{config['USEROPTS']['HOST']}:{config['USEROPTS']['PORT']}"
         self.un = config['USEROPTS']['USER']
@@ -76,11 +77,14 @@ class AACStream(threading.Thread):
         buffer_alive.clear()
         ffmpeg_proc.terminate()
         time.sleep(3)
-        ffmpeg_proc.kill()
+        if ffmpeg_proc.returncode is None:
+            ffmpeg_proc.kill()
         ffmpeg_fh.close()
         self._cleanup()
 
     def _cleanup(self):
+        if os.path.exist(self.ffmpeg_pidfile):
+            os.unlink(self.ffmpeg_pidfile)
         self.playing = False
         if self.buffer is not None:
             self.buffer.join(30)
@@ -97,8 +101,7 @@ class AACStream(threading.Thread):
             if _i < 1:
                 logger.error("%s does not exist!", self._fifo)
                 sys.exit()
-        _pidfile = os.path.join(self.tmpdir, 'ffmpeg.pid')
-        self._check_for_ffmpeg(_pidfile)
+        self._check_for_ffmpeg()
         self.playing = True
         _ffmpegcmd = [self.ffmpeg,
                       '-loglevel', 'warning',
@@ -116,21 +119,21 @@ class AACStream(threading.Thread):
                               stdin=subprocess.PIPE,
                               stdout=fh,
                               stderr=subprocess.STDOUT)
-        with open(_pidfile, 'w') as fh:
+        with open(self.ffmpeg_pidfile, 'w') as fh:
             fh.write(str(_p.pid))
         return _p
 
-    def _check_for_ffmpeg(self, _pidfile):
-        if os.path.exists(_pidfile):
+    def _check_for_ffmpeg(self):
+        if os.path.exists(self.ffmpeg_pidfile):
             logger.warning("Found ffmpeg pid file")
-            with open(_pidfile) as fh:
+            with open(self.ffmpeg_pidfile) as fh:
                 _pid = fh.read().strip()
             try:
                 os.kill(int(_pid), signal.SIGKILL)
             except (ProcessLookupError, ValueError):
                 logger.error("Could not kill ffmpeg")
             finally:
-                os.unlink(_pidfile)
+                os.unlink(self.ffmpeg_pidfile)
 
     @property
     def alive(self):
