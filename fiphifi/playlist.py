@@ -30,12 +30,9 @@ class FipPlaylist(threading.Thread):
             logger.warn("%s called without alive set.", self.name)
         retries = 0
         fip_error = False
-        #  Fip reports timestamps five hours in the future during standard time
-        #  four hours during daylight savings in the US
-        # if time.localtime().tm_isdst:
-        #     self.offset = 4
-        # else:
-        #     self.offset = 5
+        #  Fip reports timestamps in GMT
+        #  which is five hours in the future during EST
+        #  and four hours during EDT
         self.offset = time.gmtime().tm_hour - dt.datetime.now().hour
         logger.info(f'Using offset of -{self.offset} hours in playlist')
         while self.alive:
