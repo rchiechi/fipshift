@@ -115,7 +115,11 @@ class FipPlaylist(threading.Thread):
         if tsid in self.cached:
             return
         if tsid[1] != self.cached[-1][1] + 1 and self.cached[-1][0] > 0:
-            logger.warning('Playlist out of order: %s -> %s', self.cached[-1], tsid)
+            if tsid[1] < self.cached[-1][1]:
+                logger.warning('Refusing to cache backwards: %s -> %s', self.cached[-1], tsid)
+                return
+            else:
+                logger.warning('Playlist out of order: %s -> %s', self.cached[-1], tsid)
         self.cached.append(tsid)
         self.puthistory(_url)
         self.buff.put(_url)

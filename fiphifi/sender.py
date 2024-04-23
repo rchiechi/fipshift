@@ -60,7 +60,7 @@ class AACStream(threading.Thread):
                 ffmpeg_proc = self._startstream(ffmpeg_fh)
             if offset_tolerace < self.delta < 100000:  # Offset throws huge numbers when timestamp returns 0
                 logger.info('Offset: %0.0f / Delay: %0.0f / Tolerance: %0.0f / Diff: %0.0f',
-                            self.offset, self.delay, offset_tolerace, offset_tolerace - self.delta)
+                            self.offset, self.delay, offset_tolerace, self.delta - offset_tolerace)
                 skipped = 1
                 try:
                     _timestamp, _ = self.urlq.get(timeout=5)
@@ -83,7 +83,7 @@ class AACStream(threading.Thread):
         self._cleanup()
 
     def _cleanup(self):
-        if os.path.exist(self.ffmpeg_pidfile):
+        if os.path.exists(self.ffmpeg_pidfile):
             os.unlink(self.ffmpeg_pidfile)
         self.playing = False
         if self.buffer is not None:
