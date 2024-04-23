@@ -8,24 +8,16 @@ import logging
 import time
 import subprocess
 import queue
-from typing_extensions import TypedDict
 import json
-# import requests  # type: ignore
-from fiphifi.util import cleantmpdir, checkcache, writecache, vampstream  # type: ignore
-from fiphifi.playlist import FipPlaylist  # type: ignore
-from fiphifi.sender import AACStream  # type: ignore
-from fiphifi.options import parseopts  # type: ignore
-from fiphifi.metadata import FIPMetadata, send_metadata  # type: ignore
+from fiphifi.util import cleantmpdir, checkcache, writecache, vampstream
+from fiphifi.playlist import FipPlaylist
+from fiphifi.sender import AACStream
+from fiphifi.options import parseopts
+from fiphifi.metadata import FIPMetadata, send_metadata
 from fiphifi.constants import BUFFERSIZE, TSLENGTH
 
 
-# pylint: disable=missing-class-docstring, missing-function-docstring
-
 opts, config = parseopts()
-Children = TypedDict('Children', {'playlist': FipPlaylist, 'metadata': FIPMetadata, 'sender': AACStream})
-# epoch = time.time()
-
-
 logger = logging.getLogger(__package__)
 if opts.debug:
     logger.setLevel(logging.DEBUG)
@@ -78,7 +70,7 @@ ALIVE = threading.Event()
 URLQ = queue.Queue()
 epoch = checkcache(CACHE, URLQ)
 
-children: Children = {}
+children = {}
 children["playlist"] = FipPlaylist(ALIVE, URLQ)
 children["metadata"] = FIPMetadata(ALIVE, tmpdir=TMPDIR)
 children["sender"] = AACStream(ALIVE, URLQ,
@@ -131,7 +123,7 @@ finally:
     if ffmpeg_proc.returncode is None:
         ffmpeg_proc.kill()
 
-children["sender"].start()  # type: ignore
+children["sender"].start()
 logger.info("Started %s", children["sender"].name)
 time.sleep(TSLENGTH * BUFFERSIZE)  # Wait for buffer to fill
 slug = ''
