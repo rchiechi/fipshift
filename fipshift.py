@@ -39,6 +39,9 @@ except KeyError:
     logger.error("Bad config file, please delete it from %s and try again.", opts.configdir)
     sys.exit(1)
 
+if not os.path.exists(TMPDIR):
+    os.mkdir(TMPDIR)
+
 _logfile = os.path.join(TMPDIR, os.path.basename(sys.argv[0]).split('.')[0] + '.log')
 loghandler = logging.FileHandler(_logfile)
 loghandler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - [%(levelname)s] %(message)s'))
@@ -65,8 +68,7 @@ else:
         logger.error("I could not locate the ffmpeg binary in the PATH.")
         sys.exit(1)
 
-if not os.path.exists(TMPDIR):
-    os.mkdir(TMPDIR)
+
 logger.debug("Cleaned %s files in %s.", cleantmpdir(TMPDIR), TMPDIR)
 
 logger.info("Starting buffer threads.")

@@ -1,5 +1,6 @@
 import os
 import sys
+import signal
 import time
 import logging
 import threading
@@ -96,6 +97,8 @@ class AACStream(threading.Thread):
             if _i < 1:
                 logger.error("%s does not exist!", self._fifo)
                 sys.exit()
+        _pidfile = os.path.join(self.tmpdir, 'ffmpeg.pid')
+        self._check_for_ffmpeg(_pidfile)
         self.playing = True
         _ffmpegcmd = [self.ffmpeg,
                       '-loglevel', 'warning',
@@ -109,7 +112,25 @@ class AACStream(threading.Thread):
                       '-c:a', 'copy',
                       '-f', 'adts',
                       f'icecast://{self.un}:{self.pw}@{self._iceserver}/{self.mount}']
-        return subprocess.Popen(_ffmpegcmd, stdin=subprocess.PIPE, stdout=fh, stderr=subprocess.STDOUT)
+        _p = subprocess.Popen(_ffmpegcmd,
+                              stdin=subprocess.PIPE,
+                              stdout=fh,
+                              stderr=subprocess.STDOUT)
+        with open(_pidfile, 'w') as fh:
+            fh.write(str(_p.pid))
+        return _p
+
+    def _check_for_ffmpeg(self, _pidfile):
+        if os.path.exists(_pidfile):
+            logger.warning("Found ffmpeg pid file")
+            with open(_pidfile) as fh:
+                _pid = fh.read().strip()
+            try:
+                os.kill(int(_pid), signal.SIGKILL)
+            except (ProcessLookupError, ValueError):
+                logger.error("Could not kill ffmpeg")
+            finally:
+                os.unlink(_pidfile)
 
     @property
     def alive(self):

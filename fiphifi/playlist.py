@@ -2,7 +2,8 @@ import time
 import logging
 import threading
 import datetime as dt
-from fiphifi.constants import FIPBASEURL, FIPLIST, STRPTIME  # type: ignore
+import re
+from fiphifi.constants import FIPBASEURL, FIPLIST, STRPTIME, TSRE  # type: ignore
 import requests  # type: ignore
 
 logger = logging.getLogger(__package__)
@@ -19,7 +20,7 @@ class FipPlaylist(threading.Thread):
         self._alive = _alive
         self.buff = pl_queue
         self._history = []
-        self.cachedurls = []
+        self.cached = [[0,0]]
         self.lock = threading.Lock()
         self.last_update = time.time()
         self.offset = 0
@@ -73,9 +74,8 @@ class FipPlaylist(threading.Thread):
     def prunehistory(self, until):
         with self.lock:
             self._history = self._history[until:]
-            self.cachedurls = []
-            for _url in self._history:
-                self.cachedurls.append(_url[1])
+            if until < len(self.cached):
+                self.cached = self.cached[until:]
 
     def parselist(self, _m3u):
         if not _m3u:
@@ -89,7 +89,6 @@ class FipPlaylist(threading.Thread):
             if '#EXT-X-PROGRAM-DATE-TIME' in _l:
                 _dt = ':'.join(_l.strip().split(':')[1:])
                 try:
-
                     _dt = dt.datetime.strptime(_dt, STRPTIME) - dt.timedelta(hours=self.offset)
                     _timestamp = _dt.timestamp()
                 except ValueError:
@@ -102,12 +101,24 @@ class FipPlaylist(threading.Thread):
             if _l[0] == '#':
                 continue
             _url = [_timestamp, f'{FIPBASEURL}{_l.strip()}']
-            if _url[1] not in self.cachedurls:
-                self.cachedurls.append(_url[1])
-                self.puthistory(_url)
-                self.buff.put(_url)
+            self._cache_url(_url)
         self.last_update = time.time()
         self.delay = 15
+
+    def _cache_url(self, _url):
+        _m = re.match(TSRE, _url[1])
+        try:
+            tsid = [int(_m.group(2)), int(_m.group(3))]
+        except (AttributeError, IndexError, ValueError):
+            logger.warning('Malformed url: %s', _url[1])
+            return
+        if tsid in self.cached:
+            return
+        if tsid[1] != self.cached[-1][1] + 1 and self.cached[-1][0] > 0:
+            logger.warning('Playlist out of order: %s -> %s', self.cached[-1], tsid)
+        self.cached.append(tsid)
+        self.puthistory(_url)
+        self.buff.put(_url)
 
     @property
     def alive(self):
