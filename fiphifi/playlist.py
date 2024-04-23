@@ -19,6 +19,7 @@ class FipPlaylist(threading.Thread):
         self._alive = _alive
         self.buff = pl_queue
         self._history = []
+        self.cachedurls = []
         self.lock = threading.Lock()
         self.last_update = time.time()
         self.offset = 0
@@ -75,13 +76,15 @@ class FipPlaylist(threading.Thread):
     def prunehistory(self, until):
         with self.lock:
             self._history = self._history[until:]
+            self.cachedurls = []
+            for _url in self._history:
+                self.cachedurls.append(_url[1])
 
     def parselist(self, _m3u):
         if not _m3u:
             logger.warning("%s: empty playlist.", self.name)
             self.delay = 0.5
             return
-        _urlz = []
         _timestamp = 0
         for _l in _m3u.split('\n'):
             if not _l:
@@ -102,8 +105,8 @@ class FipPlaylist(threading.Thread):
             if _l[0] == '#':
                 continue
             _url = [_timestamp, f'{FIPBASEURL}{_l.strip()}']
-            if _url not in self._history:
-                _urlz.append([_timestamp, f'{FIPBASEURL}{_l.strip()}'])
+            if _url[1] not in self.cachedurls:
+                self.cachedurls.append(_url[1])
                 self.puthistory(_url)
                 self.buff.put(_url)
         self.last_update = time.time()
