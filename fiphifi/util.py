@@ -3,10 +3,11 @@ import time
 import json
 import subprocess
 import re
-from .constants import TSRE
+
+TSRE = re.compile(r'(.*?/fip_aac_hifi_\d_)(\d+)_(\d+)\.ts.*')
 
 def parsets(ts):
-    _m = re.match(TSRE, ts[1])
+    _m = re.match(TSRE, ts)
     try:
         tsid = [int(_m.group(2)), int(_m.group(3))]
     except (AttributeError, IndexError, ValueError):

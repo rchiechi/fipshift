@@ -106,7 +106,7 @@ class FipPlaylist(threading.Thread):
         self.delay = 15
 
     def _cache_url(self, _url):
-        tsid = parsets(_url)
+        tsid = parsets(_url[1])
         if tsid == [0,0]:
             logger.warning('Malformed url: %s', _url[1])
             return
