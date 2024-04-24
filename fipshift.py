@@ -70,6 +70,7 @@ CACHE = os.path.join(TMPDIR, 'fipshift.cache')
 ALIVE = threading.Event()
 URLQ = queue.Queue()
 epoch = checkcache(CACHE, URLQ)
+children = {}
 
 def cleanup():
     ALIVE.clear()
@@ -95,7 +96,6 @@ def cleanup():
     sys.exit()
 
 
-children = {}
 children["playlist"] = FipPlaylist(ALIVE, URLQ)
 children["metadata"] = FIPMetadata(ALIVE, tmpdir=TMPDIR)
 children["sender"] = AACStream(ALIVE, URLQ,
