@@ -9,6 +9,7 @@ import time
 import subprocess
 import queue
 import json
+import signal
 from fiphifi.util import cleantmpdir, checkcache, writecache, vampstream
 from fiphifi.playlist import FipPlaylist
 from fiphifi.sender import AACStream
@@ -70,6 +71,30 @@ ALIVE = threading.Event()
 URLQ = queue.Queue()
 epoch = checkcache(CACHE, URLQ)
 
+def cleanup():
+    ALIVE.clear()
+    for child in children:
+        logger.info("Joining %s", children[child].name)
+        children[child].join(timeout=30)
+        if children[child].is_alive():
+            logger.warning("%s refusing to die.", children[child].name)
+    _urlz = []
+    _qsize = URLQ.qsize()
+    logger.info("Caching urls")
+    while not URLQ.empty():
+        try:
+            _urlz.append(URLQ.get_nowait())
+        except queue.Empty:
+            break
+    if len(_urlz) == _qsize:
+        writecache(CACHE, _urlz)
+        logger.info("Cached %s urls.", _qsize)
+    else:
+        logger.error("Could not cache entire queue %s/%s", len(_urlz), _qsize)
+    logger.debug("Cleaned %s files in %s.", cleantmpdir(TMPDIR), TMPDIR)
+    sys.exit()
+
+
 children = {}
 children["playlist"] = FipPlaylist(ALIVE, URLQ)
 children["metadata"] = FIPMetadata(ALIVE, tmpdir=TMPDIR)
@@ -86,6 +111,8 @@ children["metadata"].start()
 
 if not URLQ.empty():
     logger.info('Loaded %s entries from cache.', URLQ.qsize())
+
+signal.signal(signal.SIGINT, cleanup)
 
 logger.info('Starting vamp stream.')
 _c = config['USEROPTS']
@@ -166,24 +193,4 @@ except (KeyboardInterrupt, SystemExit):
     logger.warning("Main thread killed.")
 
 finally:
-    ALIVE.clear()
-    for child in children:
-        logger.info("Joining %s", children[child].name)
-        children[child].join(timeout=30)
-        if children[child].is_alive():
-            logger.warning("%s refusing to die.", children[child].name)
-    _urlz = []
-    _qsize = URLQ.qsize()
-    logger.info("Caching urls")
-    while not URLQ.empty():
-        try:
-            _urlz.append(URLQ.get_nowait())
-        except queue.Empty:
-            break
-    if len(_urlz) == _qsize:
-        writecache(CACHE, _urlz)
-        logger.info("Cached %s urls.", _qsize)
-    else:
-        logger.error("Could not cache entire queue %s/%s", len(_urlz), _qsize)
-    logger.debug("Cleaned %s files in %s.", cleantmpdir(TMPDIR), TMPDIR)
-    sys.exit()
+    cleanup()
