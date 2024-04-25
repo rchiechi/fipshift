@@ -15,7 +15,7 @@ from fiphifi.playlist import FipPlaylist
 from fiphifi.sender import AACStream
 from fiphifi.options import parseopts
 from fiphifi.metadata import FIPMetadata, send_metadata
-from fiphifi.constants import BUFFERSIZE, TSLENGTH
+from fiphifi.constants import TSLENGTH
 
 
 opts, config = parseopts()
@@ -72,7 +72,7 @@ URLQ = queue.Queue()
 epoch = checkcache(CACHE, URLQ)
 children = {}
 
-def cleanup():
+def cleanup(*args):
     ALIVE.clear()
     for child in children:
         logger.info("Joining %s", children[child].name)
@@ -152,9 +152,10 @@ finally:
 
 children["sender"].start()
 logger.info("Started %s", children["sender"].name)
-time.sleep(TSLENGTH * BUFFERSIZE)  # Wait for buffer to fill
+time.sleep(TSLENGTH)  # Wait for buffer to fill
 slug = ''
 last_slug = ''
+last_update = time.time()
 try:
     while True:
         writecache(CACHE, children["playlist"].history)
@@ -181,13 +182,17 @@ try:
                 break
         if not _meta:
             continue
-        slug = f'"{track}" by {artist} on {album}'
+        if track == 'Le direct' and time.time() - last_update < TSLENGTH:
+            slug = last_slug
+        else:
+            slug = f'"{track}" by {artist} on {album}'
         if slug != last_slug:
             if send_metadata(children["sender"].iceserver,
                              config['USEROPTS']['MOUNT'],
                              slug,
                              (config['USEROPTS']['USER'], config['USEROPTS']['PASSWORD'])):
                 last_slug = slug
+                last_update = time.time()
 
 except (KeyboardInterrupt, SystemExit):
     logger.warning("Main thread killed.")

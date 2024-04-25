@@ -1,10 +1,11 @@
 import os
-import sys
 import time
 import logging
 import threading
 import queue
 import requests
+import psutil
+import shutil
 from fiphifi.util import parsets
 from fiphifi.constants import BUFFERSIZE, TSLENGTH
 
@@ -20,29 +21,32 @@ class Buffer(threading.Thread):
         self._alive = _alive
         self.urlq = urlq
         self.tmpdir = kwargs.get('tmpdir', '/tmp')
-        self._fifo = kwargs.get('fifo', os.path.join(self.tmpdir, 'fipshift.fifo'))
-        self._timestamp = 0
-        self._queue = queue.Queue(maxsize=BUFFERSIZE)
-        self.fifo = None
+        self._timestamp = [[0, time.time()]]
+        self.playlist = Playlist(tmpdir=self.tmpdir,
+                                 playlist=kwargs.get('playlist',
+                                                     os.path.join(self.tmpdir, 'playlist.txt')),
+                                 ffmpeg_pidfile=kwargs.get('ffmpeg_pidfile',
+                                                           os.path.join(self.tmpdir, 'ffmpeg.pid')))
 
     def run(self):
         logger.info('Starting Buffer')
         session = requests.Session()
-        fifo_alive = threading.Event()
-        fifo_alive.set()
-        self.fifo = FIFO(fifo_alive, self._fifo, self._queue)
-        self.fifo.start()
         try:
             while self.alive:
+                self.playlist.next()
+                if self.playlist.buffersize > BUFFERSIZE:
+                    time.sleep(1)
+                    continue
                 try:
-                    self._timestamp, _url = self.urlq.get(timeout=TSLENGTH)
+                    _timestamp, _url = self.urlq.get(timeout=TSLENGTH)
                     req = session.get(_url, timeout=TSLENGTH)
                     _ts = os.path.join(self.tmpdir, os.path.basename(_url.split('?')[0]))
                     logger.debug('%s writing %s to %s', self.name, _url, _ts)
                     with open(_ts, 'wb') as fh:
                         fh.write(req.content)
                         logger.debug('%s wrote %s', self.name, _ts)
-                    self._queue.put([self._timestamp, _ts], timeout=30)
+                    self.playlist.add(_ts)
+                    self._timestamp.append([parsets(_ts)[1], _timestamp])
                 except (requests.exceptions.ConnectTimeout,
                         requests.exceptions.ReadTimeout,
                         requests.exceptions.ConnectionError,
@@ -51,26 +55,21 @@ class Buffer(threading.Thread):
                     time.sleep(2)
                 except queue.Empty:
                     logger.warning('%s url queue empty.', self.name)
-                if not self.fifo.is_alive() and self.alive:
-                    logger.warning('%s: FIFO died, trying to restart.', self.name)
-                    self.fifo = FIFO(fifo_alive, self._fifo, self._queue)
-                    self.fifo.start()
         except Exception as msg:
             logger.error("%s died %s", self.name, str(msg))
-            pass
+            logger.debug("_ts: %s, _url: %s", _ts, _url)
         finally:
-            fifo_alive.clear()
-            self._cleanup()
-
-    def _cleanup(self):
-        self.fifo.join(10)
-        if self.fifo.is_alive():
-            logger.warning("%s could not kill FIFO thread", self.name)
-        logger.info('%s exiting.', self.name)
+            logger.info('%s exiting.', self.name)
 
     @property
     def timestamp(self):
-        return float(self._timestamp - (TSLENGTH * BUFFERSIZE))
+        _timestamp = self._timestamp[0][1]
+        for _i, _item in enumerate(self._timestamp):
+            if _item[0] == self.playlist.nowplaying:
+                _timestamp = _item[1]
+                break
+        self._timestamp = self._timestamp[_i:]
+        return float(_timestamp)
 
     @property
     def alive(self):
@@ -83,74 +82,123 @@ class Buffer(threading.Thread):
         else:
             return 0
 
+    @property
+    def initialized(self):
+        return self.playlist.initialized
 
-class FIFO(threading.Thread):
+class Playlist():
 
-    def __init__(self, _alive, _fifo, tsq):
-        threading.Thread.__init__(self)
-        self._alive = _alive
-        self.tsq = tsq
-        self._fifo = _fifo
-        self._timestamp = 0
-        self._lastsend = 0
-        self.history = []
-        with open(SILENTAAC, 'rb') as fh:
-            self.silence = fh.read()
+    def __init__(self, **kwargs):
+        self.tmpdir = kwargs.get('tmpdir', '/tmp')
+        self.playlist = kwargs.get('playlist', os.path.join(self.tmpdir, 'playlist.txt'))
+        self.ffmpeg_pidfile = kwargs.get('ffmpeg_pidfile', os.path.join(self.tmpdir, 'ffmpeg.pid'))
+        self.tsfiles = (os.path.join(self.tmpdir, "first.ts"),
+                        os.path.join(self.tmpdir, "second.ts"))
+        self.tsqueue = queue.SimpleQueue()
+        self.current = {-1: 0, 0: 0, 1: 0}
+        self._lastupdate = 0
+        self.last_pls = -1
+        self.initialized = False
+        with open(self.playlist, 'w') as fh:
+            fh.write('ffconcat version 1.0\n')
+            fh.write(f'file {self.tsfiles[0]}\n')
+            fh.write(f'file {self.tsfiles[1]}\n')
+        logger.debug("Created %s", self.playlist)
 
-    def run(self):
-        logger.info('Starting FIFO')
-        if os.path.exists(self._fifo):
-            logger.info('Removing stale %s', self._fifo)
-            os.unlink(self._fifo)
-        logger.info('Creating %s', self._fifo)
-        os.mkfifo(self._fifo)
-        logger.debug('Opening %s', self._fifo)
-        fifo = open(self._fifo, 'wb')
+    def _update(self, _src, _i):
+        _ts = self.tsfiles[_i]
+        shutil.move(_src, _ts)
+        self.current[_i] = parsets(_src)[1]
+        self._lastupdate = time.time()
+        logger.debug("Moved %s -> %s", os.path.basename(_src), os.path.basename(_ts))
+        logger.debug("0: %s, 1: %s", self.current[0], self.current[1])
+
+    def _get_ffmpeg_proc(self):
         try:
-            while self.alive:
-                if not os.path.exists(self._fifo):
-                    logger.warning('FIFO: %s does not exist', self._fifo)
-                    sys.exit()
-                try:
-                    self._timestamp, _ts = self.tsq.get_nowait()
-                    if _ts in self.history:
-                        logger.debug('Not sending duplicate %s', os.path.basename(_ts))
-                        continue
-                    with open(_ts, 'rb') as fh:
-                        fifo.write(fh.read())
-                        logger.debug("FIFO sent %s", fh.name)
-                    os.unlink(_ts)
-                    self._add_to_history(_ts)
-                except (FileNotFoundError) as msg:
-                    logger.warning('FIFO error opening %s, sending 4s of silence.', msg)
-                    fifo.write(self.silence)
-                except queue.Empty:
-                    logger.debug('FIFO file queue empty, waiting %ss.', TSLENGTH)
-                    time.sleep(TSLENGTH)
-                self._lastsend = time.time()
-            logger.info("FIFO dying")
-            fifo.close()
-        except BrokenPipeError as msg:
-            if self.alive:
-                logger.error(f"FIFO died because of {msg}")
-            pass
-        finally:
-            if os.path.exists(self._fifo):
-                os.unlink(self._fifo)
-            logger.info("FIFO ended")
+            with open(self.ffmpeg_pidfile) as fh:
+                _pid = int(fh.read().strip())
+                return psutil.Process(_pid)
+        except (psutil.NoSuchProcess, ValueError) as msg:
+            logger.warning("Error updating playlist: %s", msg)
+        except FileNotFoundError:
+            logger.warning("Cannot query ffmpeg because %s does not exist", self.ffmpeg_pidfile)
+        return None
 
-    def _add_to_history(self, _ts):
-        if len(self.history) > 2 * BUFFERSIZE:
-            self.history = self.history[2 * BUFFERSIZE:]
-        self.history.append(_ts)
-        if len(self.history) < 2:
+    def _init_playlist(self):
+        if self.tsqueue.qsize() < len(self.tsfiles):
+            logger.info("Playlist waiting for queue to fill before initializing.")
             return
-        _last = parsets(_ts)
-        _prior = parsets(self.history[-2])
-        if _last[1] - _prior[1] != 1:
-            logger.warn("FIFO: sent files out of order: %s -> %s", _prior, _last)
+        if self.initialized:
+            return
+        for _i, _ts in enumerate(self.tsfiles):
+            _src = self.tsqueue.get()
+            self._update(_src, _i)
+        self.initialized = True
+        self._get_playing()
+
+    def _advance_playlist(self):
+        force = False
+        if not self.initialized:
+            logger.debug("Not advancing playlist until initialized.")
+            self._init_playlist()
+        if self.tsqueue.qsize() > BUFFERSIZE:
+            logger.debug("Playlist length %s > buffersize %s.", self.tsqueue.qsize(), BUFFERSIZE)
+            # force = True
+        #  Check to see which idx is playing
+        #  and then make sure the next idx is
+        #  larger than the current one
+        playing = self._get_playing()
+        if playing == 0:
+            # logger.debug("Checking if %s > %s", self.current[0], self.current[1])
+            #  If we are playing idx 0 and it is larger than idx 1
+            #  we have to update idx 1 to the next item in the queue
+            if self.current[0] > self.current[1] or force:
+                _src = self.tsqueue.get()
+                self._update(_src, 1)
+        elif playing == 1:
+            # logger.debug("Checking if %s > %s", self.current[1], self.current[0])
+            #  If we are playing idx 1 and it is larger than idx 0
+            #  we have to update idx 0 to the next item in the queue
+            if self.current[1] > self.current[0] or force:
+                _src = self.tsqueue.get()
+                self._update(_src, 0)
+        else:
+            logger.warning("Playlist in unknown state %s", playing)
+        return playing
+
+    def _get_playing(self):
+        if self.lastupdate > TSLENGTH+1:
+            logger.warning("Playlist updated more than %ss ago (%0.0f)", TSLENGTH, self.lastupdate)
+        proc = self._get_ffmpeg_proc()
+        if proc is None:
+            return -1
+        for item in proc.open_files():
+            for _i, _ts in enumerate(self.tsfiles):
+                if os.path.basename(item.path) == os.path.basename(_ts):
+                    self.last_pls = _i
+                    return _i
+        logger.warning("Playlist could not determine what ffmpeg is currently playing.")
+        return -1
+
+    def add(self, tsfile):
+        logger.debug("Playlist queued %s", os.path.basename(tsfile))
+        self.tsqueue.put(tsfile)
+        self._advance_playlist()
+
+    def next(self):
+        self._advance_playlist()
 
     @property
-    def alive(self):
-        return self._alive.isSet()
+    def lastupdate(self):
+        return time.time() - self._lastupdate
+
+    @property
+    def nowplaying(self):
+        playing = self.current[self._advance_playlist()]
+        # logger.debug("Now playing %s", playing)
+        return playing
+
+    @property
+    def buffersize(self):
+        return self.tsqueue.qsize()
 

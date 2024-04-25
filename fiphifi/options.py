@@ -56,7 +56,7 @@ class StoreDelay(argparse.Action):
             setattr(namespace, 'delay', (here - there).seconds)
         except zoneinfo.ZoneInfoNotFoundError:
             print(f"Invalid timezone: {values}")
-            setattr(namespace, 'delay', 120)  # for debugging
+            setattr(namespace, 'delay', 60)  # for debugging
 
 def doconfig(config_file):
     '''Parse config file or write a default file.'''

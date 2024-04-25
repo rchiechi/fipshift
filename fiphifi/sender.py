@@ -33,7 +33,7 @@ class AACStream(threading.Thread):
         self._iceserver = f"{config['USEROPTS']['HOST']}:{config['USEROPTS']['PORT']}"
         self.un = config['USEROPTS']['USER']
         self.pw = config['USEROPTS']['PASSWORD']
-        self._fifo = os.path.join(self.tmpdir, 'fipshift.fifo')
+        self._playlist = os.path.join(self.tmpdir, 'playlist.txt')
         self._timestamp = 0
 
     def run(self):
@@ -42,7 +42,11 @@ class AACStream(threading.Thread):
             logger.warn("%s called without alive set.", self.name)
         buffer_alive = threading.Event()
         buffer_alive.set()
-        self.buffer = Buffer(buffer_alive, self.urlq, fifo=self._fifo, tmpdir=self.tmpdir)
+        self.buffer = Buffer(buffer_alive,
+                             self.urlq,
+                             playlist=self._playlist,
+                             ffmpeg_pidfile=self.ffmpeg_pidfile,
+                             tmpdir=self.tmpdir)
         self.buffer.start()
         logger.info('%s starting ffmpeg', self.name)
         ffmpeg_fh = open(os.path.join(self.tmpdir, 'ffmpeg.log'), 'w')
@@ -52,7 +56,11 @@ class AACStream(threading.Thread):
         while self.alive:
             if not self.buffer.is_alive() and self.alive:
                 logger.warning('%s Buffer died, trying to restart.', self.name)
-                self.buffer = Buffer(self._alive, self.urlq, fifo=self._fifo, tmpdir=self.tmpdir)
+                self.buffer = Buffer(buffer_alive,
+                                     self.urlq,
+                                     playlist=self._playlist,
+                                     ffmpeg_pidfile=self.ffmpeg_pidfile,
+                                     tmpdir=self.tmpdir)
                 self.buffer.start()
             if ffmpeg_proc.poll() is not None:
                 logger.warning('%s ffmpeg died, trying to restart.', self.name)
@@ -93,13 +101,13 @@ class AACStream(threading.Thread):
         logger.info('%s exiting.', self.name)
 
     def _startstream(self, fh):
-        for _i in range(60, -1, -1):
-            if os.path.exists(self._fifo):
+        for _i in range(30, -1, -1):
+            if self.buffer.initialized:
                 break
             time.sleep(1)
-            logger.debug('%s waiting %ss for %s to be created.', self.name, _i, self._fifo)
+            logger.debug('%s waiting %ss buffer to initialize.', self.name, _i)
             if _i < 1:
-                logger.error("%s does not exist!", self._fifo)
+                logger.error("%s timedout waiting for buffer.", self.name)
                 sys.exit()
         self._check_for_ffmpeg()
         self.playing = True
@@ -107,12 +115,16 @@ class AACStream(threading.Thread):
                       '-loglevel', 'warning',
                       '-nostdin',
                       '-re',
-                      '-i', self._fifo,
+                      '-stream_loop', '-1',
+                      '-safe', '0',
+                      '-i', self._playlist,
+                      '-f', '-concat',
+                      '-flush_packets', '0',
                       '-content_type', 'audio/aac',
                       '-ice_name', 'FipShift',
                       '-ice_description', 'Time-shifted FIP stream',
                       '-ice_genre', 'Eclectic',
-                      '-c:a', 'copy',
+                      '-c', 'copy',
                       '-f', 'adts',
                       f'icecast://{self.un}:{self.pw}@{self._iceserver}/{self.mount}']
         _p = subprocess.Popen(_ffmpegcmd,
@@ -121,17 +133,22 @@ class AACStream(threading.Thread):
                               stderr=subprocess.STDOUT)
         with open(self.ffmpeg_pidfile, 'w') as fh:
             fh.write(str(_p.pid))
+        logger.info('%s stared ffmpeg with %s', self.name, self.ffmpeg_pidfile)
         return _p
 
     def _check_for_ffmpeg(self):
+        if not os.path.exists(self._playlist):
+            logger.warning("%s did not find %s", self.name, self._playlist)
         if os.path.exists(self.ffmpeg_pidfile):
             logger.warning("Found ffmpeg pid file")
             with open(self.ffmpeg_pidfile) as fh:
                 _pid = fh.read().strip()
             try:
                 os.kill(int(_pid), signal.SIGKILL)
-            except (ProcessLookupError, ValueError):
+            except ProcessLookupError:
                 logger.error("Could not kill ffmpeg")
+            except ValueError:
+                logger.error("Read invalid pid")
             finally:
                 os.unlink(self.ffmpeg_pidfile)
 
