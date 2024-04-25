@@ -104,8 +104,8 @@ class Playlist():
         self.initialized = False
         with open(self.playlist, 'w') as fh:
             fh.write('ffconcat version 1.0\n')
-            fh.write(f'file {self.tsfiles[0]}\n')
-            fh.write(f'file {self.tsfiles[1]}\n')
+            fh.write(f'file "{self.tsfiles[0]}"\n')
+            fh.write(f'file "{self.tsfiles[1]}"\n')
         logger.debug("Created %s", self.playlist)
 
     def _update(self, _src, _i):

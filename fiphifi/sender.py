@@ -112,7 +112,7 @@ class AACStream(threading.Thread):
         self._check_for_ffmpeg()
         self.playing = True
         _ffmpegcmd = [self.ffmpeg,
-                      '-loglevel', 'warning',
+                      '-loglevel', 'error',
                       '-nostdin',
                       '-re',
                       '-stream_loop', '-1',
