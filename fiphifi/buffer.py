@@ -57,6 +57,7 @@ class Buffer(threading.Thread):
         except Exception as msg:
             logger.error("%s died %s", self.name, str(msg))
         finally:
+            self.playlist.cleanup()
             logger.info('%s exiting.', self.name)
 
     def _get_url(self, session, url):
@@ -102,11 +103,12 @@ class Playlist():
         self._lastupdate = 0
         self.last_pls = -1
         self.initialized = False
-        with open(self.playlist, 'w') as fh:
-            fh.write('ffconcat version 1.0\n')
-            fh.write(f'file "{self.tsfiles[0]}"\n')
-            fh.write(f'file "{self.tsfiles[1]}"\n')
-        logger.debug("Created %s", self.playlist)
+        if not os.path.exists(self.playlist):
+            with open(self.playlist, 'w') as fh:
+                fh.write('ffconcat version 1.0\n')
+                fh.write(f'file "{self.tsfiles[0]}"\n')
+                fh.write(f'file "{self.tsfiles[1]}"\n')
+            logger.debug("Created %s", self.playlist)
 
     def _update(self, _src, _i):
         _ts = self.tsfiles[_i]
@@ -190,6 +192,12 @@ class Playlist():
 
     def next(self):
         self._advance_playlist()
+
+    def cleanup(self):
+        try:
+            os.unlink(self.playlist)
+        except FileNotFoundError:
+            pass
 
     @property
     def lastupdate(self):
