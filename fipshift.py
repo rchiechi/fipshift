@@ -76,9 +76,12 @@ def cleanup(*args):
     ALIVE.clear()
     for child in children:
         logger.info("Joining %s", children[child].name)
-        children[child].join(timeout=30)
-        if children[child].is_alive():
-            logger.warning("%s refusing to die.", children[child].name)
+        try:
+            children[child].join(timeout=30)
+            if children[child].is_alive():
+                logger.warning("%s refusing to die.", children[child].name)
+        except RuntimeError:
+            pass
     _urlz = []
     _qsize = URLQ.qsize()
     logger.info("Caching urls")
@@ -121,9 +124,14 @@ try:
     _runtime = time.time() - epoch
     while _runtime < opts.delay:
         _remains = (opts.delay - _runtime) / 60 or 1
-        logger.info('(%0.0f%%) Buffering for %0.0f more %s',
-                    (URLQ.qsize() * TSLENGTH / opts.delay)*100,
-                    _remains, 'mins' if _remains > 1 else 'min')
+        if _remains > 60:
+            logger.info('(%0.0f%%) Buffering for %0.1f more %s',
+                        (URLQ.qsize() * TSLENGTH / opts.delay)*100,
+                        _remains / 60, 'hours' if _remains / 60 > 1 else 'hour')
+        else:
+            logger.info('(%0.0f%%) Buffering for %0.0f more %s',
+                        (URLQ.qsize() * TSLENGTH / opts.delay)*100,
+                        _remains, 'mins' if _remains > 1 else 'min')
         time.sleep(60)
         if ffmpeg_proc.poll() is not None:
             logger.warning('Restarting vamp stream.')

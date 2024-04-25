@@ -40,7 +40,10 @@ class Buffer(threading.Thread):
                     continue
                 try:
                     _timestamp, _url = self.urlq.get(timeout=TSLENGTH)
-                    req = session.get(_url, timeout=TSLENGTH)
+                    req = self._get_url(session, _url)
+                    if req is None:
+                        logger.warning("%s failed to fetch %s", self.name, _url)
+                        continue
                     _ts = os.path.join(self.tmpdir, os.path.basename(_url.split('?')[0]))
                     logger.debug('%s writing %s to %s', self.name, _url, _ts)
                     with open(_ts, 'wb') as fh:
@@ -48,19 +51,23 @@ class Buffer(threading.Thread):
                         logger.debug('%s wrote %s', self.name, _ts)
                     self.playlist.add(_ts)
                     self._timestamp.append([parsets(_ts)[1], _timestamp])
-                except (requests.exceptions.ConnectTimeout,
-                        requests.exceptions.ReadTimeout,
-                        requests.exceptions.ConnectionError,
-                        ):
-                    logger.warning('%s timed out fetching upstream url %s.', self.name, _url)
-                    time.sleep(2)
                 except queue.Empty:
                     logger.warning('%s url queue empty.', self.name)
+                    time.sleep(TSLENGTH)
         except Exception as msg:
             logger.error("%s died %s", self.name, str(msg))
-            logger.debug("_ts: %s, _url: %s", _ts, _url)
         finally:
             logger.info('%s exiting.', self.name)
+
+    def _get_url(self, session, url):
+        for _i in range(2, 4):
+            try:
+                return session.get(url, timeout=TSLENGTH * BUFFERSIZE / _i)
+            except (requests.exceptions.ConnectTimeout,
+                    requests.exceptions.ReadTimeout,
+                    requests.exceptions.ConnectionError):
+                pass
+        return None
 
     @property
     def timestamp(self):
