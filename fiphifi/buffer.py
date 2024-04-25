@@ -184,11 +184,14 @@ class Playlist():
         proc = self._get_ffmpeg_proc()
         if proc is None:
             return -1
-        for item in proc.open_files():
-            for _i, _ts in enumerate(self.tsfiles):
-                if os.path.basename(item.path) == os.path.basename(_ts):
-                    self.last_pls = _i
-                    return _i
+        try:
+            for item in proc.open_files():
+                for _i, _ts in enumerate(self.tsfiles):
+                    if os.path.basename(item.path) == os.path.basename(_ts):
+                        self.last_pls = _i
+                        return _i
+        except psutil.ZombieProcess:
+            logger.error("FFMPEG is a zombie process!")
         logger.warning("Playlist could not determine what ffmpeg is currently playing.")
         return -1
 
