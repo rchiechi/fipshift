@@ -200,5 +200,6 @@ class Playlist():
 
     @property
     def buffersize(self):
-        return self.tsqueue.qsize()
+        #  The real buffer should be BUFFERSIZE - 1 because the playlist is two items long
+        return self.tsqueue.qsize() + 1
 
