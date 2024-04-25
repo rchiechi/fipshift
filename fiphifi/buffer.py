@@ -79,13 +79,6 @@ class Buffer(threading.Thread):
         return self._alive.isSet()
 
     @property
-    def lastsend(self):
-        if self.fifo is not None:
-            return self.fifo.lastsend
-        else:
-            return 0
-
-    @property
     def initialized(self):
         return self.playlist.initialized
 
