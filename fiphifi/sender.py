@@ -111,6 +111,7 @@ class AACStream(threading.Thread):
                 sys.exit()
         self._check_for_ffmpeg()
         self.playing = True
+        logger.info("Starting ffmpeg with %s", self._playlist)
         _ffmpegcmd = [self.ffmpeg,
                       '-loglevel', 'error',
                       '-nostdin',
