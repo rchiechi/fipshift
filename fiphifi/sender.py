@@ -6,7 +6,7 @@ import logging
 import threading
 import subprocess
 import queue
-# import requests
+import psutil
 from .buffer import Buffer
 
 # 'https://stream.radiofrance.fr/msl4/fip/prod1transcoder1/fip_aac_hifi_4_1673363954_368624.ts?id=radiofrance'
@@ -142,9 +142,10 @@ class AACStream(threading.Thread):
         if os.path.exists(self.ffmpeg_pidfile):
             logger.warning("Found ffmpeg pid file")
             with open(self.ffmpeg_pidfile) as fh:
-                _pid = fh.read().strip()
+                _pid = int(fh.read().strip())
             try:
-                os.kill(int(_pid), signal.SIGKILL)
+                if psutil.pid_exists(_pid):
+                    os.kill(_pid, signal.SIGKILL)
             except ProcessLookupError:
                 logger.error("Could not kill ffmpeg")
             except ValueError:
