@@ -127,6 +127,7 @@ class Playlist():
             logger.warning("Error updating playlist: %s", msg)
         except FileNotFoundError:
             logger.warning("Cannot query ffmpeg because %s does not exist", self.ffmpeg_pidfile)
+            time.sleep(1)
         return None
 
     def _init_playlist(self):
