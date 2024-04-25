@@ -181,6 +181,9 @@ class Playlist():
     def _get_playing(self):
         if self.lastupdate > TSLENGTH+1 and self.lastupdate < 1000:
             logger.warning("Playlist updated more than %ss ago (%0.0f)", TSLENGTH, self.lastupdate)
+        if self.lastupdate > 300 < 1000:
+            logger.warning("It's been more than 5 minutes, dying.")
+            raise OSError("Playlist neglected!")
         proc = self._get_ffmpeg_proc()
         if proc is None:
             return -1
