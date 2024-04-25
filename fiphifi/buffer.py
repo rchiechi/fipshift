@@ -148,6 +148,7 @@ class Playlist():
         if not self.initialized:
             logger.debug("Not advancing playlist until initialized.")
             self._init_playlist()
+            return
         if self.tsqueue.qsize() > BUFFERSIZE:
             logger.debug("Playlist length %s > buffersize %s.", self.tsqueue.qsize(), BUFFERSIZE)
             # force = True
