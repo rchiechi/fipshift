@@ -136,7 +136,7 @@ try:
         else:
             logger.info('(%0.0f%%) Buffering for %0.0f more %s',
                         (URLQ.qsize() * TSLENGTH / opts.delay)*100,
-                        _remains, 'mins' if _remains > 1 else 'min')
+                        _remains, 'mins' if _remains > 1.9 else 'min')
         time.sleep(60)
         if ffmpeg_proc.poll() is not None:
             logger.warning('Restarting vamp stream.')
