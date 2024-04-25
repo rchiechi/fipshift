@@ -22,6 +22,7 @@ class Buffer(threading.Thread):
         self.urlq = urlq
         self.tmpdir = kwargs.get('tmpdir', '/tmp')
         self._timestamp = [[0, time.time()]]
+        self.last_timestamp = 0
         self.playlist = Playlist(tmpdir=self.tmpdir,
                                  playlist=kwargs.get('playlist',
                                                      os.path.join(self.tmpdir, 'playlist.txt')),
@@ -63,13 +64,15 @@ class Buffer(threading.Thread):
 
     @property
     def timestamp(self):
-        _timestamp = self._timestamp[0][1]
+        _timestamp = self.last_timestamp
         for _i, _item in enumerate(self._timestamp):
             if _item[0] == self.playlist.nowplaying:
                 _timestamp = _item[1]
+                self.last_timestamp = _timestamp
+                self._timestamp = self._timestamp[_i:]
+                # logger.debug("%s found timestamp in playlist", self.name)
                 break
-        self._timestamp = self._timestamp[_i:]
-        return float(_timestamp)
+        return _timestamp
 
     @property
     def alive(self):
@@ -194,9 +197,7 @@ class Playlist():
 
     @property
     def nowplaying(self):
-        playing = self.current[self._advance_playlist()]
-        # logger.debug("Now playing %s", playing)
-        return playing
+        return self.current[self._advance_playlist()]
 
     @property
     def buffersize(self):
