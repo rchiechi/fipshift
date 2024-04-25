@@ -53,8 +53,6 @@ def checkcache(cache, pl_queue):
         return time.time()
 
 def writecache(cache, _urlz):
-    if os.path.exists(cache):
-        os.remove(cache)
     with open(cache, 'w') as fh:
         json.dump(_urlz, fh)
 

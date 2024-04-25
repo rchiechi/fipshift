@@ -66,6 +66,7 @@ logger.debug("Cleaned %s files in %s.", cleantmpdir(TMPDIR), TMPDIR)
 
 logger.info("Starting buffer threads.")
 
+CLEAN = False
 CACHE = os.path.join(TMPDIR, 'fipshift.cache')
 ALIVE = threading.Event()
 URLQ = queue.Queue()
@@ -73,6 +74,9 @@ epoch = checkcache(CACHE, URLQ)
 children = {}
 
 def cleanup(*args):
+    global CLEAN
+    if CLEAN:
+        sys.exit()
     ALIVE.clear()
     for child in children:
         logger.info("Joining %s", children[child].name)
@@ -92,10 +96,11 @@ def cleanup(*args):
             break
     if len(_urlz) == _qsize:
         writecache(CACHE, _urlz)
-        logger.info("Cached %s urls.", _qsize)
+        logger.info("Cached %s urls.", len(_urlz))
     else:
         logger.error("Could not cache entire queue %s/%s", len(_urlz), _qsize)
     logger.debug("Cleaned %s files in %s.", cleantmpdir(TMPDIR), TMPDIR)
+    CLEAN = True
     sys.exit()
 
 
