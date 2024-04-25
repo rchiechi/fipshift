@@ -112,11 +112,11 @@ class Playlist():
 
     def _update(self, _src, _i):
         _ts = self.tsfiles[_i]
-        fd = os.open(_ts, os.O_CREAT | os.O_WRONLY)
-        with os.fdopen(fd) as f:
-            with open(_src) as sf:
-                shutil.copyfileobj(sf, f)
-        # shutil.move(_src, _ts)
+        # fd = os.open(_ts, os.O_CREAT | os.O_WRONLY | os.O_NONBLOCK)
+        # with os.fdopen(fd) as f:
+        #     with open(_src) as sf:
+        #         shutil.copyfileobj(sf, f)
+        shutil.move(_src, _ts)
         self.current[_i] = parsets(_src)[1]
         self._lastupdate = time.time()
         logger.debug("Moved %s -> %s", os.path.basename(_src), os.path.basename(_ts))
