@@ -4,10 +4,9 @@ import signal
 import time
 import logging
 import threading
-import subprocess
 import queue
 import psutil
-from .buffer import Buffer
+from fiphifi.buffer import Buffer, Playlist
 
 # 'https://stream.radiofrance.fr/msl4/fip/prod1transcoder1/fip_aac_hifi_4_1673363954_368624.ts?id=radiofrance'
 
@@ -42,15 +41,12 @@ class AACStream(threading.Thread):
             logger.warn("%s called without alive set.", self.name)
         buffer_alive = threading.Event()
         buffer_alive.set()
+        playlist = self._get_playlist()
         self.buffer = Buffer(buffer_alive,
                              self.urlq,
-                             playlist=self._playlist,
-                             ffmpeg_pidfile=self.ffmpeg_pidfile,
+                             playlist=playlist,
                              tmpdir=self.tmpdir)
         self.buffer.start()
-        logger.info('%s starting ffmpeg', self.name)
-        ffmpeg_fh = open(os.path.join(self.tmpdir, 'ffmpeg.log'), 'w')
-        ffmpeg_proc = self._startstream(ffmpeg_fh)
         offset_tolerace = int(0.1 * self.delay) or 16
         logger.debug('%s setting offset tolerance to %ss', self.name, offset_tolerace)
         while self.alive:
@@ -58,14 +54,9 @@ class AACStream(threading.Thread):
                 logger.warning('%s Buffer died, trying to restart.', self.name)
                 self.buffer = Buffer(buffer_alive,
                                      self.urlq,
-                                     playlist=self._playlist,
-                                     ffmpeg_pidfile=self.ffmpeg_pidfile,
+                                     playlist=playlist,
                                      tmpdir=self.tmpdir)
                 self.buffer.start()
-            if ffmpeg_proc.poll() is not None:
-                logger.warning('%s ffmpeg died, trying to restart.', self.name)
-                self.playing = False
-                ffmpeg_proc = self._startstream(ffmpeg_fh)
             if offset_tolerace < self.delta < 100000:  # Offset throws huge numbers when timestamp returns 0
                 logger.info('Offset: %0.0f / Delay: %0.0f / Tolerance: %0.0f / Diff: %0.0f',
                             self.offset, self.delay, offset_tolerace, self.delta - offset_tolerace)
@@ -83,16 +74,10 @@ class AACStream(threading.Thread):
             time.sleep(1)
         logger.info('%s dying (alive: %s)', self.name, self.alive)
         buffer_alive.clear()
-        ffmpeg_proc.terminate()
-        time.sleep(3)
-        if ffmpeg_proc.returncode is None:
-            ffmpeg_proc.kill()
-        ffmpeg_fh.close()
+        playlist.cleanup()
         self._cleanup()
 
     def _cleanup(self):
-        if os.path.exists(self.ffmpeg_pidfile):
-            os.unlink(self.ffmpeg_pidfile)
         self.playing = False
         if self.buffer is not None:
             self.buffer.join(30)
@@ -100,59 +85,24 @@ class AACStream(threading.Thread):
                 logger.warning("%s refusing to die.", self.buffer.name)
         logger.info('%s exiting.', self.name)
 
-    def _startstream(self, fh):
-        for _i in range(30, -1, -1):
-            if self.buffer.initialized:
-                break
-            time.sleep(1)
-            logger.debug('%s waiting %ss buffer to initialize.', self.name, _i)
-            if _i < 1:
-                logger.error("%s timedout waiting for buffer.", self.name)
-                sys.exit()
-        self._check_for_ffmpeg()
-        self.playing = True
-        logger.info("Starting ffmpeg with %s", self._playlist)
-        _ffmpegcmd = [self.ffmpeg,
-                      '-loglevel', 'error',
-                      '-nostdin',
-                      '-re',
-                      '-stream_loop', '-1',
-                      '-safe', '0',
-                      '-i', self._playlist,
-                      '-f', '-concat',
-                      '-flush_packets', '0',
-                      '-content_type', 'audio/aac',
-                      '-ice_name', 'FipShift',
-                      '-ice_description', 'Time-shifted FIP stream',
-                      '-ice_genre', 'Eclectic',
-                      '-c', 'copy',
-                      '-f', 'adts',
-                      f'icecast://{self.un}:{self.pw}@{self._iceserver}/{self.mount}']
-        _p = subprocess.Popen(_ffmpegcmd,
-                              stdin=subprocess.PIPE,
-                              stdout=fh,
-                              stderr=subprocess.STDOUT)
-        with open(self.ffmpeg_pidfile, 'w') as fh:
-            fh.write(str(_p.pid))
-        logger.info('%s stared ffmpeg with %s', self.name, self.ffmpeg_pidfile)
-        return _p
-
-    def _check_for_ffmpeg(self):
-        if not os.path.exists(self._playlist):
-            logger.warning("%s did not find %s", self.name, self._playlist)
-        if os.path.exists(self.ffmpeg_pidfile):
-            logger.warning("Found ffmpeg pid file")
-            with open(self.ffmpeg_pidfile) as fh:
-                _pid = int(fh.read().strip())
-            try:
-                if psutil.pid_exists(_pid):
-                    os.kill(_pid, signal.SIGKILL)
-            except ProcessLookupError:
-                logger.error("Could not kill ffmpeg")
-            except ValueError:
-                logger.error("Read invalid pid")
-            finally:
-                os.unlink(self.ffmpeg_pidfile)
+    def _get_playlist(self):
+        ffmpegcmd = [self.ffmpeg,
+                     '-loglevel', 'error',
+                     '-nostdin',
+                     '-re',
+                     '-stream_loop', '-1',
+                     '-safe', '0',
+                     '-i', self._playlist,
+                     '-f', '-concat',
+                     '-flush_packets', '0',
+                     '-content_type', 'audio/aac',
+                     '-ice_name', 'FipShift',
+                     '-ice_description', 'Time-shifted FIP stream',
+                     '-ice_genre', 'Eclectic',
+                     '-c', 'copy',
+                     '-f', 'adts',
+                     f'icecast://{self.un}:{self.pw}@{self._iceserver}/{self.mount}']
+        return Playlist(ffmpegcmd, tmpdir=self.tmpdir)
 
     @property
     def alive(self):

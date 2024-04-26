@@ -10,6 +10,7 @@ import subprocess
 import queue
 import json
 import signal
+from argparse import ArgumentTypeError
 from fiphifi.util import cleantmpdir, checkcache, writecache, vampstream
 from fiphifi.playlist import FipPlaylist
 from fiphifi.sender import AACStream
@@ -17,8 +18,12 @@ from fiphifi.options import parseopts
 from fiphifi.metadata import FIPMetadata, send_metadata
 from fiphifi.constants import TSLENGTH
 
+try:
+    opts, config = parseopts()
+except ArgumentTypeError as msg:
+    print(msg)
+    sys.exit()
 
-opts, config = parseopts()
 logger = logging.getLogger(__package__)
 if opts.debug:
     logger.setLevel(logging.DEBUG)
@@ -125,6 +130,9 @@ signal.signal(signal.SIGINT, cleanup)
 logger.info('Starting vamp stream.')
 _c = config['USEROPTS']
 ffmpeg_proc = vampstream(FFMPEG, _c)
+if ffmpeg_proc.poll() is not None:
+    logger.error("Failed to start ffmpeg, probably another process still running.")
+    cleanup()
 try:
     _runtime = time.time() - epoch
     while _runtime < opts.delay:

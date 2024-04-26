@@ -6,6 +6,7 @@ import queue
 import requests
 import psutil
 import shutil
+import subprocess
 from fiphifi.util import parsets
 from fiphifi.constants import BUFFERSIZE, TSLENGTH
 
@@ -15,7 +16,7 @@ SILENTAAC = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'silence_4
 
 class Buffer(threading.Thread):
 
-    def __init__(self, _alive, urlq, **kwargs):
+    def __init__(self, _alive, urlq, playlist, **kwargs):
         threading.Thread.__init__(self)
         self.name = 'TS Buffer Thread'
         self._alive = _alive
@@ -23,11 +24,12 @@ class Buffer(threading.Thread):
         self.tmpdir = kwargs.get('tmpdir', '/tmp')
         self._timestamp = [[0, time.time()]]
         self.last_timestamp = 0
-        self.playlist = Playlist(tmpdir=self.tmpdir,
-                                 playlist=kwargs.get('playlist',
-                                                     os.path.join(self.tmpdir, 'playlist.txt')),
-                                 ffmpeg_pidfile=kwargs.get('ffmpeg_pidfile',
-                                                           os.path.join(self.tmpdir, 'ffmpeg.pid')))
+        self.playlist = playlist
+        # self.playlist = Playlist(tmpdir=self.tmpdir,
+        #                          playlist=kwargs.get('playlist',
+        #                                              os.path.join(self.tmpdir, 'playlist.txt')),
+        #                          ffmpeg_pidfile=kwargs.get('ffmpeg_pidfile',
+        #                                                    os.path.join(self.tmpdir, 'ffmpeg.pid')))
 
     def run(self):
         logger.info('Starting Buffer')
@@ -92,12 +94,13 @@ class Buffer(threading.Thread):
 
 class Playlist():
 
-    def __init__(self, **kwargs):
+    def __init__(self, ffmpeg_cmd, **kwargs):
         self.tmpdir = kwargs.get('tmpdir', '/tmp')
-        self.playlist = kwargs.get('playlist', os.path.join(self.tmpdir, 'playlist.txt'))
-        self.ffmpeg_pidfile = kwargs.get('ffmpeg_pidfile', os.path.join(self.tmpdir, 'ffmpeg.pid'))
+        self.playlist = os.path.join(self.tmpdir, 'playlist.txt')
         self.tsfiles = (os.path.join(self.tmpdir, "first.ts"),
                         os.path.join(self.tmpdir, "second.ts"))
+        self.ffmpeg_cmd = ffmpeg_cmd
+        self.ffmpeg_proc = None
         self.tsqueue = queue.SimpleQueue()
         self.current = {-1: 0, 0: 0, 1: 0}
         self._lastupdate = 0
@@ -122,17 +125,27 @@ class Playlist():
         logger.debug("Moved %s -> %s", os.path.basename(_src), os.path.basename(_ts))
         logger.debug("0: %s, 1: %s", self.current[0], self.current[1])
 
-    def _get_ffmpeg_proc(self):
-        try:
-            with open(self.ffmpeg_pidfile) as fh:
-                _pid = int(fh.read().strip())
-                return psutil.Process(_pid)
-        except (psutil.NoSuchProcess, ValueError) as msg:
-            logger.warning("Error updating playlist: %s", msg)
-        except FileNotFoundError:
-            if self.initialized:
-                logger.warning("Cannot query ffmpeg because %s does not exist", self.ffmpeg_pidfile)
+    def _init_ffmpeg(self):
+        if self.ffmpeg_alive:
+            logger.debug("ffmpeg already running, not initializing.")
+            return
+        logger.info('Starting ffmpeg')
+        self.ffmpeg_proc = subprocess.Popen(self.ffmpeg_cmd,
+                                            stdin=subprocess.PIPE,
+                                            stdout=open(os.path.join(self.tmpdir, 'ffmpeg.log'), 'w'),
+                                            stderr=subprocess.STDOUT)
         time.sleep(1)
+        if not self.ffmpeg_alive:
+            logger.error("Failed to start ffmpeg")
+
+    def _get_ffmpeg_proc(self):
+        if not self.ffmpeg_alive:
+            self._init_ffmpeg()
+        if self.ffmpeg_alive:
+            try:
+                return psutil.Process(self.ffmpeg_pid)
+            except psutil.NoSuchProcess as msg:
+                logger.warning("Error updating playlist: %s", msg)
         return None
 
     def _init_playlist(self):
@@ -144,6 +157,7 @@ class Playlist():
         for _i, _ts in enumerate(self.tsfiles):
             _src = self.tsqueue.get()
             self._update(_src, _i)
+        self._init_ffmpeg()
         self.initialized = True
         self._get_playing()
 
@@ -152,7 +166,7 @@ class Playlist():
         if not self.initialized:
             logger.debug("Not advancing playlist until initialized.")
             self._init_playlist()
-            return
+            return -1
         if self.tsqueue.qsize() > BUFFERSIZE:
             logger.debug("Playlist length %s > buffersize %s.", self.tsqueue.qsize(), BUFFERSIZE)
             # force = True
@@ -207,6 +221,11 @@ class Playlist():
         self._advance_playlist()
 
     def cleanup(self):
+        if self.ffmpeg_alive:
+            self.ffmpeg_proc.terminate()
+            time.sleep(1)
+            if self.ffmpeg_alive:
+                self.ffmpeg_proc.kill()
         try:
             os.unlink(self.playlist)
         except FileNotFoundError:
@@ -225,3 +244,16 @@ class Playlist():
         #  The real buffer should be BUFFERSIZE - 1 because the playlist is two items long
         return self.tsqueue.qsize() + 1
 
+    @property
+    def ffmpeg_pid(self):
+        if self.ffmpeg_alive:
+            return self.ffmpeg_proc.pid
+        return None
+
+    @property
+    def ffmpeg_alive(self):
+        if self.ffmpeg_proc is None:
+            return False
+        if self.ffmpeg_proc.poll() is None:
+            return True
+        return False
