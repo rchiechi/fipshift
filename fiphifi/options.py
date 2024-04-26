@@ -55,9 +55,9 @@ class StoreDelay(argparse.Action):
             there = datetime.datetime(1979, 1, 1, 0, tzinfo=zoneinfo.ZoneInfo('Europe/Paris'))
             setattr(namespace, 'delay', (here - there).seconds)
         except (zoneinfo.ZoneInfoNotFoundError):
-            if isinstance(values, int):
-                setattr(namespace, 'delay', 60)
-            else:
+            try:
+                setattr(namespace, 'delay', int(values))
+            except ValueError:
                 raise argparse.ArgumentTypeError(f"Invalid timezone: {values}") from None
             # setattr(namespace, 'delay', 60)  # for debugging
 

@@ -1,10 +1,11 @@
 import time
 import logging
 import threading
+import json
 import datetime as dt
 from fiphifi.util import parsets
-from fiphifi.constants import FIPBASEURL, FIPLIST, STRPTIME  # type: ignore
-import requests  # type: ignore
+from fiphifi.constants import FIPBASEURL, FIPLIST, STRPTIME, BUFFSIZE
+import requests
 
 logger = logging.getLogger(__package__)
 
@@ -14,12 +15,13 @@ class FipPlaylist(threading.Thread):
     delay = 5
     duration = 4
 
-    def __init__(self, _alive, pl_queue):
+    def __init__(self, _alive, pl_queue, cache_file):
         threading.Thread.__init__(self)
         self.name = 'FipPlaylist Thread'
         self._alive = _alive
         self.buff = pl_queue
         self._history = []
+        self.cache_file = cache_file
         self.cached = [[0,0]]
         self.lock = threading.Lock()
         self.last_update = time.time()
@@ -48,6 +50,7 @@ class FipPlaylist(threading.Thread):
                 fip_error = True
                 logger.warning("%s requst timed out", self.name)
             finally:
+                self.writecache()
                 if fip_error:
                     retries += 1
                     fip_error = False
@@ -58,14 +61,20 @@ class FipPlaylist(threading.Thread):
                         logger.warning("%s error, retrying (%s)", self.name, retries)
                         continue
                 time.sleep(self.delay)
-            if len(self._history) > self.buff.qsize():
+            if len(self._history) > self.buff.qsize() + BUFFSIZE:
                 logger.debug("%s pruning history.", self.name)
-                self.prunehistory(self.buff.qsize())
+                self.prunehistory(self.buff.qsize() + BUFFSIZE)
+        logger.info('%s wrote %s urls to cache', self.name, self.writecache())
         logger.info('%s ended (alive: %s)', self.name, self.alive)
 
     def puthistory(self, _url):
         with self.lock:
             self._history.append(_url)
+
+    def writecache(self):
+        with open(self.cache_file, 'w') as fh:
+            json.dump(self._history, fh)
+        return len(self._history)
 
     def gethistory(self):
         with self.lock:

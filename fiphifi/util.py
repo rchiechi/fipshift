@@ -2,6 +2,7 @@ import os
 import time
 import json
 import subprocess
+import queue
 import re
 
 TSRE = re.compile(r'(.*?/fip_aac_hifi_\d_)(\d+)_(\d+)\.ts.*')
@@ -37,20 +38,21 @@ def cleantmpdir(tmpdir):
     return n
 
 
-def checkcache(cache, pl_queue):
+def checkcache(cache):
+    _urlqueue = queue.SimpleQueue()
     _urlz = []
     if os.path.exists(cache):
         with open(cache) as fh:
             try:
                 _urlz = json.load(fh)
                 for _url in _urlz:
-                    pl_queue.put(_url)
+                    _urlqueue.put_nowait(_url)
             except json.JSONDecodeError:
                 os.remove(cache)
     try:
-        return _urlz[0][0]
+        return _urlz[0][0], _urlqueue
     except IndexError:
-        return time.time()
+        return time.time(), _urlqueue
 
 def writecache(cache, _urlz):
     with open(cache, 'w') as fh:

@@ -11,7 +11,7 @@ import queue
 import json
 import signal
 from argparse import ArgumentTypeError
-from fiphifi.util import cleantmpdir, checkcache, writecache, vampstream
+from fiphifi.util import cleantmpdir, checkcache, vampstream
 from fiphifi.playlist import FipPlaylist
 from fiphifi.sender import AACStream
 from fiphifi.options import parseopts
@@ -74,8 +74,8 @@ logger.info("Starting buffer threads.")
 CLEAN = False
 CACHE = os.path.join(TMPDIR, 'fipshift.cache')
 ALIVE = threading.Event()
-URLQ = queue.Queue()
-epoch = checkcache(CACHE, URLQ)
+# URLQ = queue.SimpleQueue()
+epoch, URLQ = checkcache(CACHE)
 children = {}
 
 def cleanup(*args):
@@ -91,31 +91,17 @@ def cleanup(*args):
                 logger.warning("%s refusing to die.", children[child].name)
         except RuntimeError:
             pass
-    _urlz = []
-    _qsize = URLQ.qsize()
-    logger.info("Caching urls")
-    while not URLQ.empty():
-        try:
-            _urlz.append(URLQ.get_nowait())
-        except queue.Empty:
-            break
-    if len(_urlz) == _qsize:
-        writecache(CACHE, _urlz)
-        logger.info("Cached %s urls.", len(_urlz))
-    else:
-        logger.error("Could not cache entire queue %s/%s", len(_urlz), _qsize)
     logger.debug("Cleaned %s files in %s.", cleantmpdir(TMPDIR), TMPDIR)
     CLEAN = True
     sys.exit()
 
 
-children["playlist"] = FipPlaylist(ALIVE, URLQ)
+children["playlist"] = FipPlaylist(ALIVE, URLQ, CACHE)
 children["metadata"] = FIPMetadata(ALIVE, tmpdir=TMPDIR)
 children["sender"] = AACStream(ALIVE, URLQ,
                                delay=opts.delay,
                                tmpdir=TMPDIR,
                                ffmpeg=FFMPEG,
-                               tmpidr=TMPDIR,
                                config=config)
 
 ALIVE.set()
@@ -153,7 +139,7 @@ try:
                       _c['MOUNT'],
                       f"Realtime Stream: T-{_remains:0.0f} minutes",
                       (_c['USER'], _c['PASSWORD']))
-        writecache(CACHE, children["playlist"].history)
+        # writecache(CACHE, children["playlist"].history)
         _runtime = time.time() - epoch
 except KeyboardInterrupt:
     logger.info("Killing threads")
@@ -179,7 +165,7 @@ last_slug = ''
 last_update = time.time()
 try:
     while True:
-        writecache(CACHE, children["playlist"].history)
+        # writecache(CACHE, children["playlist"].history)
         time.sleep(1)
         for child in children:
             if not children[child].is_alive():
