@@ -1,17 +1,13 @@
 import os
-import sys
-import signal
 import time
 import logging
 import threading
 import queue
-import psutil
 from fiphifi.buffer import Buffer, Playlist
 
 # 'https://stream.radiofrance.fr/msl4/fip/prod1transcoder1/fip_aac_hifi_4_1673363954_368624.ts?id=radiofrance'
 
 logger = logging.getLogger(__package__)
-SILENTAAC = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'silence_4s.ts')
 
 class AACStream(threading.Thread):
 
@@ -29,7 +25,7 @@ class AACStream(threading.Thread):
         self.ffmpeg = config['USEROPTS']['FFMPEG']
         self.ffmpeg_pidfile = os.path.join(self.tmpdir, 'ffmpeg.pid')
         self.mount = config['USEROPTS']['MOUNT']
-        self._iceserver = f"{config['USEROPTS']['HOST']}:{config['USEROPTS']['PORT']}"
+        self.iceserver = f"{config['USEROPTS']['HOST']}:{config['USEROPTS']['PORT']}"
         self.un = config['USEROPTS']['USER']
         self.pw = config['USEROPTS']['PASSWORD']
         self._playlist = os.path.join(self.tmpdir, 'playlist.txt')
@@ -101,7 +97,7 @@ class AACStream(threading.Thread):
                      '-ice_genre', 'Eclectic',
                      '-c', 'copy',
                      '-f', 'adts',
-                     f'icecast://{self.un}:{self.pw}@{self._iceserver}/{self.mount}']
+                     f'icecast://{self.un}:{self.pw}@{self.iceserver}/{self.mount}']
         return Playlist(ffmpegcmd, tmpdir=self.tmpdir)
 
     @property
@@ -122,10 +118,6 @@ class AACStream(threading.Thread):
     @property
     def delta(self):
         return self.offset - self.delay
-
-    @property
-    def iceserver(self):
-        return self._iceserver
 
     @property
     def delay(self):
