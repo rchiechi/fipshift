@@ -118,7 +118,7 @@ class Playlist():
         try:
             # shutil.move(_src, _ts)
             with open(_src) as src_fh:
-                with open(_ts) as dst_fh:
+                with open(_ts, 'w') as dst_fh:
                     dst_fh.write(src_fh.read())
             os.unlink(_src)
             self.current[_i] = parsets(_src)[1]
