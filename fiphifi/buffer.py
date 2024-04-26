@@ -107,11 +107,14 @@ class Playlist():
         self.last_pls = -1
         self.initialized = False
         if not os.path.exists(self.playlist):
-            with open(self.playlist, 'w') as fh:
-                fh.write('ffconcat version 1.0\n')
-                fh.write(f"file '{self.tsfiles[0]}'\n")
-                fh.write(f"file '{self.tsfiles[1]}'\n")
-            logger.info("Created %s", self.playlist)
+            self._create_playlist()
+
+    def _create_playlist(self):
+        with open(self.playlist, 'w') as fh:
+            fh.write('ffconcat version 1.0\n')
+            fh.write(f"file '{self.tsfiles[0]}'\n")
+            fh.write(f"file '{self.tsfiles[1]}'\n")
+        logger.info("Created %s", self.playlist)
 
     def _update(self, _src, _i):
         _ts = self.tsfiles[_i]
@@ -130,6 +133,8 @@ class Playlist():
             logger.debug("ffmpeg already running, not initializing.")
             return
         logger.info('Starting ffmpeg')
+        if self.initialized and not self.ffmpeg_healthy:
+            self._advance_playlist(force=True)
         self.ffmpeg_proc = subprocess.Popen(self.ffmpeg_cmd,
                                             stdin=subprocess.PIPE,
                                             stdout=open(os.path.join(self.tmpdir, 'ffmpeg.log'), 'w'),
@@ -161,15 +166,22 @@ class Playlist():
         self.initialized = True
         self._get_playing()
 
-    def _advance_playlist(self):
-        force = False
+    def _advance_playlist(self, force=False):
         if not self.initialized:
             logger.debug("Not advancing playlist until initialized.")
             self._init_playlist()
             return -1
         if self.tsqueue.qsize() > BUFFERSIZE:
             logger.debug("Playlist length %s > buffersize %s.", self.tsqueue.qsize(), BUFFERSIZE)
-            # force = True
+        if self.tsqueue.empty():
+            logger.warning("Can't advance playlist when queue is empty.")
+            return -1
+        if force and self.tsqueue.qsize() >= len(self.tsfiles):
+            logger.info("Forcing playlist update")
+            for _i, _ts in enumerate(self.tsfiles):
+                _src = self.tsqueue.get()
+                self._update(_src, _i)
+                return -1
         #  Check to see which idx is playing
         #  and then make sure the next idx is
         #  larger than the current one
@@ -178,14 +190,14 @@ class Playlist():
             # logger.debug("Checking if %s > %s", self.current[0], self.current[1])
             #  If we are playing idx 0 and it is larger than idx 1
             #  we have to update idx 1 to the next item in the queue
-            if self.current[0] > self.current[1] or force:
+            if self.current[0] > self.current[1]:
                 _src = self.tsqueue.get()
                 self._update(_src, 1)
         elif playing == 1:
             # logger.debug("Checking if %s > %s", self.current[1], self.current[0])
             #  If we are playing idx 1 and it is larger than idx 0
             #  we have to update idx 0 to the next item in the queue
-            if self.current[1] > self.current[0] or force:
+            if self.current[1] > self.current[0]:
                 _src = self.tsqueue.get()
                 self._update(_src, 0)
         else:
@@ -257,3 +269,12 @@ class Playlist():
         if self.ffmpeg_proc.poll() is None:
             return True
         return False
+
+    @property
+    def ffmpeg_healthy(self):
+        if self.ffmpeg_alive or self.ffmpeg_proc is None:
+            return True
+        if self.ffmpeg_proc.poll() == 0:
+            return True
+        return False
+
