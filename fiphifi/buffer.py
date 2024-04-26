@@ -116,7 +116,11 @@ class Playlist():
         #     with open(_src) as sf:
         #         shutil.copyfileobj(sf, f)
         try:
-            shutil.move(_src, _ts)
+            # shutil.move(_src, _ts)
+            with open(_src) as src_fh:
+                with open(_ts) as dst_fh:
+                    dst_fh.write(src_fh.read())
+            os.unlink(_src)
             self.current[_i] = parsets(_src)[1]
             self._lastupdate = time.time()
             logger.debug("Playlist 0: %s, 1: %s", self.current[0], self.current[1])
