@@ -5,7 +5,6 @@ import threading
 import queue
 import requests
 import psutil
-import shutil
 import subprocess
 from fiphifi.util import parsets
 from fiphifi.constants import BUFFERSIZE, TSLENGTH
@@ -111,12 +110,7 @@ class Playlist():
 
     def _update(self, _src, _i):
         _ts = self.tsfiles[_i]
-        # fd = os.open(_ts, os.O_CREAT | os.O_WRONLY | os.O_NONBLOCK)
-        # with os.fdopen(fd) as f:
-        #     with open(_src) as sf:
-        #         shutil.copyfileobj(sf, f)
         try:
-            # shutil.move(_src, _ts)
             with open(_src, 'rb') as src_fh:
                 with open(_ts, 'wb') as dst_fh:
                     dst_fh.write(src_fh.read())
@@ -124,8 +118,8 @@ class Playlist():
             self.current[_i] = parsets(_src)[1]
             self._lastupdate = time.time()
             logger.debug("Playlist 0: %s, 1: %s", self.current[0], self.current[1])
-        except FileNotFoundError:
-            logger.error("%s does not exist, cannot add to playlist", _src)
+        except (OSError, FileNotFoundError):
+            logger.error("Error reading %s, cannot add to playlist", _src)
 
     def _init_ffmpeg(self):
         if self.ffmpeg_alive:
