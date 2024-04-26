@@ -15,12 +15,12 @@ class FipPlaylist(threading.Thread):
     delay = 5
     duration = 4
 
-    def __init__(self, _alive, pl_queue, cache_file):
+    def __init__(self, _alive, pl_queue, cache_file, **kwargs):
         threading.Thread.__init__(self)
         self.name = 'FipPlaylist Thread'
         self._alive = _alive
         self.buff = pl_queue
-        self._history = []
+        self._history = kwargs.get('history', [])
         self.cache_file = cache_file
         self.cached = [[0,0]]
         self.lock = threading.Lock()
@@ -74,6 +74,7 @@ class FipPlaylist(threading.Thread):
     def writecache(self):
         with open(self.cache_file, 'w') as fh:
             json.dump(self._history, fh)
+        logger.debug("%s cache size: %s", self.name, len(self._history))
         return len(self._history)
 
     def gethistory(self):

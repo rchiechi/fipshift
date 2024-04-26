@@ -49,10 +49,7 @@ def checkcache(cache):
                     _urlqueue.put_nowait(_url)
             except json.JSONDecodeError:
                 os.remove(cache)
-    try:
-        return _urlz[0][0], _urlqueue
-    except IndexError:
-        return time.time(), _urlqueue
+    return _urlz, _urlqueue
 
 def writecache(cache, _urlz):
     with open(cache, 'w') as fh:

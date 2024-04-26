@@ -75,7 +75,7 @@ CLEAN = False
 CACHE = os.path.join(TMPDIR, 'fipshift.cache')
 ALIVE = threading.Event()
 # URLQ = queue.SimpleQueue()
-epoch, URLQ = checkcache(CACHE)
+history, URLQ = checkcache(CACHE)
 children = {}
 
 def cleanup(*args):
@@ -96,7 +96,7 @@ def cleanup(*args):
     sys.exit()
 
 
-children["playlist"] = FipPlaylist(ALIVE, URLQ, CACHE)
+children["playlist"] = FipPlaylist(ALIVE, URLQ, CACHE, history=history)
 children["metadata"] = FIPMetadata(ALIVE, tmpdir=TMPDIR)
 children["sender"] = AACStream(ALIVE, URLQ,
                                delay=opts.delay,
@@ -119,6 +119,12 @@ ffmpeg_proc = vampstream(FFMPEG, _c)
 if ffmpeg_proc.poll() is not None:
     logger.error("Failed to start ffmpeg, probably another process still running.")
     cleanup()
+try:
+    epoch = history[0][0]
+    logger.info("Restarting from cached history")
+except IndexError:
+    epoch = time.time()
+
 try:
     _runtime = time.time() - epoch
     while _runtime < opts.delay:

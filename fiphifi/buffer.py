@@ -18,18 +18,13 @@ class Buffer(threading.Thread):
 
     def __init__(self, _alive, urlq, playlist, **kwargs):
         threading.Thread.__init__(self)
-        self.name = 'TS Buffer Thread'
+        self.name = 'Buffer Thread'
         self._alive = _alive
         self.urlq = urlq
         self.tmpdir = kwargs.get('tmpdir', '/tmp')
         self._timestamp = [[0, time.time()]]
         self.last_timestamp = 0
         self.playlist = playlist
-        # self.playlist = Playlist(tmpdir=self.tmpdir,
-        #                          playlist=kwargs.get('playlist',
-        #                                              os.path.join(self.tmpdir, 'playlist.txt')),
-        #                          ffmpeg_pidfile=kwargs.get('ffmpeg_pidfile',
-        #                                                    os.path.join(self.tmpdir, 'ffmpeg.pid')))
 
     def run(self):
         logger.info('Starting Buffer')
@@ -47,7 +42,6 @@ class Buffer(threading.Thread):
                         logger.warning("%s failed to fetch %s", self.name, _url)
                         continue
                     _ts = os.path.join(self.tmpdir, os.path.basename(_url.split('?')[0]))
-                    logger.debug('%s writing %s to %s', self.name, _url, _ts)
                     with open(_ts, 'wb') as fh:
                         fh.write(req.content)
                         logger.debug('%s wrote %s', self.name, _ts)
@@ -80,7 +74,6 @@ class Buffer(threading.Thread):
                 _timestamp = _item[1]
                 self.last_timestamp = _timestamp
                 self._timestamp = self._timestamp[_i:]
-                # logger.debug("%s found timestamp in playlist", self.name)
                 break
         return _timestamp
 
@@ -122,11 +115,13 @@ class Playlist():
         # with os.fdopen(fd) as f:
         #     with open(_src) as sf:
         #         shutil.copyfileobj(sf, f)
-        shutil.move(_src, _ts)
-        self.current[_i] = parsets(_src)[1]
-        self._lastupdate = time.time()
-        logger.debug("Moved %s -> %s", os.path.basename(_src), os.path.basename(_ts))
-        logger.debug("0: %s, 1: %s", self.current[0], self.current[1])
+        try:
+            shutil.move(_src, _ts)
+            self.current[_i] = parsets(_src)[1]
+            self._lastupdate = time.time()
+            logger.debug("Playlist 0: %s, 1: %s", self.current[0], self.current[1])
+        except FileNotFoundError:
+            logger.error("%s does not exist, cannot add to playlist", _src)
 
     def _init_ffmpeg(self):
         if self.ffmpeg_alive:
