@@ -4,7 +4,7 @@ import threading
 import json
 import datetime as dt
 from fiphifi.util import parsets
-from fiphifi.constants import FIPBASEURL, FIPLIST, STRPTIME, BUFFSIZE
+from fiphifi.constants import FIPBASEURL, FIPLIST, STRPTIME, BUFFERSIZE
 import requests
 
 logger = logging.getLogger(__package__)
@@ -61,9 +61,9 @@ class FipPlaylist(threading.Thread):
                         logger.warning("%s error, retrying (%s)", self.name, retries)
                         continue
                 time.sleep(self.delay)
-            if len(self._history) > self.buff.qsize() + BUFFSIZE:
+            if len(self._history) > self.buff.qsize() + BUFFERSIZE:
                 logger.debug("%s pruning history.", self.name)
-                self.prunehistory(self.buff.qsize() + BUFFSIZE)
+                self.prunehistory(self.buff.qsize() + BUFFERSIZE)
         logger.info('%s wrote %s urls to cache', self.name, self.writecache())
         logger.info('%s ended (alive: %s)', self.name, self.alive)
 
