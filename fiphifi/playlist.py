@@ -4,7 +4,7 @@ import threading
 import json
 import datetime as dt
 from fiphifi.util import parsets
-from fiphifi.constants import FIPBASEURL, FIPLIST, STRPTIME, BUFFERSIZE
+from fiphifi.constants import FIPBASEURL, FIPLIST, STRPTIME, BUFFERSIZE, TSLENGTH
 import requests
 
 logger = logging.getLogger(__package__)
@@ -74,7 +74,7 @@ class FipPlaylist(threading.Thread):
     def writecache(self):
         with open(self.cache_file, 'w') as fh:
             json.dump(self._history, fh)
-        logger.debug("%s cache size: %s", self.name, len(self._history))
+        logger.debug("%s cache: %0.0f min", self.name, len(self._history) * TSLENGTH / 60)
         return len(self._history)
 
     def gethistory(self):
