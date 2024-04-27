@@ -169,7 +169,8 @@ class Playlist():
         if self.tsqueue.empty():
             logger.warning("Can't advance playlist when queue is empty.")
             return -1
-        if force and self.tsqueue.qsize() >= len(self.tsfiles):
+        # if force and self.tsqueue.qsize() >= len(self.tsfiles):
+        if force:
             logger.info("Inserting silence")
             # for _i, _ts in enumerate(self.tsfiles):
             #     _src = self.tsqueue.get()
