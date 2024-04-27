@@ -32,6 +32,7 @@ class FipPlaylist(threading.Thread):
         logger.info('Starting %s', self.name)
         if not self.alive:
             logger.warn("%s called without alive set.", self.name)
+        self.checkhistory()
         retries = 0
         fip_error = False
         #  Fip reports timestamps in GMT
@@ -88,6 +89,17 @@ class FipPlaylist(threading.Thread):
             if until < len(self.cached):
                 self.cached = self.cached[until:]
 
+    def checkhistory(self):
+        prefix, suffix = 0, 0
+        for _url in self._history:
+            prefix, suffix = parsets(_url[1])
+            if prefix in self.idx:
+                self.idx[prefix].append(suffix)
+            else:
+                self.idx = {prefix: [suffix]}
+        if 0 not in (prefix, suffix):
+            logger.info("%s bootstrapping index at %s:%s", self.name, prefix, suffix)
+
     def parselist(self, _m3u):
         if not _m3u:
             logger.warning("%s: empty playlist.", self.name)
@@ -129,15 +141,23 @@ class FipPlaylist(threading.Thread):
                 logger.info("%s guessing at missing ts. Last: %s Now: %s", self.name, _last_suffix, suffix)
                 _suffix = suffix - (suffix - _last_suffix)
                 _prefix = prefix
+                _i = 0
                 while suffix > _suffix:
                     _suffix += 1
+                    _i += 1
                     if len(self.idx[_prefix]) >= 25:
                         _prefix += 1
                     self.idx[_prefix].append(_suffix)
-                    _new_url = _url[1].replace(prefix, _prefix).replace(suffix,_suffix)
-                    logger.info("%s Guessed: %s", _new_url)
-                    self._cache_url([_url[0], _new_url])
+                    _new_url = _url[1].replace(str(prefix),
+                                               str(_prefix)).replace(str(suffix),
+                                                                     str(_suffix))
+                    logger.info("%s guessed: %s", self.name, _new_url)
+                    self._cache_url([_url[0] - (TSLENGTH * _i), _new_url])
+            else:
+                logger.debug("%s resetting prefix: %s", self.name, prefix)
+                self.idx = {prefix: [suffix]}
         else:
+            logger.debug("%s incrementing prefix: %s", self.name, prefix)
             self.idx = {prefix: [suffix]}
         self._cache_url(_url)
 
@@ -150,13 +170,14 @@ class FipPlaylist(threading.Thread):
             return
         if tsid[1] != self.cached[-1][1] + 1 and self.cached[-1][0] > 0:
             if tsid[1] < self.cached[-1][1]:
-                logger.warning('Refusing to cache backwards: %s -> %s', self.cached[-1], tsid)
+                logger.warning('%s refusing to cache backwards: %s -> %s', self.name, self.cached[-1], tsid)
                 return
             else:
-                logger.warning('Playlist out of order: %s -> %s', self.cached[-1], tsid)
+                logger.warning('%s queue out of order: %s -> %s', self.name, self.cached[-1], tsid)
         self.cached.append(tsid)
         self.puthistory(_url)
         self.buff.put(_url)
+        logger.debug("%s cached %s:%s", self.name, tsid[0], tsid[1])
 
     @property
     def alive(self):
