@@ -11,7 +11,8 @@ from fiphifi.util import parsets
 from fiphifi.constants import BUFFERSIZE, TSLENGTH
 
 logger = logging.getLogger(__package__)
-SILENTAAC = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'silence_2s.ts')
+SILENTAAC2 = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'silence_2s.ts')
+SILENTAAC4 = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'silence_2s.ts')
 
 
 class Buffer(threading.Thread):
@@ -37,14 +38,15 @@ class Buffer(threading.Thread):
                     continue
                 try:
                     _timestamp, _url = self.urlq.get(timeout=TSLENGTH)
-                    req = self._get_url(session, _url)
-                    if req is None:
-                        logger.warning("%s failed to fetch %s", self.name, _url)
-                        continue
                     _ts = os.path.join(self.tmpdir, os.path.basename(_url.split('?')[0]))
-                    with open(_ts, 'wb') as fh:
-                        fh.write(req.content)
-                        logger.debug('%s wrote %s', self.name, _ts)
+                    req = self._get_url(session, _url)
+                    if req is not None:
+                        with open(_ts, 'wb') as fh:
+                            fh.write(req.content)
+                            logger.debug('%s wrote %s', self.name, _ts)
+                    else:
+                        logger.warning("%s failed to fetch %s", self.name, _url)
+                        shutil.copy(SILENTAAC4, _ts)
                     self.playlist.add(_ts)
                     self._timestamp.append([parsets(_ts)[1], _timestamp])
                 except queue.Empty:
@@ -177,7 +179,7 @@ class Playlist():
             #     self._update(_src, _i)
             #     return -1
             for _ts in self.tsfiles:
-                shutil.copy(SILENTAAC, os.path.join(self.tmpdir, _ts))
+                shutil.copy(SILENTAAC2, os.path.join(self.tmpdir, _ts))
             return -1
         #  Check to see which idx is playing
         #  and then make sure the next idx is
