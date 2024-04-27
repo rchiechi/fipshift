@@ -26,6 +26,7 @@ class FipPlaylist(threading.Thread):
         self.lock = threading.Lock()
         self.last_update = time.time()
         self.offset = 0
+        self.idx = {0:0}
 
     def run(self):
         logger.info('Starting %s', self.name)
@@ -111,9 +112,34 @@ class FipPlaylist(threading.Thread):
             if _l[0] == '#':
                 continue
             _url = [_timestamp, f'{FIPBASEURL}{_l.strip()}']
-            self._cache_url(_url)
+            self.ingest_url(_url)
         self.last_update = time.time()
         self.delay = 15
+
+    def ingest_url(self, _url):
+        prefix, suffix = parsets(_url[1])
+        if 0 in (prefix, suffix):
+            logger.warning('Malformed url: %s', _url[1])
+            return
+        if prefix in self.idx:
+            _last_suffix = self.idx[prefix][-1]
+            if suffix - _last_suffix == 1:
+                self.idx[prefix].append(suffix)
+            elif suffix - _last_suffix > 1:
+                logger.info("%s guessing at missing ts. Last: %s Now: %s", self.name, _last_suffix, suffix)
+                _suffix = suffix - (suffix - _last_suffix)
+                _prefix = prefix
+                while suffix > _suffix:
+                    _suffix += 1
+                    if len(self.idx[_prefix]) >= 25:
+                        _prefix += 1
+                    self.idx[_prefix].append(_suffix)
+                    _new_url = _url[1].replace(prefix, _prefix).replace(suffix,_suffix)
+                    logger.info("%s Guessed: %s", _new_url)
+                    self._cache_url([_url[0], _new_url])
+        else:
+            self.idx = {prefix: [suffix]}
+        self._cache_url(_url)
 
     def _cache_url(self, _url):
         tsid = parsets(_url[1])
