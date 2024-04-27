@@ -5,12 +5,13 @@ import threading
 import queue
 import requests
 import psutil
+import shutil
 import subprocess
 from fiphifi.util import parsets
 from fiphifi.constants import BUFFERSIZE, TSLENGTH
 
 logger = logging.getLogger(__package__)
-SILENTAAC = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'silence_4s.ts')
+SILENTAAC = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'silence_2s.ts')
 
 
 class Buffer(threading.Thread):
@@ -89,8 +90,7 @@ class Playlist():
     def __init__(self, ffmpeg_cmd, **kwargs):
         self.tmpdir = kwargs.get('tmpdir', '/tmp')
         self.playlist = os.path.join(self.tmpdir, 'playlist.txt')
-        self.tsfiles = (os.path.join(self.tmpdir, "first.ts"),
-                        os.path.join(self.tmpdir, "second.ts"))
+        self.tsfiles = ("first.ts", "second.ts")
         self.ffmpeg_cmd = ffmpeg_cmd
         self.ffmpeg_proc = None
         self.tsqueue = queue.SimpleQueue()
@@ -109,7 +109,7 @@ class Playlist():
         logger.info("Created %s", self.playlist)
 
     def _update(self, _src, _i):
-        _ts = self.tsfiles[_i]
+        _ts = os.path.join(self.tmpdir, self.tsfiles[_i])
         try:
             with open(_src, 'rb') as src_fh:
                 with open(_ts, 'wb') as dst_fh:
@@ -170,11 +170,14 @@ class Playlist():
             logger.warning("Can't advance playlist when queue is empty.")
             return -1
         if force and self.tsqueue.qsize() >= len(self.tsfiles):
-            logger.info("Forcing playlist update")
-            for _i, _ts in enumerate(self.tsfiles):
-                _src = self.tsqueue.get()
-                self._update(_src, _i)
-                return -1
+            logger.info("Inserting silence")
+            # for _i, _ts in enumerate(self.tsfiles):
+            #     _src = self.tsqueue.get()
+            #     self._update(_src, _i)
+            #     return -1
+            for _ts in self.tsfiles:
+                shutil.copy(SILENTAAC, os.path.join(self.tmpdir, _ts))
+            return -1
         #  Check to see which idx is playing
         #  and then make sure the next idx is
         #  larger than the current one

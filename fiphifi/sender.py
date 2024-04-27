@@ -82,6 +82,7 @@ class AACStream(threading.Thread):
         logger.info('%s exiting.', self.name)
 
     def _get_playlist(self):
+        #  self._playlist must be an absolute path
         ffmpegcmd = [self.ffmpeg,
                      '-loglevel', 'error',
                      '-nostdin',
