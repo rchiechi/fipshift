@@ -116,10 +116,13 @@ class Playlist():
     def _update(self, _src, _i):
         _ts = os.path.join(self.tmpdir, self.tsfiles[_i])
         try:
-            with open(_src, 'rb') as src_fh:
-                with open(_ts, 'wb') as dst_fh:
-                    dst_fh.write(src_fh.read())
-            os.unlink(_src)
+            logger.debug("src file: %s kb", os.path.getsize(_src) / 1024)
+            os.replace(_src, _ts)
+            logger.debug("dst file: %s kb", os.path.getsize(_ts) / 1024)
+            # with open(_src, 'rb') as src_fh:
+            #     with open(_ts, 'wb') as dst_fh:
+            #         dst_fh.write(src_fh.read())
+            # os.unlink(_src)
             self.current[_i] = parsets(_src)[1]
             self._lastupdate = time.time()
             logger.debug("Playlist 0: %s, 1: %s", self.current[0], self.current[1])
