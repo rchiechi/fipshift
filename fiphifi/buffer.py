@@ -165,7 +165,6 @@ class Playlist():
         self._get_playing()
 
     def _advance_playlist(self, force=False):
-        logger.debug("_advance_playlist(force=%s)", force)
         if not self.initialized:
             logger.debug("Not advancing playlist until initialized.")
             self._init_playlist()
@@ -188,6 +187,7 @@ class Playlist():
                     src_fh.seek(0)
                     with open(os.path.join(self.tmpdir, _ts), 'wb') as dst_fh:
                         dst_fh.write(src_fh.read())
+                self.current[1] = self.current[0] + 1
             return -1
         #  Check to see which idx is playing
         #  and then make sure the next idx is
@@ -207,7 +207,6 @@ class Playlist():
             if self.current[1] > self.current[0]:
                 _src = self.tsqueue.get()
                 self._update(_src, 0)
-        logger.debug("_advance_playlist() = %s", playing)
         return playing
 
     def _get_playing(self):
