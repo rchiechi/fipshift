@@ -7,7 +7,6 @@ import threading
 import logging
 import time
 import subprocess
-import queue
 import json
 import signal
 from argparse import ArgumentTypeError
@@ -74,7 +73,6 @@ logger.info("Starting buffer threads.")
 CLEAN = False
 CACHE = os.path.join(TMPDIR, 'fipshift.cache')
 ALIVE = threading.Event()
-# URLQ = queue.SimpleQueue()
 history, URLQ = checkcache(CACHE)
 children = {}
 
@@ -171,7 +169,6 @@ last_slug = ''
 last_update = time.time()
 try:
     while True:
-        # writecache(CACHE, children["playlist"].history)
         time.sleep(1)
         for child in children:
             if not children[child].is_alive():
