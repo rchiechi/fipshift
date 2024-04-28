@@ -84,7 +84,7 @@ class AACStream(threading.Thread):
     def _get_playlist(self):
         #  self._playlist must be an absolute path
         ffmpegcmd = [self.ffmpeg,
-                     '-loglevel', 'error',
+                     '-loglevel', 'info',
                      '-nostdin',
                      '-re',
                      '-stream_loop', '-1',
