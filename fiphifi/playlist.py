@@ -140,10 +140,10 @@ class FipPlaylist(threading.Thread):
             if suffix - _last_suffix == 1:
                 self.idx[prefix].append(suffix)
             elif suffix == _last_suffix:
-                logger.debug("%s not caching same url twice, %s:5s ", self.name, prefix, suffix)
+                # logger.debug("%s not caching same url twice, %s:5s ", self.name, prefix, suffix)
                 return
             elif suffix < _last_suffix:
-                logger.debug("%s backwads url order %s: %s -> %s", self.name, prefix, _last_suffix, suffix)
+                # logger.debug("%s backwads url order %s: %s -> %s", self.name, prefix, _last_suffix, suffix)
                 return
             else:
                 logger.debug("%s file out of order for %s: %s -> %s", self.name, prefix, _last_suffix, suffix)
@@ -170,22 +170,6 @@ class FipPlaylist(threading.Thread):
         else:
             logger.debug("%s incrementing prefix: %s (%s)", self.name, prefix, len(self.idx[list(self.idx.keys())[-1]]))
             self.idx = {prefix: [suffix]}
-#         self._cache_url(_url)
-# 
-#     def _cache_url(self, _url):
-#         tsid = parsets(_url[1])
-#         if tsid == [0,0]:
-#             logger.warning('Malformed url: %s', _url[1])
-#             return
-#         if tsid in self.cached:
-#             return
-#         if tsid[1] != self.cached[-1][1] + 1 and self.cached[-1][0] > 0:
-#             if tsid[1] < self.cached[-1][1]:
-#                 logger.warning('%s refusing to cache backwards: %s -> %s', self.name, self.cached[-1], tsid)
-#                 return
-#             else:
-#                 logger.warning('%s queue out of order: %s -> %s', self.name, self.cached[-1], tsid)
-#         self.cached.append(tsid)
         self.puthistory(_url)
         self.buff.put(_url)
         logger.debug("%s cached %s @ %s:%s", self.name, _url[0], prefix, suffix)
