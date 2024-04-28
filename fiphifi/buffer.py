@@ -26,6 +26,8 @@ class Buffer(threading.Thread):
         self._timestamp = [[0, time.time()]]
         self.last_timestamp = 0
         self.playlist = playlist
+        with open(SILENTAAC4, 'wb') as fh:
+            self.lastts = fh.read()
 
     def run(self):
         logger.info('Starting Buffer')
@@ -63,14 +65,18 @@ class Buffer(threading.Thread):
                         fh.write(req.content)
                     if os.path.getsize(_ts) > 4096:
                         logger.debug('%s wrote %s (%0.0f kb)', self.name, _ts, os.path.getsize(_ts) / 1024)
+                        with open(SILENTAAC4, 'rb') as fh:
+                            self.lastts = fh.read()
                         success = True
                     else:
                         logger.debug("%s req: %s", self.name, req.content)
                         logger.warning("%s %s empty, retrying", self.name, os.path.basename(_url))
                         time.sleep(1)
             if not success:
-                logger.warning("%s inserting silence for %s", self.name, _ts)
-                shutil.copy(SILENTAAC4, _ts)
+                logger.warning("%s inserting garbage for %s", self.name, _ts)
+                with open(_ts, 'wb') as fh:
+                    fh.write(self.lastts)
+                # shutil.copy(SILENTAAC4, _ts)
             self.playlist.add(_ts)
             self._timestamp.append([parsets(_ts)[1], _timestamp])
         except queue.Empty:
