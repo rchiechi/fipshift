@@ -32,7 +32,8 @@ class Buffer(threading.Thread):
         session = requests.Session()
         try:
             while self.alive:
-                self.advance(session)
+                if not self.advance(session):
+                    session = requests.Session()
         except Exception as msg:
             logger.error("%s died %s", self.name, str(msg))
         finally:
@@ -43,12 +44,12 @@ class Buffer(threading.Thread):
         self.playlist.next()
         if self.playlist.buffersize > BUFFERSIZE:
             time.sleep(1)
-            return
+            return True
+        success = False
         try:
             _timestamp, _url = self.urlq.get(timeout=TSLENGTH)
             _ts = os.path.join(self.tmpdir, os.path.basename(_url.split('?')[0]))
             _retry_start = time.time()
-            success = False
             while not success:
                 if time.time() - _retry_start >= TSLENGTH * BUFFERSIZE:
                     logger.warning("%s could not download %s", self.name, os.path.basename(_url))
@@ -76,6 +77,7 @@ class Buffer(threading.Thread):
         except queue.Empty:
             logger.warning('%s url queue empty.', self.name)
             time.sleep(TSLENGTH)
+        return success
 
     def _get_url(self, session, url):
         for _i in range(2, 5):
