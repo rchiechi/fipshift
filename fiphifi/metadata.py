@@ -13,14 +13,19 @@ def send_metadata(url, mount, slug, auth):
     _params = {'mode': 'updinfo',
                'mount': f"/{mount}",
                'song': slug}
-    req = requests.get(f'http://{url}/admin/metadata', params=_params,
-                       auth=requests.auth.HTTPBasicAuth(*auth))
-    if 'Metadata update successful' in req.text:
-        logger.info('Metadata udpate: %s', slug)
-        return True
-    else:
-        logger.warning('Error updating metdata (%s): %s', url, req.text)
-        return False
+    try:
+        req = requests.get(f'http://{url}/admin/metadata', params=_params,
+                           auth=requests.auth.HTTPBasicAuth(*auth))
+        if 'Metadata update successful' in req.text:
+            logger.info('Metadata udpate: %s', slug)
+            return True
+        else:
+            logger.warning('Error updating metdata (%s): %s', url, req.text)
+            return False
+    except (requests.exceptions.ConnectTimeout,
+            requests.exceptions.ReadTimeout,
+            requests.exceptions.ConnectionError):
+        logger.warning('Metadata update failed to communicate with icecast.')
 
 
 class FIPMetadata(threading.Thread):
