@@ -32,31 +32,31 @@ class Buffer(threading.Thread):
         session = requests.Session()
         try:
             while self.alive:
-                while self.playlist.buffersize > BUFFERSIZE:
-                    logger.debug("%s buffer full sleeping", self.name)
-                    self.playlist.next()
-                    time.sleep(1)
-                try:
-                    _timestamp, _url = self.urlq.get(timeout=TSLENGTH)
-                    _ts = os.path.join(self.tmpdir, os.path.basename(_url.split('?')[0]))
-                    req = self._get_url(session, _url)
-                    if req is not None:
-                        with open(_ts, 'wb') as fh:
-                            fh.write(req.content)
-                            logger.debug('%s wrote %s', self.name, _ts)
-                    else:
-                        logger.warning("%s failed to fetch %s", self.name, _url)
-                        shutil.copy(SILENTAAC4, _ts)
-                    self.playlist.add(_ts)
-                    self._timestamp.append([parsets(_ts)[1], _timestamp])
-                except queue.Empty:
-                    logger.warning('%s url queue empty.', self.name)
-                    time.sleep(TSLENGTH)
+                self.advance(session)
         except Exception as msg:
             logger.error("%s died %s", self.name, str(msg))
         finally:
             self.playlist.cleanup()
             logger.info('%s exiting.', self.name)
+
+    def advance(self, session):
+        self._check_playlist()
+        try:
+            _timestamp, _url = self.urlq.get(timeout=TSLENGTH)
+            _ts = os.path.join(self.tmpdir, os.path.basename(_url.split('?')[0]))
+            req = self._get_url(session, _url)
+            if req is not None:
+                with open(_ts, 'wb') as fh:
+                    fh.write(req.content)
+                    logger.debug('%s wrote %s', self.name, _ts)
+            else:
+                logger.warning("%s failed to fetch %s", self.name, _url)
+                shutil.copy(SILENTAAC4, _ts)
+            self.playlist.add(_ts)
+            self._timestamp.append([parsets(_ts)[1], _timestamp])
+        except queue.Empty:
+            logger.warning('%s url queue empty.', self.name)
+            time.sleep(TSLENGTH)
 
     def _get_url(self, session, url):
         for _i in range(2, 5):
@@ -67,6 +67,12 @@ class Buffer(threading.Thread):
                     requests.exceptions.ConnectionError):
                 pass
         return None
+
+    def _check_playlist(self):
+        while self.playlist.buffersize > BUFFERSIZE:
+            self.playlist.next()
+            time.sleep(1)
+            logger.debug("%s buffer full, sleeping", self.name)
 
     @property
     def timestamp(self):
