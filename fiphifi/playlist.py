@@ -139,6 +139,8 @@ class FipPlaylist(threading.Thread):
             _last_suffix = self.idx[prefix][-1]
             if suffix - _last_suffix == 1:
                 self.idx[prefix].append(suffix)
+            else:
+                logger.debug("%s file out of order for %s: %s -> %s", self.name, prefix, _last_suffix, suffix)
             # elif suffix - _last_suffix > 1:
             #     logger.info("%s guessing at missing ts. Last: %s Now: %s", self.name, _last_suffix, suffix)
             #     _suffix = suffix - (suffix - _last_suffix) + 1
