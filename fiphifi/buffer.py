@@ -199,8 +199,6 @@ class Playlist():
             if self.current[1] > self.current[0]:
                 _src = self.tsqueue.get()
                 self._update(_src, 0)
-        else:
-            logger.warning("Playlist in unknown state %s", playing)
         return playing
 
     def _get_playing(self):
