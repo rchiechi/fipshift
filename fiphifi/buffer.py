@@ -56,10 +56,9 @@ class Buffer(threading.Thread):
                     break
                 req = self._get_url(session, _url)
                 if req is not None:
-                    # if not len(req.content):
-                    #     logger.warning("%s %s empty, retrying", self.name, os.path.basename(_url))
-                    #     time.sleep(1)
-                    # else:
+                    if not req.ok:
+                        logger.warning("%s bad url %s", self.name, _url)
+                        break
                     with open(_ts, 'wb') as fh:
                         fh.write(req.content)
                     if os.path.getsize(_ts) > 4096:
