@@ -42,7 +42,6 @@ class Buffer(threading.Thread):
     def advance(self, session):
         self.playlist.next()
         if self.playlist.buffersize > BUFFERSIZE:
-            logger.debug("%s buffer full, sleeping", self.name)
             time.sleep(1)
             return
         try:
@@ -166,6 +165,7 @@ class Playlist():
         self._get_playing()
 
     def _advance_playlist(self, force=False):
+        logger.debug("_advance_playlist(force=%s)", force)
         if not self.initialized:
             logger.debug("Not advancing playlist until initialized.")
             self._init_playlist()
@@ -207,6 +207,7 @@ class Playlist():
             if self.current[1] > self.current[0]:
                 _src = self.tsqueue.get()
                 self._update(_src, 0)
+        logger.debug("_advance_playlist() = %s", playing)
         return playing
 
     def _get_playing(self):
