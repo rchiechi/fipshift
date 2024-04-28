@@ -117,6 +117,7 @@ ffmpeg_proc = vampstream(FFMPEG, _c)
 if ffmpeg_proc.poll() is not None:
     logger.error("Failed to start ffmpeg, probably another process still running.")
     cleanup()
+print(f'FFMPEG is {ffmpeg_proc.poll()}')
 try:
     epoch = history[0][0]
     logger.info("Restarting from cached history")
@@ -136,7 +137,6 @@ try:
                         (URLQ.qsize() * TSLENGTH / opts.delay)*100,
                         _remains, 'mins' if _remains > 1.9 else 'min')
         time.sleep(60)
-        print(f'FFMPEG is {ffmpeg_proc.poll()}')
         if ffmpeg_proc.poll() is not None:
             logger.warning('Restarting vamp stream.')
             ffmpeg_proc = vampstream(FFMPEG, _c)
