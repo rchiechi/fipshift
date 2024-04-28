@@ -4,6 +4,7 @@ import logging
 import threading
 import queue
 from fiphifi.buffer import Buffer, Playlist
+from fiphifi.constants import TSLENGTH
 
 # 'https://stream.radiofrance.fr/msl4/fip/prod1transcoder1/fip_aac_hifi_4_1673363954_368624.ts?id=radiofrance'
 
@@ -65,9 +66,9 @@ class AACStream(threading.Thread):
                 except queue.Empty:
                     pass
                 logger.info("%s skipped %s urls to keep delay.", self.name, skipped)
-                time.sleep(8)
+                time.sleep(skipped * TSLENGTH)
                 logger.debug('Offset: %0.0f / Delay: %0.0f', self.offset, self.delay)
-            time.sleep(1)
+            time.sleep(TSLENGTH)
         logger.info('%s dying (alive: %s)', self.name, self.alive)
         buffer_alive.clear()
         playlist.cleanup()
