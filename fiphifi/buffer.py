@@ -35,7 +35,7 @@ class Buffer(threading.Thread):
                 while self.playlist.buffersize > BUFFERSIZE:
                     logger.debug("%s buffer full sleeping", self.name)
                     self.playlist.next()
-                    time.sleep(TSLENGTH)
+                    time.sleep(1)
                 try:
                     _timestamp, _url = self.urlq.get(timeout=TSLENGTH)
                     _ts = os.path.join(self.tmpdir, os.path.basename(_url.split('?')[0]))
