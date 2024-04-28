@@ -143,6 +143,7 @@ class Playlist():
 
     def _get_ffmpeg_proc(self):
         if not self.ffmpeg_alive:
+            self.debug("ffmpeg is not alive, calling init_ffmpeg")
             self._init_ffmpeg()
         if self.ffmpeg_alive:
             try:
