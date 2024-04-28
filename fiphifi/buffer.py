@@ -177,23 +177,28 @@ class Playlist():
             return -1
         # if force and self.tsqueue.qsize() >= len(self.tsfiles):
         if force:
-            logger.info("Inserting silence")
+            logger.info("Forcing update")
+            playing = 0
+            self.current[1] = self.current[0] + 1
             # for _i, _ts in enumerate(self.tsfiles):
             #     _src = self.tsqueue.get()
             #     self._update(_src, _i)
             #     return -1
-            with open(SILENTAAC2, 'rb') as src_fh:
-                for _ts in self.tsfiles:
-                    # shutil.copy(SILENTAAC2, os.path.join(self.tmpdir, _ts))
-                    src_fh.seek(0)
-                    with open(os.path.join(self.tmpdir, _ts), 'wb') as dst_fh:
-                        dst_fh.write(src_fh.read())
-                self.current[1] = self.current[0] + 1
-            return -1
+            # with open(SILENTAAC2, 'rb') as src_fh:
+            #     for _ts in self.tsfiles:
+            #
+            #     for _ts in self.tsfiles:
+            #         # shutil.copy(SILENTAAC2, os.path.join(self.tmpdir, _ts))
+            #         src_fh.seek(0)
+            #         with open(os.path.join(self.tmpdir, _ts), 'wb') as dst_fh:
+            #             dst_fh.write(src_fh.read())
+            #     self.current[1] = self.current[0] + 1
+            # return -1
         #  Check to see which idx is playing
         #  and then make sure the next idx is
         #  larger than the current one
-        playing = self._get_playing()
+        else:
+            playing = self._get_playing()
         if playing == 0:
             # logger.debug("Checking if %s > %s", self.current[0], self.current[1])
             #  If we are playing idx 0 and it is larger than idx 1
@@ -280,7 +285,7 @@ class Playlist():
     def ffmpeg_healthy(self):
         if self.ffmpeg_alive or self.ffmpeg_proc is None:
             return True
-        if self.ffmpeg_proc.poll() == 0:
+        if self.ffmpeg_proc.returncode == 0:
             return True
         return False
 
