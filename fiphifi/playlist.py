@@ -64,7 +64,6 @@ class FipPlaylist(threading.Thread):
                         continue
                 time.sleep(self.delay)
             if len(self._history) > self.buff.qsize():
-                logger.debug("%s pruning history.", self.name)
                 self.prunehistory(self.buff.qsize() - BUFFERSIZE)
         logger.info('%s wrote %s urls to cache', self.name, self.writecache())
         logger.info('%s ended (alive: %s)', self.name, self.alive)
@@ -76,7 +75,7 @@ class FipPlaylist(threading.Thread):
     def writecache(self):
         with open(self.cache_file, 'w') as fh:
             json.dump(self._history, fh)
-        logger.debug("%s cache: %0.0f min", self.name, len(self._history) * TSLENGTH / 60)
+        logger.info("%s cache: %0.0f min", self.name, len(self._history) * TSLENGTH / 60)
         return len(self._history)
 
     def gethistory(self):
@@ -84,10 +83,13 @@ class FipPlaylist(threading.Thread):
             return self._history[:]
 
     def prunehistory(self, until):
+        logger.debug("%s pruning history %s -> %s.", self.name, len(self._history), until)
+        logger.info("%s cache: %0.0f min", self.name, len(self._history) * TSLENGTH / 60)
         with self.lock:
             self._history = self._history[until:]
             if until < len(self.cached):
                 self.cached = self.cached[until:]
+        logger.info("%s cache: %0.0f min", self.name, len(self._history) * TSLENGTH / 60)
 
     def checkhistory(self):
         prefix, suffix = 0, 0

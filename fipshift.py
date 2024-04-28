@@ -136,6 +136,7 @@ try:
                         (URLQ.qsize() * TSLENGTH / opts.delay)*100,
                         _remains, 'mins' if _remains > 1.9 else 'min')
         time.sleep(60)
+        print(ffmpeg_proc.poll())
         if ffmpeg_proc.poll() is not None:
             logger.warning('Restarting vamp stream.')
             ffmpeg_proc = vampstream(FFMPEG, _c)
