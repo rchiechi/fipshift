@@ -116,9 +116,11 @@ class Playlist():
     def _update(self, _src, _i):
         _ts = os.path.join(self.tmpdir, self.tsfiles[_i])
         try:
-            logger.debug("src file: %s kb", os.path.getsize(_src) / 1024)
-            os.replace(_src, _ts)
-            logger.debug("dst file: %s kb", os.path.getsize(_ts) / 1024)
+            if os.path.getsize(_src) == 0:
+                logger.warning("Refusing to write empty file %s.", _src)
+            else:
+                os.replace(_src, _ts)
+            logger.debug("%0.0f: %0.0f kb", _ts, os.path.getsize(_ts) / 1024)
             # with open(_src, 'rb') as src_fh:
             #     with open(_ts, 'wb') as dst_fh:
             #         dst_fh.write(src_fh.read())
