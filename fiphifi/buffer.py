@@ -49,6 +49,9 @@ class Buffer(threading.Thread):
             _ts = os.path.join(self.tmpdir, os.path.basename(_url.split('?')[0]))
             req = self._get_url(session, _url)
             if req is not None:
+                if not len(req.content):
+                    logger.warning("%s %s empty, retrying", self.name, os.path.basename(_url))
+                    req = self._get_url(session, _url)
                 with open(_ts, 'wb') as fh:
                     fh.write(req.content)
                     logger.debug('%s wrote %s', self.name, _ts)
