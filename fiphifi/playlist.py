@@ -141,12 +141,10 @@ class FipPlaylist(threading.Thread):
                 self.idx[prefix].append(suffix)
             elif suffix - _last_suffix > 1:
                 logger.info("%s guessing at missing ts. Last: %s Now: %s", self.name, _last_suffix, suffix)
-                _suffix = suffix - (suffix - _last_suffix)
+                _suffix = suffix - (suffix - _last_suffix) + 1
                 _prefix = prefix
-                _i = 0
+                _i = 1
                 while suffix > _suffix:
-                    _suffix += 1
-                    _i += 1
                     if len(self.idx[_prefix]) >= 25:
                         _prefix += 1
                     self.idx[_prefix].append(_suffix)
@@ -156,6 +154,8 @@ class FipPlaylist(threading.Thread):
                                                                      str(_suffix))
                     logger.info("%s guessed: %s @ %s", self.name, _new_timestamp, _new_url)
                     self._cache_url([_new_timestamp, _new_url])
+                    _suffix += 1
+                    _i += 1
             else:
                 logger.debug("%s resetting prefix: %s", self.name, prefix)
                 self.idx = {prefix: [suffix]}
