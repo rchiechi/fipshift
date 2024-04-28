@@ -52,9 +52,12 @@ class Buffer(threading.Thread):
                 if not len(req.content):
                     logger.warning("%s %s empty, retrying", self.name, os.path.basename(_url))
                     req = self._get_url(session, _url)
-                with open(_ts, 'wb') as fh:
-                    fh.write(req.content)
-                    logger.debug('%s wrote %s', self.name, _ts)
+                if req is not None:
+                    with open(_ts, 'wb') as fh:
+                        fh.write(req.content)
+                        logger.debug('%s wrote %s', self.name, _ts)
+                else:
+                    logger.warning("%s could not download %s", self.name, _url)
             else:
                 logger.warning("%s failed to fetch %s", self.name, _url)
                 shutil.copy(SILENTAAC4, _ts)
