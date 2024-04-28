@@ -80,6 +80,7 @@ def cleanup(*args):
     global CLEAN
     if CLEAN:
         return
+    logger.warning("Main thread caught SIGINT, shutting down.")
     ALIVE.clear()
     for child in children:
         logger.info("Joining %s", children[child].name)

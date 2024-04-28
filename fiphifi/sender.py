@@ -66,7 +66,6 @@ class AACStream(threading.Thread):
                 except queue.Empty:
                     pass
                 logger.info("%s skipped %s urls to keep delay.", self.name, skipped)
-                time.sleep(skipped * TSLENGTH)
                 logger.debug('Offset: %0.0f / Delay: %0.0f', self.offset, self.delay)
             time.sleep(TSLENGTH)
         logger.info('%s dying (alive: %s)', self.name, self.alive)
