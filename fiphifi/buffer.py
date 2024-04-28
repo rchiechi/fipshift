@@ -47,18 +47,25 @@ class Buffer(threading.Thread):
         try:
             _timestamp, _url = self.urlq.get(timeout=TSLENGTH)
             _ts = os.path.join(self.tmpdir, os.path.basename(_url.split('?')[0]))
-            req = self._get_url(session, _url)
-            if req is not None:
-                if not len(req.content):
-                    logger.warning("%s %s empty, retrying", self.name, os.path.basename(_url))
-                    req = self._get_url(session, _url)
-                if req is not None:
-                    with open(_ts, 'wb') as fh:
-                        fh.write(req.content)
-                        logger.debug('%s wrote %s', self.name, _ts)
-                else:
+            _retry_start = time.time()
+            success = False
+            while not success:
+                if time.time() - _retry_start >= TSLENGTH * BUFFERSIZE:
                     logger.warning("%s could not download %s", self.name, _url)
-                    shutil.copy(SILENTAAC4, _ts)
+                    break
+                req = self._get_url(session, _url)
+                if req is not None:
+                    if not len(req.content):
+                        logger.warning("%s %s empty, retrying", self.name, os.path.basename(_url))
+                    else:
+                        with open(_ts, 'wb') as fh:
+                            fh.write(req.content)
+                        if os.path.getsize(_ts) > 4096:
+                            logger.debug('%s wrote %s ()', self.name, _ts)
+                            success = True
+            if not success:
+                logger.warning("%s inserting silence for %s", self.name, _ts)
+                shutil.copy(SILENTAAC4, _ts)
             else:
                 logger.warning("%s failed to fetch %s", self.name, _url)
                 shutil.copy(SILENTAAC4, _ts)
