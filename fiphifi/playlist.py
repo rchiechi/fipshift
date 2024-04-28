@@ -150,11 +150,12 @@ class FipPlaylist(threading.Thread):
                     if len(self.idx[_prefix]) >= 25:
                         _prefix += 1
                     self.idx[_prefix].append(_suffix)
+                    _new_timestamp = _url[0] - (TSLENGTH * _i)
                     _new_url = _url[1].replace(str(prefix),
                                                str(_prefix)).replace(str(suffix),
                                                                      str(_suffix))
-                    logger.info("%s guessed: %s", self.name, _new_url)
-                    self._cache_url([_url[0] - (TSLENGTH * _i), _new_url])
+                    logger.info("%s guessed: %s @ %s", self.name, _new_timestamp, _new_url)
+                    self._cache_url([_new_timestamp, _new_url])
             else:
                 logger.debug("%s resetting prefix: %s", self.name, prefix)
                 self.idx = {prefix: [suffix]}
@@ -179,7 +180,7 @@ class FipPlaylist(threading.Thread):
         self.cached.append(tsid)
         self.puthistory(_url)
         self.buff.put(_url)
-        logger.debug("%s cached %s:%s", self.name, tsid[0], tsid[1])
+        logger.debug("%s cached %s @ %s:%s", self.name, _url[0], tsid[0], tsid[1])
 
     @property
     def alive(self):
