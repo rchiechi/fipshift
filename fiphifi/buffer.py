@@ -42,6 +42,7 @@ class Buffer(threading.Thread):
     def advance(self, session):
         self.playlist.next()
         if self.playlist.buffersize > BUFFERSIZE:
+            logger.debug("%s buffer full, sleeping", self.name)
             time.sleep(1)
             return
         try:
