@@ -40,7 +40,10 @@ class Buffer(threading.Thread):
             logger.info('%s exiting.', self.name)
 
     def advance(self, session):
-        self._check_playlist()
+        self.playlist.next()
+        if self.playlist.buffersize > BUFFERSIZE:
+            time.sleep(1)
+            return
         try:
             _timestamp, _url = self.urlq.get(timeout=TSLENGTH)
             _ts = os.path.join(self.tmpdir, os.path.basename(_url.split('?')[0]))
@@ -67,12 +70,6 @@ class Buffer(threading.Thread):
                     requests.exceptions.ConnectionError):
                 pass
         return None
-
-    def _check_playlist(self):
-        while self.playlist.buffersize > BUFFERSIZE:
-            self.playlist.next()
-            time.sleep(1)
-            logger.debug("%s buffer full, sleeping", self.name)
 
     @property
     def timestamp(self):
