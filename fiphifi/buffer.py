@@ -59,7 +59,7 @@ class Buffer(threading.Thread):
             logger.info('%s exiting.', self.name)
 
     def _get_url(self, session, url):
-        for _i in range(2, 4):
+        for _i in range(2, 5):
             try:
                 return session.get(url, timeout=TSLENGTH * BUFFERSIZE / _i)
             except (requests.exceptions.ConnectTimeout,
