@@ -66,9 +66,6 @@ class Buffer(threading.Thread):
             if not success:
                 logger.warning("%s inserting silence for %s", self.name, _ts)
                 shutil.copy(SILENTAAC4, _ts)
-            else:
-                logger.warning("%s failed to fetch %s", self.name, _url)
-                shutil.copy(SILENTAAC4, _ts)
             self.playlist.add(_ts)
             self._timestamp.append([parsets(_ts)[1], _timestamp])
         except queue.Empty:
