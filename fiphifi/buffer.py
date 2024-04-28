@@ -179,7 +179,7 @@ class Playlist():
         if force:
             logger.info("Forcing update")
             playing = 0
-            self.current[1] = self.current[0] + 1
+            self.current[0] = self.current[1] + 1
             # for _i, _ts in enumerate(self.tsfiles):
             #     _src = self.tsqueue.get()
             #     self._update(_src, _i)
@@ -286,6 +286,7 @@ class Playlist():
         if self.ffmpeg_alive or self.ffmpeg_proc is None:
             return True
         if self.ffmpeg_proc.returncode == 0:
+            logger.debug("ffmpeg returned: %s", self.ffmpeg_proc.returncode)
             return True
         return False
 
