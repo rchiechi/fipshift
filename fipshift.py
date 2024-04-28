@@ -114,17 +114,16 @@ signal.signal(signal.SIGINT, cleanup)
 logger.info('Starting vamp stream.')
 _c = config['USEROPTS']
 ffmpeg_proc = vampstream(FFMPEG, _c)
-if ffmpeg_proc.poll() is not None:
-    logger.error("Failed to start ffmpeg, probably another process still running.")
-    cleanup()
-print(f'FFMPEG is {ffmpeg_proc.poll()}')
 try:
     epoch = history[0][0]
     logger.info("Restarting from cached history")
 except IndexError:
     epoch = time.time()
-
+time.sleep(5)
 try:
+    if ffmpeg_proc.poll() is not None:
+        logger.error("Failed to start ffmpeg, probably another process still running.")
+        cleanup()
     _runtime = time.time() - epoch
     while _runtime < opts.delay:
         _remains = (opts.delay - _runtime) / 60 or 1
