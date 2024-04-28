@@ -26,7 +26,7 @@ class Buffer(threading.Thread):
         self._timestamp = [[0, time.time()]]
         self.last_timestamp = 0
         self.playlist = playlist
-        with open(SILENTAAC4, 'wb') as fh:
+        with open(SILENTAAC4, 'rb') as fh:
             self.lastts = fh.read()
 
     def run(self):
