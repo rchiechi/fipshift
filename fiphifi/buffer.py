@@ -62,10 +62,10 @@ class Buffer(threading.Thread):
                     with open(_ts, 'wb') as fh:
                         fh.write(req.content)
                     if os.path.getsize(_ts) > 4096:
-                        logger.debug("%s req: %s", self.name, req.content)
                         logger.debug('%s wrote %s (%0.0f kb)', self.name, _ts, os.path.getsize(_ts) / 1024)
                         success = True
                     else:
+                        logger.debug("%s req: %s", self.name, req.content)
                         logger.warning("%s %s empty, retrying", self.name, os.path.basename(_url))
                         time.sleep(1)
             if not success:
