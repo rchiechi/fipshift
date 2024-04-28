@@ -79,7 +79,7 @@ children = {}
 def cleanup(*args):
     global CLEAN
     if CLEAN:
-        sys.exit()
+        return
     ALIVE.clear()
     for child in children:
         logger.info("Joining %s", children[child].name)
@@ -136,7 +136,7 @@ try:
                         (URLQ.qsize() * TSLENGTH / opts.delay)*100,
                         _remains, 'mins' if _remains > 1.9 else 'min')
         time.sleep(60)
-        print(ffmpeg_proc.poll())
+        print(f'FFMPEG is {ffmpeg_proc.poll()}')
         if ffmpeg_proc.poll() is not None:
             logger.warning('Restarting vamp stream.')
             ffmpeg_proc = vampstream(FFMPEG, _c)
