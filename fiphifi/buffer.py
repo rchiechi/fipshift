@@ -75,7 +75,7 @@ class Buffer(threading.Thread):
             except (requests.exceptions.ConnectTimeout,
                     requests.exceptions.ReadTimeout,
                     requests.exceptions.ConnectionError):
-                pass
+                logger.warning("%s retrying with timeout of %s", self.name, TSLENGTH * BUFFERSIZE / _i)
         return None
 
     @property
