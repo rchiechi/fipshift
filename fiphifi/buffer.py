@@ -51,7 +51,7 @@ class Buffer(threading.Thread):
             success = False
             while not success:
                 if time.time() - _retry_start >= TSLENGTH * BUFFERSIZE:
-                    logger.warning("%s could not download %s", self.name, _url)
+                    logger.warning("%s could not download %s", self.name, os.path.basename(_url))
                     break
                 req = self._get_url(session, _url)
                 if req is not None:
