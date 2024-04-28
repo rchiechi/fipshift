@@ -58,6 +58,7 @@ class Buffer(threading.Thread):
                         logger.debug('%s wrote %s', self.name, _ts)
                 else:
                     logger.warning("%s could not download %s", self.name, _url)
+                    shutil.copy(SILENTAAC4, _ts)
             else:
                 logger.warning("%s failed to fetch %s", self.name, _url)
                 shutil.copy(SILENTAAC4, _ts)
