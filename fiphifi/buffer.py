@@ -62,7 +62,7 @@ class Buffer(threading.Thread):
                         with open(_ts, 'wb') as fh:
                             fh.write(req.content)
                         if os.path.getsize(_ts) > 4096:
-                            logger.debug('%s wrote %s (%s)', self.name, _ts, os.path.getsize(_ts))
+                            logger.debug('%s wrote %s (%s kb)', self.name, _ts, os.path.getsize(_ts) / 1024)
                             success = True
             if not success:
                 logger.warning("%s inserting silence for %s", self.name, _ts)
