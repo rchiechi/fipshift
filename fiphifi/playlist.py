@@ -22,7 +22,7 @@ class FipPlaylist(threading.Thread):
         self.buff = pl_queue
         self._history = kwargs.get('history', [])
         self.cache_file = cache_file
-        self.cached = [[0,0]]
+        # self.cached = [[0,0]]
         self.lock = threading.Lock()
         self.last_update = time.time()
         self.offset = 0
@@ -87,8 +87,8 @@ class FipPlaylist(threading.Thread):
         logger.info("%s cache: %0.0f min", self.name, len(self._history) * TSLENGTH / 60)
         with self.lock:
             self._history = self._history[-until:]
-            if until < len(self.cached):
-                self.cached = self.cached[-until:]
+            # if until < len(self.cached):
+            #     self.cached = self.cached[-until:]
         logger.info("%s cache: %0.0f min", self.name, len(self._history) * TSLENGTH / 60)
 
     def checkhistory(self):
@@ -170,25 +170,25 @@ class FipPlaylist(threading.Thread):
         else:
             logger.debug("%s incrementing prefix: %s (%s)", self.name, prefix, len(self.idx[list(self.idx.keys())[-1]]))
             self.idx = {prefix: [suffix]}
-        self._cache_url(_url)
-
-    def _cache_url(self, _url):
-        tsid = parsets(_url[1])
-        if tsid == [0,0]:
-            logger.warning('Malformed url: %s', _url[1])
-            return
-        if tsid in self.cached:
-            return
-        if tsid[1] != self.cached[-1][1] + 1 and self.cached[-1][0] > 0:
-            if tsid[1] < self.cached[-1][1]:
-                logger.warning('%s refusing to cache backwards: %s -> %s', self.name, self.cached[-1], tsid)
-                return
-            else:
-                logger.warning('%s queue out of order: %s -> %s', self.name, self.cached[-1], tsid)
-        self.cached.append(tsid)
+#         self._cache_url(_url)
+# 
+#     def _cache_url(self, _url):
+#         tsid = parsets(_url[1])
+#         if tsid == [0,0]:
+#             logger.warning('Malformed url: %s', _url[1])
+#             return
+#         if tsid in self.cached:
+#             return
+#         if tsid[1] != self.cached[-1][1] + 1 and self.cached[-1][0] > 0:
+#             if tsid[1] < self.cached[-1][1]:
+#                 logger.warning('%s refusing to cache backwards: %s -> %s', self.name, self.cached[-1], tsid)
+#                 return
+#             else:
+#                 logger.warning('%s queue out of order: %s -> %s', self.name, self.cached[-1], tsid)
+#         self.cached.append(tsid)
         self.puthistory(_url)
         self.buff.put(_url)
-        logger.debug("%s cached %s @ %s:%s", self.name, _url[0], tsid[0], tsid[1])
+        logger.debug("%s cached %s @ %s:%s", self.name, _url[0], prefix, suffix)
 
     @property
     def alive(self):
