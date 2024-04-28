@@ -178,8 +178,12 @@ class Playlist():
             #     _src = self.tsqueue.get()
             #     self._update(_src, _i)
             #     return -1
-            for _ts in self.tsfiles:
-                shutil.copy(SILENTAAC2, os.path.join(self.tmpdir, _ts))
+            with open(SILENTAAC2, 'rb') as src_fh:
+                for _ts in self.tsfiles:
+                    # shutil.copy(SILENTAAC2, os.path.join(self.tmpdir, _ts))
+                    src_fh.seek(0)
+                    with open(os.path.join(self.tmpdir, _ts), 'wb') as dst_fh:
+                        dst_fh.write(src_fh.read())
             return -1
         #  Check to see which idx is playing
         #  and then make sure the next idx is
