@@ -55,15 +55,18 @@ class Buffer(threading.Thread):
                     break
                 req = self._get_url(session, _url)
                 if req is not None:
-                    if not len(req.content):
+                    # if not len(req.content):
+                    #     logger.warning("%s %s empty, retrying", self.name, os.path.basename(_url))
+                    #     time.sleep(1)
+                    # else:
+                    with open(_ts, 'wb') as fh:
+                        fh.write(req.content)
+                    if os.path.getsize(_ts) > 4096:
+                        logger.debug('%s wrote %s (%s kb)', self.name, _ts, os.path.getsize(_ts) / 1024)
+                        success = True
+                    else:
                         logger.warning("%s %s empty, retrying", self.name, os.path.basename(_url))
                         time.sleep(1)
-                    else:
-                        with open(_ts, 'wb') as fh:
-                            fh.write(req.content)
-                        if os.path.getsize(_ts) > 4096:
-                            logger.debug('%s wrote %s (%s kb)', self.name, _ts, os.path.getsize(_ts) / 1024)
-                            success = True
             if not success:
                 logger.warning("%s inserting silence for %s", self.name, _ts)
                 shutil.copy(SILENTAAC4, _ts)
