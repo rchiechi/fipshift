@@ -57,6 +57,7 @@ class Buffer(threading.Thread):
                 if req is not None:
                     if not len(req.content):
                         logger.warning("%s %s empty, retrying", self.name, os.path.basename(_url))
+                        time.sleep(1)
                     else:
                         with open(_ts, 'wb') as fh:
                             fh.write(req.content)
