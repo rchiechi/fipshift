@@ -5,7 +5,7 @@ import threading
 import queue
 import requests
 import psutil
-import shutil
+# import shutil
 import subprocess
 from fiphifi.util import parsets
 from fiphifi.constants import BUFFERSIZE, TSLENGTH

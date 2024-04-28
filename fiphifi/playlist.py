@@ -139,26 +139,26 @@ class FipPlaylist(threading.Thread):
             _last_suffix = self.idx[prefix][-1]
             if suffix - _last_suffix == 1:
                 self.idx[prefix].append(suffix)
-            elif suffix - _last_suffix > 1:
-                logger.info("%s guessing at missing ts. Last: %s Now: %s", self.name, _last_suffix, suffix)
-                _suffix = suffix - (suffix - _last_suffix) + 1
-                _prefix = prefix
-                _i = 1
-                while suffix > _suffix:
-                    if len(self.idx[_prefix]) >= 25:
-                        _prefix += 1
-                    self.idx[_prefix].append(_suffix)
-                    _new_timestamp = _url[0] - (TSLENGTH * _i)
-                    _new_url = _url[1].replace(str(prefix),
-                                               str(_prefix)).replace(str(suffix),
-                                                                     str(_suffix))
-                    logger.info("%s guessed: %s @ %s", self.name, _new_timestamp, _new_url)
-                    self._cache_url([_new_timestamp, _new_url])
-                    _suffix += 1
-                    _i += 1
-            else:
-                logger.debug("%s resetting prefix: %s", self.name, prefix)
-                self.idx = {prefix: [suffix]}
+            # elif suffix - _last_suffix > 1:
+            #     logger.info("%s guessing at missing ts. Last: %s Now: %s", self.name, _last_suffix, suffix)
+            #     _suffix = suffix - (suffix - _last_suffix) + 1
+            #     _prefix = prefix
+            #     _i = 1
+            #     while suffix > _suffix:
+            #         if len(self.idx[_prefix]) >= 25:
+            #             _prefix += 1
+            #         self.idx[_prefix].append(_suffix)
+            #         _new_timestamp = _url[0] - (TSLENGTH * _i)
+            #         _new_url = _url[1].replace(str(prefix),
+            #                                    str(_prefix)).replace(str(suffix),
+            #                                                          str(_suffix))
+            #         logger.info("%s guessed: %s @ %s", self.name, _new_timestamp, _new_url)
+            #         self._cache_url([_new_timestamp, _new_url])
+            #         _suffix += 1
+            #         _i += 1
+            # else:
+            #     logger.debug("%s resetting prefix: %s", self.name, prefix)
+            #     self.idx = {prefix: [suffix]}
         else:
             logger.debug("%s incrementing prefix: %s", self.name, prefix)
             self.idx = {prefix: [suffix]}
