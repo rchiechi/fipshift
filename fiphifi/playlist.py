@@ -127,6 +127,8 @@ class FipPlaylist(threading.Thread):
                 continue
             _url = [_timestamp, f'{FIPBASEURL}{_l.strip()}']
             self.ingest_url(_url)
+        if not _timestamp:
+            logger.warning("%s did not parse the playlist", self.name)
         self.last_update = time.time()
         self.delay = 15
 
