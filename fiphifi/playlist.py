@@ -170,7 +170,7 @@ class FipPlaylist(threading.Thread):
             #     logger.debug("%s resetting prefix: %s", self.name, prefix)
             #     self.idx = {prefix: [suffix]}
         else:
-            logger.debug("%s incrementing prefix: %s (%s)", self.name, prefix, len(self.idx[list(self.idx.keys())[-1]]))
+            logger.debug("%s incrementing prefix: %s", self.name, prefix)
             self.idx = {prefix: [suffix]}
         self.puthistory(_url)
         self.buff.put(_url)
