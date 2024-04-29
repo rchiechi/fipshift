@@ -139,6 +139,7 @@ class FipPlaylist(threading.Thread):
             return
         if _url in self._history:
             logger.debug("%s m3u overlap %s:%s ", self.name, prefix, suffix)
+            return
         if prefix in self.idx:
             _last_suffix = self.idx[prefix][-1]
             if suffix - _last_suffix == 1:
