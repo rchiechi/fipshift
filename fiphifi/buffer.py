@@ -65,7 +65,7 @@ class Buffer(threading.Thread):
                         fh.write(req.content)
                     if os.path.getsize(_ts) > 4096:
                         logger.debug('%s wrote %s (%0.0f kb)', self.name, _ts, os.path.getsize(_ts) / 1024)
-                        with open(SILENTAAC4, 'rb') as fh:
+                        with open(_ts, 'rb') as fh:
                             self.lastts = fh.read()
                         success = True
                     else:
@@ -76,7 +76,6 @@ class Buffer(threading.Thread):
                 logger.warning("%s inserting garbage for %s", self.name, _ts)
                 with open(_ts, 'wb') as fh:
                     fh.write(self.lastts)
-                # shutil.copy(SILENTAAC4, _ts)
             self.playlist.add(_ts)
             self._timestamp.append([parsets(_ts)[1], _timestamp])
         except queue.Empty:
