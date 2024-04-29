@@ -117,6 +117,8 @@ class FIPMetadata(threading.Thread):
         return _metadata
 
     def _getmeta(self, when):
+        if when not in self.metadata:
+            logger.debug("%s key %s not found, returning template.", self.name, when)
         _metadata = self.metadata.get(when, METATEMPLATE[when])
         if isinstance(_metadata, list):
             _metadata = _metadata[0]
