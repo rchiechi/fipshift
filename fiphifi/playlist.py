@@ -142,7 +142,7 @@ class FipPlaylist(threading.Thread):
             if suffix - _last_suffix == 1:
                 self.idx[prefix].append(suffix)
             elif suffix == _last_suffix:
-                logger.debug("%s not caching same url twice, %s:5s ", self.name, prefix, suffix)
+                logger.debug("%s not caching same url twice, %s:%s ", self.name, prefix, suffix)
                 return
             elif suffix < _last_suffix:
                 logger.debug("%s backwads url order %s: %s -> %s", self.name, prefix, _last_suffix, suffix)
