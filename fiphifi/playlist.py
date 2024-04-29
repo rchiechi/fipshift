@@ -137,15 +137,17 @@ class FipPlaylist(threading.Thread):
         if 0 in (prefix, suffix):
             logger.warning('Malformed url: %s', _url[1])
             return
+        if _url in self._history:
+            logger.debug("%s m3u overlap %s:%s ", self.name, prefix, suffix)
         if prefix in self.idx:
             _last_suffix = self.idx[prefix][-1]
             if suffix - _last_suffix == 1:
                 self.idx[prefix].append(suffix)
-            elif suffix == _last_suffix:
-                logger.debug("%s not caching same url twice, %s:%s ", self.name, prefix, suffix)
-                return
             elif suffix < _last_suffix:
                 logger.debug("%s backwads url order %s: %s -> %s", self.name, prefix, _last_suffix, suffix)
+                return
+            elif suffix == _last_suffix:
+                logger.debug("%s same url twice in a row %s:%s ", self.name, prefix, suffix)
                 return
             else:
                 logger.debug("%s file out of order for %s: %s -> %s", self.name, prefix, _last_suffix, suffix)
