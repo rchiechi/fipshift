@@ -45,7 +45,7 @@ try:
     _fmt = f'%(asctime)s [{cm.Fore.YELLOW}%(levelname)s{cm.Style.RESET_ALL}] \
     {cm.Style.BRIGHT}%(message)s{cm.Style.RESET_ALL}'
 except ModuleNotFoundError:
-    _fmt = '%(asctime)s %(process)d [%(levelname)s] %(message)s'
+    _fmt = '%(asctime)s [%(levelname)s] %(message)s'
 
 _logfile = os.path.join(TMPDIR, os.path.basename(sys.argv[0]).split('.')[0] + '.log')
 loghandler = logging.FileHandler(_logfile)
