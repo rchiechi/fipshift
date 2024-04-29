@@ -24,10 +24,10 @@ except ArgumentTypeError as msg:
     sys.exit()
 
 logger = logging.getLogger(__package__)
+_level = logging.INFO
 if opts.debug:
-    logger.setLevel(logging.DEBUG)
-else:
-    logger.setLevel(logging.INFO)
+    _level = logging.DEBUG
+logger.setLevel(_level)
 
 try:
     TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
@@ -39,12 +39,20 @@ except KeyError:
 if not os.path.exists(TMPDIR):
     os.mkdir(TMPDIR)
 
+try:
+    import colorama as cm
+    cm.init()
+    _fmt = f'%(asctime)s [{cm.Fore.YELLOW}%(levelname)s{cm.Style.RESET_ALL}] \
+    {cm.Style.BRIGHT}%(message)s{cm.Style.RESET_ALL}'
+except ModuleNotFoundError:
+    _fmt = '%(asctime)s %(process)d [%(levelname)s] %(message)s'
+
 _logfile = os.path.join(TMPDIR, os.path.basename(sys.argv[0]).split('.')[0] + '.log')
 loghandler = logging.FileHandler(_logfile)
 loghandler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - [%(levelname)s] %(message)s'))
 logger.addHandler(loghandler)
 streamhandler = logging.StreamHandler()
-streamhandler.setFormatter(logging.Formatter('%(asctime)s %(process)d [%(levelname)s] %(message)s'))
+streamhandler.setFormatter(logging.Formatter(_fmt))
 logger.addHandler(streamhandler)
 logger.info("Logging to %s", _logfile)
 logging.getLogger("urllib3").setLevel(logging.WARN)
