@@ -95,11 +95,14 @@ class FIPMetadata(threading.Thread):
         _json = self._readfromdisk()
         with self.lock:
             _metadata = self.current
-            _json[int(_metadata['startTime'])] = _metadata
+            _now = int(_metadata['startTime'])
+            _json[_now] = _metadata
             logger.debug("%s writing %s", self.name, _metadata)
             _metadata = self.next
-            _json[int(_metadata['startTime'])] = _metadata
-            logger.debug("%s writing %s", self.name, _metadata)
+            _next = int(_metadata['startTime'])
+            if _next not in _json:
+                _json[_next] = _metadata
+                logger.debug("%s writing %s", self.name, _metadata)
             with open(self.cache, 'wt') as fh:
                 json.dump(_json, fh)
 
