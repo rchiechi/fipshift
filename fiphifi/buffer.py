@@ -84,14 +84,18 @@ class Buffer(threading.Thread):
         return success
 
     def _get_url(self, session, url):
+        req = None
         for _i in range(2, 5):
             try:
-                return session.get(url, timeout=TSLENGTH * BUFFERSIZE / _i)
+                req = session.get(url, timeout=TSLENGTH * BUFFERSIZE / _i)
+                if req is not None:
+                    if req.ok:
+                        return req
             except (requests.exceptions.ConnectTimeout,
                     requests.exceptions.ReadTimeout,
                     requests.exceptions.ConnectionError):
                 logger.warning("%s retrying with timeout of %s", self.name, TSLENGTH * BUFFERSIZE / _i)
-        return None
+        return req
 
     @property
     def timestamp(self):
