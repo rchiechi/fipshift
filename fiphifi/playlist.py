@@ -144,11 +144,13 @@ class FipPlaylist(threading.Thread):
             _last_suffix = self.idx[prefix][-1]
             if suffix - _last_suffix == 1:
                 self.idx[prefix].append(suffix)
+            elif suffix > _last_suffix:
+                logger.warning("%s skipped a file %s: %s -> %s", self.name, prefix, _last_suffix, suffix)
             elif suffix < _last_suffix:
                 logger.debug("%s backwads url order %s: %s -> %s", self.name, prefix, _last_suffix, suffix)
                 return
             elif suffix == _last_suffix:
-                logger.debug("%s same url twice in a row %s:%s ", self.name, prefix, suffix)
+                logger.debug("%s same url twice in a row %s: %s ", self.name, prefix, suffix)
                 return
             else:
                 logger.debug("%s file out of order for %s: %s -> %s", self.name, prefix, _last_suffix, suffix)
