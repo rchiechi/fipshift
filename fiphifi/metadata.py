@@ -91,8 +91,9 @@ class FIPMetadata(threading.Thread):
         self.metadata = _json
         return int(_json.get('delayToRefresh', 300000) / 1000)
 
-    def _writetodisk(self):
-        _json = self._readfromdisk()
+    def _writetodisk(self, _json=None):
+        if _json is None:
+            _json = self._readfromdisk()
         with self.lock:
             _metadata = self.current
             _now = int(_metadata['startTime'])
@@ -118,7 +119,7 @@ class FIPMetadata(threading.Thread):
 
     def _getmeta(self, when):
         if when not in self.metadata:
-            logger.debug("%s key %s not found, returning template.", self.name, when)
+            logger.warning("%s key %s not found, returning template.", self.name, when)
         _metadata = self.metadata.get(when, METATEMPLATE[when])
         if isinstance(_metadata, list):
             _metadata = _metadata[0]
@@ -166,6 +167,10 @@ class FIPMetadata(threading.Thread):
     @property
     def jsoncache(self):
         return self._readfromdisk()
+
+    @jsoncache.setter
+    def jsoncache(self, _json):
+        self._writetodisk(_json)
 
     @property
     def remains(self):
