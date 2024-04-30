@@ -11,6 +11,7 @@ import json
 import signal
 from argparse import ArgumentTypeError
 from fiphifi.util import cleantmpdir, checkcache, vampstream
+from fiphifi.logging import FipFormatter
 from fiphifi.playlist import FipPlaylist
 from fiphifi.sender import AACStream
 from fiphifi.options import parseopts
@@ -33,26 +34,21 @@ try:
     TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
     _ = config['USEROPTS']['FFMPEG']
 except KeyError:
-    logger.error("Bad config file, please delete it from %s and try again.", opts.configdir)
+    logger.error("Bad config file, delete it from %s and try again.", opts.configdir)
     sys.exit(1)
 
 if not os.path.exists(TMPDIR):
     os.mkdir(TMPDIR)
 
-try:
-    import colorama as cm
-    cm.init()
-    _fmt = f'%(asctime)s [{cm.Fore.YELLOW}%(levelname)s{cm.Style.RESET_ALL}] \
-    {cm.Style.BRIGHT}%(message)s{cm.Style.RESET_ALL}'
-except ModuleNotFoundError:
-    _fmt = '%(asctime)s [%(levelname)s] %(message)s'
 
+_fmt = '%(asctime)s [%(levelname)s] %(message)s'
 _logfile = os.path.join(TMPDIR, os.path.basename(sys.argv[0]).split('.')[0] + '.log')
 loghandler = logging.FileHandler(_logfile)
 loghandler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - [%(levelname)s] %(message)s'))
 logger.addHandler(loghandler)
 streamhandler = logging.StreamHandler()
-streamhandler.setFormatter(logging.Formatter(_fmt))
+streamhandler.setFormatter(FipFormatter())
+# streamhandler.setFormatter(logging.Formatter(_fmt))
 logger.addHandler(streamhandler)
 logger.info("Logging to %s", _logfile)
 logging.getLogger("urllib3").setLevel(logging.WARN)
