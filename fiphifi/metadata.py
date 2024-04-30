@@ -58,6 +58,7 @@ class FIPMetadata(threading.Thread):
                 continue
             _delay = self._updatemetadata()
             self._writetodisk()
+            logger.debug("%s wrote %s", self.name, self.current)
             for _ in range(_delay):
                 if self.alive:
                     time.sleep(1)
@@ -98,12 +99,10 @@ class FIPMetadata(threading.Thread):
             _metadata = self.current
             _now = int(_metadata['startTime'])
             _json[_now] = _metadata
-            logger.debug("%s writing %s", self.name, _metadata)
             _metadata = self.next
             _next = int(_metadata['startTime'])
             if _next not in _json:
                 _json[_next] = _metadata
-                logger.debug("%s writing %s", self.name, _metadata)
             with open(self.cache, 'wt') as fh:
                 json.dump(_json, fh)
 
