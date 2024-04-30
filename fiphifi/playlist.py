@@ -82,6 +82,8 @@ class FipPlaylist(threading.Thread):
             return self._history[:]
 
     def prunehistory(self, until):
+        if until <= 0:
+            return
         logger.debug("%s pruning history %s -> %s.", self.name, len(self._history), until)
         logger.info("%s cache: %0.0f min", self.name, len(self._history) * TSLENGTH / 60)
         with self.lock:
