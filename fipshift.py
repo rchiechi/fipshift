@@ -187,7 +187,7 @@ try:
                 track = _meta.get('track')
                 artist = _meta.get('artist')
                 album = _meta.get('album')
-                logger.debug('Updating metadata at %s for %ss', int(_timeidx), int(_meta['endTime'] - _start))
+                logger.info('Updating metadata at %s for %ss', int(_timeidx), int(_meta['endTime'] - _start))
                 logger.info(f'Buffer at {(URLQ.qsize() * TSLENGTH / opts.delay)*100:0.0f}%.')
                 break
         if not _meta:

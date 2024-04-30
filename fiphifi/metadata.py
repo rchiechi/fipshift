@@ -92,9 +92,8 @@ class FIPMetadata(threading.Thread):
         self.metadata = _json
         return int(_json.get('delayToRefresh', 300000) / 1000)
 
-    def _writetodisk(self, _json=None):
-        if _json is None:
-            _json = self._readfromdisk()
+    def _writetodisk(self):
+        _json = self._readfromdisk()
         with self.lock:
             _metadata = self.current
             _now = int(_metadata['startTime'])
@@ -169,7 +168,9 @@ class FIPMetadata(threading.Thread):
 
     @jsoncache.setter
     def jsoncache(self, _json):
-        self._writetodisk(_json)
+        with self.lock:
+            with open(self.cache, 'wt') as fh:
+                json.dump(_json, fh)
 
     @property
     def remains(self):
