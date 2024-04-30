@@ -3,7 +3,7 @@ import logging
 import threading
 import json
 import datetime as dt
-from fiphifi.util import parsets
+from fiphifi.util import parsets, checkcache
 from fiphifi.constants import FIPBASEURL, FIPLIST, STRPTIME, BUFFERSIZE, TSLENGTH
 import requests
 
@@ -13,16 +13,14 @@ logger = logging.getLogger(__package__+'.playlist')
 class FipPlaylist(threading.Thread):
 
     delay = 5
-    duration = 4
+    duration = TSLENGTH
 
-    def __init__(self, _alive, pl_queue, cache_file, **kwargs):
+    def __init__(self, _alive, cache_file):
         threading.Thread.__init__(self)
         self.name = 'FipPlaylist Thread'
         self._alive = _alive
-        self.buff = pl_queue
-        self._history = kwargs.get('history', [])
         self.cache_file = cache_file
-        # self.cached = [[0,0]]
+        self.buff, self._history = checkcache(self.cache_file)
         self.lock = threading.Lock()
         self.last_update = time.time()
         self.offset = 0
@@ -66,15 +64,16 @@ class FipPlaylist(threading.Thread):
             if len(self._history) > self.buff.qsize():
                 self.prunehistory(self.buff.qsize() - BUFFERSIZE)
         logger.info('%s wrote %s urls to cache', self.name, self.writecache())
-        logger.info('%s ended (alive: %s)', self.name, self.alive)
+        logger.warning('%s ended (alive: %s)', self.name, self.alive)
 
     def puthistory(self, _url):
         with self.lock:
             self._history.append(_url)
 
     def writecache(self):
-        with open(self.cache_file, 'w') as fh:
-            json.dump(self._history, fh)
+        with self.lock:
+            with open(self.cache_file, 'w') as fh:
+                json.dump(self._history, fh)
         logger.info("%s cache: %0.0f min", self.name, len(self._history) * TSLENGTH / 60)
         return len(self._history)
 
@@ -87,18 +86,17 @@ class FipPlaylist(threading.Thread):
         logger.info("%s cache: %0.0f min", self.name, len(self._history) * TSLENGTH / 60)
         with self.lock:
             self._history = self._history[-until:]
-            # if until < len(self.cached):
-            #     self.cached = self.cached[-until:]
         logger.info("%s cache: %0.0f min", self.name, len(self._history) * TSLENGTH / 60)
 
     def checkhistory(self):
         prefix, suffix = 0, 0
-        for _url in self._history:
-            prefix, suffix = parsets(_url[1])
-            if prefix in self.idx:
-                self.idx[prefix].append(suffix)
-            else:
-                self.idx = {prefix: [suffix]}
+        with self.lock:
+            for _url in self._history:
+                prefix, suffix = parsets(_url[1])
+                if prefix in self.idx:
+                    self.idx[prefix].append(suffix)
+                else:
+                    self.idx = {prefix: [suffix]}
         if 0 not in (prefix, suffix):
             logger.info("%s bootstrapping index at %s:%s", self.name, prefix, suffix)
 
@@ -125,8 +123,7 @@ class FipPlaylist(threading.Thread):
                     logger.warning("Error finding duration from %s", _l.strip())
             if _l[0] == '#':
                 continue
-            _url = [_timestamp, f'{FIPBASEURL}{_l.strip()}']
-            self.ingest_url(_url)
+            self.ingest_url([_timestamp, f'{FIPBASEURL}{_l.strip()}'])
         if not _timestamp:
             logger.warning("%s did not parse the playlist", self.name)
         self.last_update = time.time()
@@ -192,3 +189,11 @@ class FipPlaylist(threading.Thread):
     @property
     def history(self):
         return self.gethistory()
+
+    @property
+    def urlq(self):
+        return self.buff
+
+    @urlq.setter
+    def urlq(self, _queue):
+        self.buff = _queue

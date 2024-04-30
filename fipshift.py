@@ -9,7 +9,7 @@ import time
 import subprocess
 import signal
 from argparse import ArgumentTypeError
-from fiphifi.util import cleantmpdir, checkcache, vampstream
+from fiphifi.util import cleantmpdir, vampstream
 from fiphifi.logging import FipFormatter
 from fiphifi.playlist import FipPlaylist
 from fiphifi.sender import AACStream
@@ -74,7 +74,6 @@ logger.info("Starting buffer threads.")
 CLEAN = False
 CACHE = os.path.join(TMPDIR, 'fipshift.cache')
 ALIVE = threading.Event()
-history, URLQ = checkcache(CACHE)
 children = {}
 
 def cleanup(*args):
@@ -96,7 +95,8 @@ def cleanup(*args):
     sys.exit()
 
 
-children["playlist"] = FipPlaylist(ALIVE, URLQ, CACHE, history=history)
+children["playlist"] = FipPlaylist(ALIVE, CACHE)
+URLQ = children["playlist"].urlq
 children["metadata"] = FIPMetadata(ALIVE, tmpdir=TMPDIR)
 children["sender"] = AACStream(ALIVE, URLQ,
                                delay=opts.delay,
@@ -117,7 +117,7 @@ logger.info('Starting vamp stream.')
 _c = config['USEROPTS']
 ffmpeg_proc = vampstream(FFMPEG, _c)
 try:
-    epoch = history[0][0]
+    epoch = children["playlist"].history[0][0]
     logger.info("Restarting from cached history")
 except IndexError:
     epoch = time.time()
