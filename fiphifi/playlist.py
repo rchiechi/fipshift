@@ -20,7 +20,7 @@ class FipPlaylist(threading.Thread):
         self.name = 'FipPlaylist Thread'
         self._alive = _alive
         self.cache_file = cache_file
-        self.buff, self._history = checkcache(self.cache_file)
+        self._history, self.buff = checkcache(self.cache_file)
         self.lock = threading.Lock()
         self.last_update = time.time()
         self.offset = 0
