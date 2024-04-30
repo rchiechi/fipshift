@@ -6,7 +6,7 @@ import logging
 import requests  # type: ignore
 from fiphifi.constants import METAURL, METATEMPLATE  # type: ignore
 
-logger = logging.getLogger(__package__)
+logger = logging.getLogger(__package__+'.metadata')
 
 
 def send_metadata(url, mount, slug, auth):
@@ -62,7 +62,7 @@ class FIPMetadata(threading.Thread):
             for _ in range(_delay):
                 if self.alive:
                     time.sleep(1)
-        logger.info('%s ended (alive: %s)', self.name, self.alive)
+        logger.warning('%s ended (alive: %s)', self.name, self.alive)
 
     def _updatemetadata(self):
         if not self.alive:

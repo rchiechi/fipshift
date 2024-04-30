@@ -7,7 +7,7 @@ from fiphifi.util import parsets
 from fiphifi.constants import FIPBASEURL, FIPLIST, STRPTIME, BUFFERSIZE, TSLENGTH
 import requests
 
-logger = logging.getLogger(__package__)
+logger = logging.getLogger(__package__+'.playlist')
 
 
 class FipPlaylist(threading.Thread):
@@ -130,7 +130,7 @@ class FipPlaylist(threading.Thread):
         if not _timestamp:
             logger.warning("%s did not parse the playlist", self.name)
         self.last_update = time.time()
-        self.delay = 15
+        self.delay = 20
 
     def ingest_url(self, _url):
         prefix, suffix = parsets(_url[1])
@@ -142,10 +142,10 @@ class FipPlaylist(threading.Thread):
             return
         if prefix in self.idx:
             _last_suffix = self.idx[prefix][-1]
-            if suffix - _last_suffix == 1:
+            if suffix > _last_suffix:
                 self.idx[prefix].append(suffix)
-            elif suffix > _last_suffix:
-                logger.warning("%s skipped a file %s: %s -> %s", self.name, prefix, _last_suffix, suffix)
+                if suffix - _last_suffix > 1:
+                    logger.warning("%s skipped a file %s: %s -> %s", self.name, prefix, _last_suffix, suffix)
             elif suffix < _last_suffix:
                 logger.debug("%s backwads url order %s: %s -> %s", self.name, prefix, _last_suffix, suffix)
                 return

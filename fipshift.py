@@ -7,7 +7,6 @@ import threading
 import logging
 import time
 import subprocess
-import json
 import signal
 from argparse import ArgumentTypeError
 from fiphifi.util import cleantmpdir, checkcache, vampstream
@@ -40,15 +39,12 @@ except KeyError:
 if not os.path.exists(TMPDIR):
     os.mkdir(TMPDIR)
 
-
-_fmt = '%(asctime)s [%(levelname)s] %(message)s'
 _logfile = os.path.join(TMPDIR, os.path.basename(sys.argv[0]).split('.')[0] + '.log')
 loghandler = logging.FileHandler(_logfile)
 loghandler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - [%(levelname)s] %(message)s'))
 logger.addHandler(loghandler)
 streamhandler = logging.StreamHandler()
 streamhandler.setFormatter(FipFormatter())
-# streamhandler.setFormatter(logging.Formatter(_fmt))
 logger.addHandler(streamhandler)
 logger.info("Logging to %s", _logfile)
 logging.getLogger("urllib3").setLevel(logging.WARN)
@@ -191,7 +187,7 @@ try:
                 track = _meta.get('track')
                 artist = _meta.get('artist')
                 album = _meta.get('album')
-                logger.info(f'Updating metadata at {_timeidx}')
+                logger.debug('Updating metadata at %s for %ss', int(_timeidx), int(_meta['endTime'] - _start))
                 logger.info(f'Buffer at {(URLQ.qsize() * TSLENGTH / opts.delay)*100:0.0f}%.')
                 break
         if not _meta:

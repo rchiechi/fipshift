@@ -10,7 +10,7 @@ import subprocess
 from fiphifi.util import parsets
 from fiphifi.constants import BUFFERSIZE, TSLENGTH
 
-logger = logging.getLogger(__package__)
+logger = logging.getLogger(__package__+'.buffer')
 SILENTAAC2 = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'silence_2s.ts')
 SILENTAAC4 = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'silence_2s.ts')
 
@@ -40,7 +40,7 @@ class Buffer(threading.Thread):
             logger.error("%s died %s", self.name, str(msg))
         finally:
             self.playlist.cleanup()
-            logger.info('%s exiting.', self.name)
+            logger.warning('%s ending.', self.name)
 
     def advance(self, session):
         self.playlist.next()

@@ -8,7 +8,7 @@ from fiphifi.constants import TSLENGTH
 
 # 'https://stream.radiofrance.fr/msl4/fip/prod1transcoder1/fip_aac_hifi_4_1673363954_368624.ts?id=radiofrance'
 
-logger = logging.getLogger(__package__)
+logger = logging.getLogger(__package__+'.sender')
 
 class AACStream(threading.Thread):
 
@@ -68,7 +68,7 @@ class AACStream(threading.Thread):
                 logger.info("%s skipped %s urls to keep delay.", self.name, skipped)
                 logger.debug('Offset: %0.0f / Delay: %0.0f', self.offset, self.delay)
             time.sleep(TSLENGTH)
-        logger.info('%s dying (alive: %s)', self.name, self.alive)
+        logger.warning('%s dying (alive: %s)', self.name, self.alive)
         buffer_alive.clear()
         playlist.cleanup()
         self._cleanup()
@@ -79,7 +79,7 @@ class AACStream(threading.Thread):
             self.buffer.join(30)
             if self.buffer.is_alive():
                 logger.warning("%s refusing to die.", self.buffer.name)
-        logger.info('%s exiting.', self.name)
+        logger.warning('%s ending.', self.name)
 
     def _get_playlist(self):
         #  self._playlist must be an absolute path
