@@ -147,13 +147,9 @@ class Playlist():
             else:
                 os.replace(_src, _ts)
             logger.debug("%s: %0.0f kb", _ts, os.path.getsize(_ts) / 1024)
-            # with open(_src, 'rb') as src_fh:
-            #     with open(_ts, 'wb') as dst_fh:
-            #         dst_fh.write(src_fh.read())
-            # os.unlink(_src)
             self.current[_i] = parsets(_src)[1]
             self._lastupdate = time.time()
-            logger.debug("Playlist 0: %s, 1: %s", self.current[0], self.current[1])
+            logger.info("Playlist 0: %s, 1: %s", self.current[0], self.current[1])
         except (OSError, FileNotFoundError):
             logger.error("Error reading %s, cannot add to playlist", _src)
 
