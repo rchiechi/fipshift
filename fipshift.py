@@ -56,6 +56,7 @@ streamhandler.setFormatter(logging.Formatter(_fmt))
 logger.addHandler(streamhandler)
 logger.info("Logging to %s", _logfile)
 logging.getLogger("urllib3").setLevel(logging.WARN)
+logging.getLogger("charset_normalizer").setLevel(logging.WARN)
 logger.debug("Debug logging enabled.")
 
 ABSPATH = os.path.join(os.path.dirname(os.path.realpath(__file__)))
