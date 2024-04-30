@@ -45,7 +45,7 @@ class Buffer(threading.Thread):
     def advance(self, session):
         self.playlist.next()
         if self.playlist.buffersize > BUFFERSIZE:
-            time.sleep(1)
+            time.sleep(0.5)
             return True
         success = False
         try:
@@ -142,7 +142,7 @@ class Playlist():
                 logger.warning("Refusing to write empty file %s.", _src)
             else:
                 os.replace(_src, _ts)
-            logger.debug("%0.0f: %0.0f kb", _ts, os.path.getsize(_ts) / 1024)
+            logger.debug("%s: %0.0f kb", _ts, os.path.getsize(_ts) / 1024)
             # with open(_src, 'rb') as src_fh:
             #     with open(_ts, 'wb') as dst_fh:
             #         dst_fh.write(src_fh.read())
