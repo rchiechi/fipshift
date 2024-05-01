@@ -2,51 +2,13 @@ import os
 import time
 import logging
 import threading
-import subprocess
 import queue
 from fiphifi.buffer import Buffer
-from fiphifi.util import get_tmpdir
 from fiphifi.constants import TSLENGTH
 
 
 logger = logging.getLogger(__package__+'.sender')
 
-def vampstream(FFMPEG, _c):
-    _ffmpegcmd = [FFMPEG,
-                  '-loglevel', 'fatal',
-                  '-nostdin',
-                  '-re',
-                  '-i', 'https://icecast.radiofrance.fr/fip-hifi.aac?id=radiofrance',
-                  '-content_type', 'audio/aac',
-                  '-ice_name', 'FipShift',
-                  '-ice_description', 'Time-shifted FIP stream',
-                  '-ice_genre', 'Eclectic',
-                  '-c:a', 'copy',
-                  '-f', 'adts',
-                  f"icecast://{_c['USER']}:{_c['PASSWORD']}@{_c['HOST']}:{_c['PORT']}/{_c['MOUNT']}"]
-    return subprocess.Popen(_ffmpegcmd)
-
-def delayedstream(_c, playlist):
-    _ffmpegcmd = [_c['FFMPEG'],
-                  '-loglevel', 'warning',
-                  '-nostdin',
-                  '-re',
-                  '-stream_loop', '-1',
-                  '-safe', '0',
-                  '-i', playlist,
-                  '-f', '-concat',
-                  '-flush_packets', '0',
-                  '-content_type', 'audio/aac',
-                  '-ice_name', 'FipShift',
-                  '-ice_description', 'Time-shifted FIP stream',
-                  '-ice_genre', 'Eclectic',
-                  '-c', 'copy',
-                  '-f', 'adts',
-                  f"icecast://{_c['USER']}:{_c['PASSWORD']}@{_c['HOST']}:{_c['PORT']}/{_c['MOUNT']}"]
-    return subprocess.Popen(_ffmpegcmd,
-                            stdin=subprocess.PIPE,
-                            stdout=open(os.path.join(get_tmpdir(_c), 'ffmpeg.log'), 'w'),
-                            stderr=subprocess.STDOUT)
 
 class AACStream(threading.Thread):
 

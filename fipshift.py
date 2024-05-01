@@ -12,10 +12,44 @@ from argparse import ArgumentTypeError
 from fiphifi.util import get_tmpdir, cleantmpdir
 from fiphifi.logging import FipFormatter
 from fiphifi.playlist import FipPlaylist
-from fiphifi.sender import AACStream, vampstream
+from fiphifi.sender import AACStream
 from fiphifi.options import parseopts
 from fiphifi.metadata import FIPMetadata, send_metadata
 from fiphifi.constants import TSLENGTH
+
+def vampstream(FFMPEG, _c):
+    _ffmpegcmd = [FFMPEG,
+                  '-loglevel', 'fatal',
+                  '-nostdin',
+                  '-re',
+                  '-i', 'https://icecast.radiofrance.fr/fip-hifi.aac?id=radiofrance',
+                  '-content_type', 'audio/aac',
+                  '-ice_name', 'FipShift',
+                  '-ice_description', 'Time-shifted FIP stream',
+                  '-ice_genre', 'Eclectic',
+                  '-c:a', 'copy',
+                  '-f', 'adts',
+                  f"icecast://{_c['USER']}:{_c['PASSWORD']}@{_c['HOST']}:{_c['PORT']}/{_c['MOUNT']}"]
+    return subprocess.Popen(_ffmpegcmd)
+
+def cleanup(*args):
+    global CLEAN
+    if CLEAN:
+        return
+    logger.warning("Main thread caught SIGINT, shutting down.")
+    ALIVE.clear()
+    for child in children:
+        logger.info("Joining %s", children[child].name)
+        try:
+            children[child].join(timeout=30)
+            if children[child].is_alive():
+                logger.warning("%s refusing to die.", children[child].name)
+        except RuntimeError:
+            pass
+    logger.debug("Cleaned %s files in %s.", cleantmpdir(TMPDIR), TMPDIR)
+    CLEAN = True
+    sys.exit()
+
 
 try:
     opts, config = parseopts()
@@ -75,25 +109,6 @@ CLEAN = False
 CACHE = os.path.join(TMPDIR, 'fipshift.cache')
 ALIVE = threading.Event()
 children = {}
-
-def cleanup(*args):
-    global CLEAN
-    if CLEAN:
-        return
-    logger.warning("Main thread caught SIGINT, shutting down.")
-    ALIVE.clear()
-    for child in children:
-        logger.info("Joining %s", children[child].name)
-        try:
-            children[child].join(timeout=30)
-            if children[child].is_alive():
-                logger.warning("%s refusing to die.", children[child].name)
-        except RuntimeError:
-            pass
-    logger.debug("Cleaned %s files in %s.", cleantmpdir(TMPDIR), TMPDIR)
-    CLEAN = True
-    sys.exit()
-
 
 children["playlist"] = FipPlaylist(ALIVE, CACHE)
 children["metadata"] = FIPMetadata(ALIVE, tmpdir=TMPDIR)

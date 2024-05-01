@@ -3,9 +3,9 @@ import time
 import logging
 import threading
 import queue
+import subprocess
 import requests
 import psutil
-from fiphifi.sender import delayedstream
 from fiphifi.util import parsets, get_tmpdir
 from fiphifi.constants import BUFFERSIZE, TSLENGTH
 
@@ -13,6 +13,28 @@ logger = logging.getLogger(__package__+'.buffer')
 SILENTAAC2 = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'silence_2s.ts')
 SILENTAAC4 = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'silence_2s.ts')
 
+
+def delayedstream(_c, playlist):
+    _ffmpegcmd = [_c['FFMPEG'],
+                  '-loglevel', 'warning',
+                  '-nostdin',
+                  '-re',
+                  '-stream_loop', '-1',
+                  '-safe', '0',
+                  '-i', playlist,
+                  '-f', '-concat',
+                  '-flush_packets', '0',
+                  '-content_type', 'audio/aac',
+                  '-ice_name', 'FipShift',
+                  '-ice_description', 'Time-shifted FIP stream',
+                  '-ice_genre', 'Eclectic',
+                  '-c', 'copy',
+                  '-f', 'adts',
+                  f"icecast://{_c['USER']}:{_c['PASSWORD']}@{_c['HOST']}:{_c['PORT']}/{_c['MOUNT']}"]
+    return subprocess.Popen(_ffmpegcmd,
+                            stdin=subprocess.PIPE,
+                            stdout=open(os.path.join(get_tmpdir(_c), 'ffmpeg.log'), 'w'),
+                            stderr=subprocess.STDOUT)
 
 class Buffer(threading.Thread):
 
