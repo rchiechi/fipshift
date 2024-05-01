@@ -9,10 +9,10 @@ import time
 import subprocess
 import signal
 from argparse import ArgumentTypeError
-from fiphifi.util import get_tmpdir, cleantmpdir, vampstream
+from fiphifi.util import get_tmpdir, cleantmpdir
 from fiphifi.logging import FipFormatter
 from fiphifi.playlist import FipPlaylist
-from fiphifi.sender import AACStream
+from fiphifi.sender import AACStream, vampstream
 from fiphifi.options import parseopts
 from fiphifi.metadata import FIPMetadata, send_metadata
 from fiphifi.constants import TSLENGTH
@@ -137,7 +137,6 @@ try:
                       _c['MOUNT'],
                       f"Realtime Stream: T-{_remains:0.0f} minutes",
                       (_c['USER'], _c['PASSWORD']))
-        # writecache(CACHE, children["playlist"].history)
         _runtime = time.time() - epoch
 except KeyboardInterrupt:
     logger.info("Killing threads")

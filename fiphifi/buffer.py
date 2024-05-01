@@ -5,7 +5,8 @@ import threading
 import queue
 import requests
 import psutil
-from fiphifi.util import parsets, delayedstream, get_tmpdir
+from fiphifi.sender import delayedstream
+from fiphifi.util import parsets, get_tmpdir
 from fiphifi.constants import BUFFERSIZE, TSLENGTH
 
 logger = logging.getLogger(__package__+'.buffer')
@@ -217,20 +218,6 @@ class Playlist():
             logger.info("Forcing update")
             playing = 0
             self.current[0] = self.current[1] + 1
-            # for _i, _ts in enumerate(self.tsfiles):
-            #     _src = self.tsqueue.get()
-            #     self._update(_src, _i)
-            #     return -1
-            # with open(SILENTAAC2, 'rb') as src_fh:
-            #     for _ts in self.tsfiles:
-            #
-            #     for _ts in self.tsfiles:
-            #         # shutil.copy(SILENTAAC2, os.path.join(self.tmpdir, _ts))
-            #         src_fh.seek(0)
-            #         with open(os.path.join(self.tmpdir, _ts), 'wb') as dst_fh:
-            #             dst_fh.write(src_fh.read())
-            #     self.current[1] = self.current[0] + 1
-            # return -1
         #  Check to see which idx is playing
         #  and then make sure the next idx is
         #  larger than the current one
