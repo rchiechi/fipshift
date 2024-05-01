@@ -75,7 +75,7 @@ def vampstream(FFMPEG, _c):
     return subprocess.Popen(_ffmpegcmd)
 
 def delayedstream(_c, playlist):
-    _ffmpegcmd = [self.ffmpeg,
+    _ffmpegcmd = [_c['USEROPTS']['FFMPEG'],
                   '-loglevel', 'warning',
                   '-nostdin',
                   '-re',
