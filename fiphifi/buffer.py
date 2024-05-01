@@ -6,8 +6,8 @@ import queue
 import requests
 import psutil
 # import shutil
-import subprocess
-from fiphifi.util import parsets
+# import subprocess
+from fiphifi.util import parsets, delayedstream, get_tmpdir
 from fiphifi.constants import BUFFERSIZE, TSLENGTH
 
 logger = logging.getLogger(__package__+'.buffer')
@@ -17,15 +17,17 @@ SILENTAAC4 = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'silence_
 
 class Buffer(threading.Thread):
 
-    def __init__(self, _alive, urlq, playlist, **kwargs):
+    duration = TSLENGTH
+
+    def __init__(self, _alive, urlq, config):
         threading.Thread.__init__(self)
         self.name = 'Buffer Thread'
         self._alive = _alive
         self.urlq = urlq
-        self.tmpdir = kwargs.get('tmpdir', '/tmp')
+        self.tmpdir = get_tmpdir(config)
         self._timestamp = [[0, time.time()]]
         self.last_timestamp = 0
-        self.playlist = playlist
+        self.playlist = Playlist(config)
         with open(SILENTAAC4, 'rb') as fh:
             self.lastts = fh.read()
 
@@ -49,11 +51,11 @@ class Buffer(threading.Thread):
             return True
         success = False
         try:
-            _timestamp, _url = self.urlq.get(timeout=TSLENGTH)
+            _timestamp, _url = self.urlq.get(timeout=self.duration)
             _ts = os.path.join(self.tmpdir, os.path.basename(_url.split('?')[0]))
             _retry_start = time.time()
             while not success:
-                if time.time() - _retry_start >= TSLENGTH * BUFFERSIZE:
+                if time.time() - _retry_start >= self.duration * BUFFERSIZE:
                     logger.warning("%s could not download %s", self.name, os.path.basename(_url))
                     break
                 req = self._get_url(session, _url)
@@ -80,21 +82,21 @@ class Buffer(threading.Thread):
             self._timestamp.append([parsets(_ts)[1], _timestamp])
         except queue.Empty:
             logger.warning('%s url queue empty.', self.name)
-            time.sleep(TSLENGTH)
+            time.sleep(self.duration)
         return success
 
     def _get_url(self, session, url):
         req = None
         for _i in range(2, 5):
             try:
-                req = session.get(url, timeout=TSLENGTH * BUFFERSIZE / _i)
+                req = session.get(url, timeout=self.duration * BUFFERSIZE / _i)
                 if req is not None:
                     if req.ok:
                         return req
             except (requests.exceptions.ConnectTimeout,
                     requests.exceptions.ReadTimeout,
                     requests.exceptions.ConnectionError):
-                logger.warning("%s retrying with timeout of %s", self.name, TSLENGTH * BUFFERSIZE / _i)
+                logger.warning("%s retrying with timeout of %s", self.name, self.duration * BUFFERSIZE / _i)
         return req
 
     @property
@@ -116,13 +118,26 @@ class Buffer(threading.Thread):
     def initialized(self):
         return self.playlist.initialized
 
+    @property
+    def tslength(self):
+        return self.duration
+
+    @tslength.setter
+    def tslength(self, _duration):
+        if _duration > 0:
+            self.duration = _duration
+        else:
+            logger.error("%s not setting tslength < 0", self.name)
+
 class Playlist():
 
-    def __init__(self, ffmpeg_cmd, **kwargs):
-        self.tmpdir = kwargs.get('tmpdir', '/tmp')
+    duration = TSLENGTH
+
+    def __init__(self, config):
+        self.config = config
+        self.tmpdir = get_tmpdir(config)
         self.playlist = os.path.join(self.tmpdir, 'playlist.txt')
         self.tsfiles = ("first.ts", "second.ts")
-        self.ffmpeg_cmd = ffmpeg_cmd
         self.ffmpeg_proc = None
         self.tsqueue = queue.SimpleQueue()
         self.current = {-1: 0, 0: 0, 1: 0}
@@ -160,10 +175,11 @@ class Playlist():
         logger.info('Starting ffmpeg')
         if self.initialized and not self.ffmpeg_healthy:
             self._advance_playlist(force=True)
-        self.ffmpeg_proc = subprocess.Popen(self.ffmpeg_cmd,
-                                            stdin=subprocess.PIPE,
-                                            stdout=open(os.path.join(self.tmpdir, 'ffmpeg.log'), 'w'),
-                                            stderr=subprocess.STDOUT)
+        self.ffmpeg_proc = delayedstream(self.config, self.playlist)
+        # self.ffmpeg_proc = subprocess.Popen(self.ffmpeg_cmd,
+        #                                     stdin=subprocess.PIPE,
+        #                                     stdout=open(os.path.join(self.tmpdir, 'ffmpeg.log'), 'w'),
+        #                                     stderr=subprocess.STDOUT)
         time.sleep(1)
         if not self.ffmpeg_alive:
             logger.error("Failed to start ffmpeg")
@@ -243,8 +259,8 @@ class Playlist():
         return playing
 
     def _get_playing(self):
-        if self.lastupdate > TSLENGTH+1 and self.lastupdate < 1000:
-            logger.warning("Playlist updated more than %ss ago (%0.0f)", TSLENGTH, self.lastupdate)
+        if self.lastupdate > self.duration+1 and self.lastupdate < 1000:
+            logger.warning("Playlist updated more than %ss ago (%0.0f)", self.duration, self.lastupdate)
         if 1000 > self.lastupdate > 60:
             logger.warning("It's been more than a minute, dying.")
             raise OSError("Playlist neglected!")
@@ -317,3 +333,13 @@ class Playlist():
             return True
         return False
 
+    @property
+    def tslength(self):
+        return self.duration
+
+    @tslength.setter
+    def tslength(self, _duration):
+        if _duration > 0:
+            self.duration = _duration
+        else:
+            logger.error("Playlist not setting tslength < 0")

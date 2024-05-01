@@ -15,6 +15,7 @@ class AACStream(threading.Thread):
     playing = False
     session = None
     buffer = None
+    duration = TSLENGTH
 
     def __init__(self, _alive, urlqueue, delay, config, **kwargs):
         threading.Thread.__init__(self)
@@ -22,14 +23,7 @@ class AACStream(threading.Thread):
         self._alive = _alive
         self.urlq = urlqueue
         self._delay = delay
-        self.tmpdir = kwargs.get('tmpdir', '/tmp')
-        self.ffmpeg = config['USEROPTS']['FFMPEG']
-        self.ffmpeg_pidfile = os.path.join(self.tmpdir, 'ffmpeg.pid')
-        self.mount = config['USEROPTS']['MOUNT']
-        self.iceserver = f"{config['USEROPTS']['HOST']}:{config['USEROPTS']['PORT']}"
-        self.un = config['USEROPTS']['USER']
-        self.pw = config['USEROPTS']['PASSWORD']
-        self._playlist = os.path.join(self.tmpdir, 'playlist.txt')
+        self.config = config
         self._timestamp = 0
 
     def run(self):
@@ -38,11 +32,10 @@ class AACStream(threading.Thread):
             logger.warn("%s called without alive set.", self.name)
         buffer_alive = threading.Event()
         buffer_alive.set()
-        playlist = self._get_playlist()
+        # playlist = self._get_playlist()
         self.buffer = Buffer(buffer_alive,
                              self.urlq,
-                             playlist=playlist,
-                             tmpdir=self.tmpdir)
+                             config=self.config)
         self.buffer.start()
         offset_tolerace = int(0.1 * self.delay) or 16
         logger.debug('%s setting offset tolerance to %ss', self.name, offset_tolerace)
@@ -51,8 +44,7 @@ class AACStream(threading.Thread):
                 logger.warning('%s Buffer died, trying to restart.', self.name)
                 self.buffer = Buffer(buffer_alive,
                                      self.urlq,
-                                     playlist=playlist,
-                                     tmpdir=self.tmpdir)
+                                     config=self.config)
                 self.buffer.start()
             if offset_tolerace < self.delta < 100000:  # Offset throws huge numbers when timestamp returns 0
                 logger.info('Offset: %0.0f / Delay: %0.0f / Tolerance: %0.0f / Diff: %0.0f',
@@ -67,10 +59,10 @@ class AACStream(threading.Thread):
                     pass
                 logger.info("%s skipped %s urls to keep delay.", self.name, skipped)
                 logger.debug('Offset: %0.0f / Delay: %0.0f', self.offset, self.delay)
-            time.sleep(TSLENGTH)
+            time.sleep(self.duration)
         logger.warning('%s dying (alive: %s)', self.name, self.alive)
         buffer_alive.clear()
-        playlist.cleanup()
+        # playlist.cleanup()
         self._cleanup()
 
     def _cleanup(self):
@@ -81,25 +73,25 @@ class AACStream(threading.Thread):
                 logger.warning("%s refusing to die.", self.buffer.name)
         logger.warning('%s ending.', self.name)
 
-    def _get_playlist(self):
-        #  self._playlist must be an absolute path
-        ffmpegcmd = [self.ffmpeg,
-                     '-loglevel', 'warning',
-                     '-nostdin',
-                     '-re',
-                     '-stream_loop', '-1',
-                     '-safe', '0',
-                     '-i', self._playlist,
-                     '-f', '-concat',
-                     '-flush_packets', '0',
-                     '-content_type', 'audio/aac',
-                     '-ice_name', 'FipShift',
-                     '-ice_description', 'Time-shifted FIP stream',
-                     '-ice_genre', 'Eclectic',
-                     '-c', 'copy',
-                     '-f', 'adts',
-                     f'icecast://{self.un}:{self.pw}@{self.iceserver}/{self.mount}']
-        return Playlist(ffmpegcmd, tmpdir=self.tmpdir)
+    # def _get_playlist(self):
+    #     #  self._playlist must be an absolute path
+    #     ffmpegcmd = [self.ffmpeg,
+    #                  '-loglevel', 'warning',
+    #                  '-nostdin',
+    #                  '-re',
+    #                  '-stream_loop', '-1',
+    #                  '-safe', '0',
+    #                  '-i', self._playlist,
+    #                  '-f', '-concat',
+    #                  '-flush_packets', '0',
+    #                  '-content_type', 'audio/aac',
+    #                  '-ice_name', 'FipShift',
+    #                  '-ice_description', 'Time-shifted FIP stream',
+    #                  '-ice_genre', 'Eclectic',
+    #                  '-c', 'copy',
+    #                  '-f', 'adts',
+    #                  f'icecast://{self.un}:{self.pw}@{self.iceserver}/{self.mount}']
+    #     return Playlist(ffmpegcmd, tmpdir=self.tmpdir)
 
     @property
     def alive(self):
@@ -128,3 +120,14 @@ class AACStream(threading.Thread):
     def delay(self, _delay):
         if isinstance(_delay, int):
             self._delay = _delay
+
+    @property
+    def tslength(self):
+        return self.duration
+
+    @tslength.setter
+    def tslength(self, _duration):
+        if _duration > 0:
+            self.duration = _duration
+        else:
+            logger.error("%s not setting tslength < 0")

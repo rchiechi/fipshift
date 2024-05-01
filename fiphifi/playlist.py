@@ -12,6 +12,7 @@ logger = logging.getLogger(__package__+'.playlist')
 
 class FipPlaylist(threading.Thread):
 
+    offset = -4
     delay = 5
     duration = TSLENGTH
 
@@ -23,7 +24,6 @@ class FipPlaylist(threading.Thread):
         self._history, self.buff = checkcache(self.cache_file)
         self.lock = threading.Lock()
         self.last_update = time.time()
-        self.offset = 0
         self.idx = {0:0}
 
     def run(self):
@@ -91,6 +91,7 @@ class FipPlaylist(threading.Thread):
         logger.info("%s cache: %0.0f min", self.name, len(self._history) * TSLENGTH / 60)
 
     def checkhistory(self):
+        logger.info('Loaded %s entries from cache.', self.qsize)
         prefix, suffix = 0, 0
         with self.lock:
             for _url in self._history:
@@ -100,7 +101,7 @@ class FipPlaylist(threading.Thread):
                 else:
                     self.idx = {prefix: [suffix]}
         if 0 not in (prefix, suffix):
-            logger.info("%s bootstrapping index at %s:%s", self.name, prefix, suffix)
+            logger.info("Bootstrapping index at %s:%s", prefix, suffix)
 
     def parselist(self, _m3u):
         if not _m3u:
@@ -199,3 +200,13 @@ class FipPlaylist(threading.Thread):
     @urlq.setter
     def urlq(self, _queue):
         self.buff = _queue
+
+    @property
+    def qsize(self):
+        if self.buff.empty():
+            return 0
+        return self.buff.qsize()
+
+    @property
+    def tslength(self):
+        return self.duration

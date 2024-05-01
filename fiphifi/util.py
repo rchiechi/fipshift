@@ -15,6 +15,9 @@ def parsets(ts):
         tsid = [0,0]
     return tsid
 
+def get_tmpdir(_c):
+    return os.path.join(_c['USEROPTS']['TMPDIR'], 'fipshift')
+
 def cleantmpdir(tmpdir):
     n = 0
     for root, __, files in os.walk(tmpdir):
@@ -70,3 +73,25 @@ def vampstream(FFMPEG, _c):
                   '-f', 'adts',
                   f"icecast://{_c['USER']}:{_c['PASSWORD']}@{_c['HOST']}:{_c['PORT']}/{_c['MOUNT']}"]
     return subprocess.Popen(_ffmpegcmd)
+
+def delayedstream(_c, playlist):
+    _ffmpegcmd = [self.ffmpeg,
+                  '-loglevel', 'warning',
+                  '-nostdin',
+                  '-re',
+                  '-stream_loop', '-1',
+                  '-safe', '0',
+                  '-i', playlist,
+                  '-f', '-concat',
+                  '-flush_packets', '0',
+                  '-content_type', 'audio/aac',
+                  '-ice_name', 'FipShift',
+                  '-ice_description', 'Time-shifted FIP stream',
+                  '-ice_genre', 'Eclectic',
+                  '-c', 'copy',
+                  '-f', 'adts',
+                  f"icecast://{_c['USER']}:{_c['PASSWORD']}@{_c['HOST']}:{_c['PORT']}/{_c['MOUNT']}"]
+    return subprocess.Popen(_ffmpegcmd,
+                            stdin=subprocess.PIPE,
+                            stdout=open(os.path.join(get_tmpdir(_c), 'ffmpeg.log'), 'w'),
+                            stderr=subprocess.STDOUT)

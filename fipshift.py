@@ -9,7 +9,7 @@ import time
 import subprocess
 import signal
 from argparse import ArgumentTypeError
-from fiphifi.util import cleantmpdir, vampstream
+from fiphifi.util import get_tmpdir, cleantmpdir, vampstream
 from fiphifi.logging import FipFormatter
 from fiphifi.playlist import FipPlaylist
 from fiphifi.sender import AACStream
@@ -30,7 +30,7 @@ if opts.debug:
 logger.setLevel(_level)
 
 try:
-    TMPDIR = os.path.join(config['USEROPTS']['TMPDIR'], 'fipshift')
+    TMPDIR = get_tmpdir(config)
     _ = config['USEROPTS']['FFMPEG']
 except KeyError:
     logger.error("Bad config file, delete it from %s and try again.", opts.configdir)
@@ -96,20 +96,12 @@ def cleanup(*args):
 
 
 children["playlist"] = FipPlaylist(ALIVE, CACHE)
-URLQ = children["playlist"].urlq
 children["metadata"] = FIPMetadata(ALIVE, tmpdir=TMPDIR)
-children["sender"] = AACStream(ALIVE, URLQ,
-                               delay=opts.delay,
-                               tmpdir=TMPDIR,
-                               ffmpeg=FFMPEG,
-                               config=config)
+children["sender"] = AACStream(ALIVE, children["playlist"].urlq, opts.delay, config)
 
 ALIVE.set()
 children["playlist"].start()
 children["metadata"].start()
-
-if not URLQ.empty():
-    logger.info('Loaded %s entries from cache.', URLQ.qsize())
 
 signal.signal(signal.SIGINT, cleanup)
 
@@ -131,11 +123,11 @@ try:
         _remains = (opts.delay - _runtime) / 60 or 1
         if _remains > 60:
             logger.info('(%0.0f%%) Buffering for %0.1f more %s',
-                        (URLQ.qsize() * TSLENGTH / opts.delay)*100,
+                        (children["playlist"].qsize * TSLENGTH / opts.delay)*100,
                         _remains / 60, 'hours' if _remains / 60 > 1 else 'hour')
         else:
             logger.info('(%0.0f%%) Buffering for %0.0f more %s',
-                        (URLQ.qsize() * TSLENGTH / opts.delay)*100,
+                        (children["playlist"].qsize * TSLENGTH / opts.delay)*100,
                         _remains, 'mins' if _remains > 1.9 else 'min')
         time.sleep(60)
         if ffmpeg_proc.poll() is not None:
@@ -188,7 +180,7 @@ try:
                 artist = _meta.get('artist')
                 album = _meta.get('album')
                 logger.info('Updating metadata at %s for %ss', int(_timeidx), int(_meta['endTime'] - _start))
-                logger.info(f'Buffer at {(URLQ.qsize() * TSLENGTH / opts.delay)*100:0.0f}%.')
+                logger.info(f'Buffer at {(children["playlist"].qsize * TSLENGTH / opts.delay)*100:0.0f}%.')
                 break
         if not _meta:
             continue
