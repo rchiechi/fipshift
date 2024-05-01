@@ -36,8 +36,8 @@ class Buffer(threading.Thread):
             while self.alive:
                 if not self.advance(session):
                     session = requests.Session()
-        # except Exception as msg:
-        #     logger.error("%s died %s", self.name, str(msg))
+        except Exception as msg:
+            logger.error("%s died %s", self.name, str(msg))
         finally:
             self.playlist.cleanup()
             logger.warning('%s ending.', self.name)
