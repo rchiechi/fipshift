@@ -5,7 +5,6 @@ import queue
 from fiphifi.buffer import Buffer
 from fiphifi.constants import TSLENGTH
 
-# 'https://stream.radiofrance.fr/msl4/fip/prod1transcoder1/fip_aac_hifi_4_1673363954_368624.ts?id=radiofrance'
 
 logger = logging.getLogger(__package__+'.sender')
 
@@ -31,16 +30,15 @@ class AACStream(threading.Thread):
             logger.warn("%s called without alive set.", self.name)
         buffer_alive = threading.Event()
         buffer_alive.set()
-        # playlist = self._get_playlist()
         self.buffer = Buffer(buffer_alive,
                              self.urlq,
                              config=self.config)
         self.buffer.start()
         offset_tolerace = int(0.1 * self.delay) or 16
-        logger.debug('%s setting offset tolerance to %ss', self.name, offset_tolerace)
+        logger.debug('Setting offset tolerance to %ss', offset_tolerace)
         while self.alive:
             if not self.buffer.is_alive() and self.alive:
-                logger.warning('%s Buffer died, trying to restart.', self.name)
+                logger.warning('Buffer died, trying to restart.')
                 self.buffer = Buffer(buffer_alive,
                                      self.urlq,
                                      config=self.config)
@@ -56,12 +54,11 @@ class AACStream(threading.Thread):
                         skipped += 1
                 except queue.Empty:
                     pass
-                logger.info("%s skipped %s urls to keep delay.", self.name, skipped)
+                logger.info("Sskipped %s urls to keep delay.", skipped)
                 logger.debug('Offset: %0.0f / Delay: %0.0f', self.offset, self.delay)
             time.sleep(self.duration)
         logger.warning('%s dying (alive: %s)', self.name, self.alive)
         buffer_alive.clear()
-        # playlist.cleanup()
         self._cleanup()
 
     def _cleanup(self):
@@ -71,26 +68,6 @@ class AACStream(threading.Thread):
             if self.buffer.is_alive():
                 logger.warning("%s refusing to die.", self.buffer.name)
         logger.warning('%s ending.', self.name)
-
-    # def _get_playlist(self):
-    #     #  self._playlist must be an absolute path
-    #     ffmpegcmd = [self.ffmpeg,
-    #                  '-loglevel', 'warning',
-    #                  '-nostdin',
-    #                  '-re',
-    #                  '-stream_loop', '-1',
-    #                  '-safe', '0',
-    #                  '-i', self._playlist,
-    #                  '-f', '-concat',
-    #                  '-flush_packets', '0',
-    #                  '-content_type', 'audio/aac',
-    #                  '-ice_name', 'FipShift',
-    #                  '-ice_description', 'Time-shifted FIP stream',
-    #                  '-ice_genre', 'Eclectic',
-    #                  '-c', 'copy',
-    #                  '-f', 'adts',
-    #                  f'icecast://{self.un}:{self.pw}@{self.iceserver}/{self.mount}']
-    #     return Playlist(ffmpegcmd, tmpdir=self.tmpdir)
 
     @property
     def alive(self):
