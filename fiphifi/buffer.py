@@ -133,7 +133,7 @@ class Playlist():
 
     def __init__(self, config):
         self.config = config
-        self.tmpdir = get_tmpdir(config)
+        self.tmpdir = get_tmpdir(config['USEROPTS'])
         self.playlist = os.path.join(self.tmpdir, 'playlist.txt')
         self.tsfiles = ("first.ts", "second.ts")
         self.ffmpeg_proc = None
