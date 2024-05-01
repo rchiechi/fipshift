@@ -138,8 +138,8 @@ class FIPMetadata(threading.Thread):
                     'album': _metadata.get('song', {}).get('release', {}).get('title', 'Le Album'),
                     'year': _metadata.get('song', {}).get('year', 1977),
                     'coverart': _metadata.get('visuals', {}).get('card', {}).get('src'),
-                    'startTime': float(_metadata.get('startTime', 0) or time.time()),
-                    'endTime': float(_metadata.get('endTime', 0) or time.time() + 10)}
+                    'startTime': float(_metadata.get('startTime', 0)),
+                    'endTime': float(_metadata.get('endTime', 0))}
         return metadata
 
     @property

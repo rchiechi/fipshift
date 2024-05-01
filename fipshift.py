@@ -29,8 +29,9 @@ if opts.debug:
     _level = logging.DEBUG
 logger.setLevel(_level)
 
+_c = config['USEROPTS']
 try:
-    TMPDIR = get_tmpdir(config)
+    TMPDIR = get_tmpdir(_c)
     _ = config['USEROPTS']['FFMPEG']
 except KeyError:
     logger.error("Bad config file, delete it from %s and try again.", opts.configdir)
@@ -68,7 +69,6 @@ else:
 
 
 logger.debug("Cleaned %s files in %s.", cleantmpdir(TMPDIR), TMPDIR)
-
 logger.info("Starting buffer threads.")
 
 CLEAN = False
@@ -106,7 +106,7 @@ children["metadata"].start()
 signal.signal(signal.SIGINT, cleanup)
 
 logger.info('Starting vamp stream.')
-_c = config['USEROPTS']
+
 ffmpeg_proc = vampstream(FFMPEG, _c)
 try:
     epoch = children["playlist"].history[0][0]

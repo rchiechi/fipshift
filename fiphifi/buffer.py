@@ -5,8 +5,6 @@ import threading
 import queue
 import requests
 import psutil
-# import shutil
-# import subprocess
 from fiphifi.util import parsets, delayedstream, get_tmpdir
 from fiphifi.constants import BUFFERSIZE, TSLENGTH
 
@@ -24,7 +22,7 @@ class Buffer(threading.Thread):
         self.name = 'Buffer Thread'
         self._alive = _alive
         self.urlq = urlq
-        self.tmpdir = get_tmpdir(config)
+        self.tmpdir = get_tmpdir(config['USEROPTS'])
         self._timestamp = [[0, time.time()]]
         self.last_timestamp = 0
         self.playlist = Playlist(config)
@@ -175,11 +173,7 @@ class Playlist():
         logger.info('Starting ffmpeg')
         if self.initialized and not self.ffmpeg_healthy:
             self._advance_playlist(force=True)
-        self.ffmpeg_proc = delayedstream(self.config, self.playlist)
-        # self.ffmpeg_proc = subprocess.Popen(self.ffmpeg_cmd,
-        #                                     stdin=subprocess.PIPE,
-        #                                     stdout=open(os.path.join(self.tmpdir, 'ffmpeg.log'), 'w'),
-        #                                     stderr=subprocess.STDOUT)
+        self.ffmpeg_proc = delayedstream(self.config['USEROPTS'], self.playlist)
         time.sleep(1)
         if not self.ffmpeg_alive:
             logger.error("Failed to start ffmpeg")

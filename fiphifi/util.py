@@ -16,7 +16,7 @@ def parsets(ts):
     return tsid
 
 def get_tmpdir(_c):
-    return os.path.join(_c['USEROPTS']['TMPDIR'], 'fipshift')
+    return os.path.join(_c['TMPDIR'], 'fipshift')
 
 def cleantmpdir(tmpdir):
     n = 0
@@ -75,7 +75,7 @@ def vampstream(FFMPEG, _c):
     return subprocess.Popen(_ffmpegcmd)
 
 def delayedstream(_c, playlist):
-    _ffmpegcmd = [_c['USEROPTS']['FFMPEG'],
+    _ffmpegcmd = [_c['FFMPEG'],
                   '-loglevel', 'warning',
                   '-nostdin',
                   '-re',

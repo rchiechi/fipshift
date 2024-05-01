@@ -1,9 +1,8 @@
-import os
 import time
 import logging
 import threading
 import queue
-from fiphifi.buffer import Buffer, Playlist
+from fiphifi.buffer import Buffer
 from fiphifi.constants import TSLENGTH
 
 # 'https://stream.radiofrance.fr/msl4/fip/prod1transcoder1/fip_aac_hifi_4_1673363954_368624.ts?id=radiofrance'
