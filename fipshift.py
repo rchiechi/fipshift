@@ -189,15 +189,18 @@ try:
         else:
             slug = f'"{track}" by {artist} on {album}'
         if slug != last_slug:
-            if send_metadata(children["sender"].iceserver,
+            if send_metadata(f"{config['USEROPTS']['HOST']}:{config['USEROPTS']['PORT']}",
                              config['USEROPTS']['MOUNT'],
                              slug,
                              (config['USEROPTS']['USER'], config['USEROPTS']['PASSWORD'])):
                 last_slug = slug
                 last_update = time.time()
 
-except (KeyboardInterrupt, SystemExit):
-    logger.warning("Main thread killed.")
+except KeyboardInterrupt:
+    logger.warning("Caught KeyboardInterrupt.")
 
+except SystemExit:
+    logger.warning("Caught SystemExit.")
 finally:
+    logger.warning("Main thread exiting.")
     cleanup()
