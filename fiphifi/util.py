@@ -23,12 +23,8 @@ def cleantmpdir(tmpdir):
         for _f in files:
             _old = os.path.join(root, _f)
             if _f[-4:].lower() == ('.log'):
-                if time.time() - os.stat(_old).st_ctime > 300:
-                    _new = os.path.join(root, _f) + '.1'
-                    if os.path.exists(_new):
-                        os.remove(_new)
-                    os.rename(_old, _new)
-                    n += 1
+                os.replace(_old, f'{_old}.1')
+                n += 1
             if _f[-6:].lower() == '.cache':
                 if time.time() - os.stat(_old).st_mtime > 600:
                     os.remove(_old)
