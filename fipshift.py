@@ -74,6 +74,8 @@ except KeyError:
 if not os.path.exists(TMPDIR):
     os.mkdir(TMPDIR)
 
+cleantmpdir(TMPDIR)
+
 _logfile = os.path.join(TMPDIR, os.path.basename(sys.argv[0]).split('.')[0] + '.log')
 loghandler = logging.FileHandler(_logfile)
 loghandler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - [%(levelname)s] %(message)s'))
