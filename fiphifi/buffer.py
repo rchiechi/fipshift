@@ -110,15 +110,18 @@ class Buffer(threading.Thread):
         req = None
         for _i in range(1, 5):
             try:
-                req = session.get(url, timeout=self.duration * BUFFERSIZE / _i)
+                req = session.get(url, timeout=self.duration)
                 if req is not None:
                     if req.ok:
                         return req
+                    else:
+                        logger.warning("Got response code: %s", req.status_code)
+                        time.sleep(round(self.duration * BUFFERSIZE / _i))
             except (requests.exceptions.ConnectTimeout,
                     requests.exceptions.ReadTimeout,
                     requests.exceptions.ConnectionError):
                 pass
-            logger.warning("Retrying ts download with timeout of %ss", self.duration * BUFFERSIZE / _i)
+            logger.warning("Retrying ts download")
         return req
 
     @property
