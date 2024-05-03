@@ -87,6 +87,8 @@ logger.info("Logging to %s", _logfile)
 logging.getLogger("urllib3").setLevel(logging.WARN)
 logging.getLogger("charset_normalizer").setLevel(logging.WARN)
 logger.debug("Debug logging enabled.")
+logging.debug("Logging to %s", _logfile)
+
 
 ABSPATH = os.path.join(os.path.dirname(os.path.realpath(__file__)))
 
@@ -103,8 +105,6 @@ else:
         logger.error("I could not locate the ffmpeg binary in the PATH.")
         sys.exit(1)
 
-
-logger.debug("Cleaned %s files in %s.", cleantmpdir(TMPDIR), TMPDIR)
 logger.info("Starting buffer threads.")
 
 CLEAN = False
