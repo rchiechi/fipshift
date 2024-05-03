@@ -108,7 +108,7 @@ class Buffer(threading.Thread):
 
     def _get_url(self, session, url):
         req = None
-        for _i in range(1, 5):
+        for _i in range(2, 6):
             try:
                 req = session.get(url, timeout=self.duration)
                 if req is not None:
