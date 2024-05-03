@@ -114,6 +114,9 @@ class Buffer(threading.Thread):
                 if req is not None:
                     if req.ok:
                         return req
+                    elif req.status_code == 404:
+                        logger.error("$s not found", url)
+                        return None
                     else:
                         logger.warning("Got response code: %s", req.status_code)
                         time.sleep(_i)
