@@ -165,9 +165,8 @@ class Playlist():
 
     def __init__(self, config):
         self.config = config
-        tmpdir = get_tmpdir(config['USEROPTS'])
-        self.playlist = os.path.join(tmpdir, 'playlist.txt')
-        self.dldir = os.path.join(tmpdir, 'ts')
+        self.dldir = os.path.join(get_tmpdir(self.config['USEROPTS']), 'ts')
+        self.playlist = os.path.join(self.dldir, 'playlist.txt')
         self.tsfiles = ("first.ts", "second.ts")
         self.ffmpeg_proc = None
         self.tsqueue = queue.SimpleQueue()
@@ -183,7 +182,11 @@ class Playlist():
             fh.write('ffconcat version 1.0\n')
             fh.write(f"file '{self.tsfiles[0]}'\n")
             fh.write(f"file '{self.tsfiles[1]}'\n")
-        logger.info("Created %s", self.playlist)
+        if os.path.exists(self.playlist):
+            logger.info("Created %s", self.playlist)
+        else:
+            logger.error("Could not create %s", self.playlist)
+            raise OSError(f"Could not create {self.playlist}")
 
     def _update(self, _src, _i):
         _ts = os.path.join(self.dldir, self.tsfiles[_i])
