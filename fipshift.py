@@ -8,11 +8,13 @@ import logging
 import time
 import subprocess
 import signal
+import queue
 from argparse import ArgumentTypeError
 from fiphifi.util import get_tmpdir, cleantmpdir
 from fiphifi.logging import FipFormatter
 from fiphifi.playlist import FipPlaylist
 from fiphifi.sender import AACStream
+from fiphifi.downloader import Downloader
 from fiphifi.options import parseopts
 from fiphifi.metadata import FIPMetadata, send_metadata
 from fiphifi.constants import TSLENGTH
@@ -109,15 +111,19 @@ logger.info("Starting buffer threads.")
 
 CLEAN = False
 CACHE = os.path.join(TMPDIR, 'fipshift.cache')
+DLDIR = os.path.join(TMPDIR, 'ts')
+DLQUEUE = queue.SimpleQueue()
 ALIVE = threading.Event()
 children = {}
 
-children["playlist"] = FipPlaylist(ALIVE, CACHE)
+children["playlist"] = FipPlaylist(ALIVE, DLQUEUE, CACHE)
+children["downloader"] = Downloader(ALIVE, DLQUEUE, config)
 children["metadata"] = FIPMetadata(ALIVE, tmpdir=TMPDIR)
 children["sender"] = AACStream(ALIVE, children["playlist"].urlq, opts.delay, config)
 
 ALIVE.set()
 children["playlist"].start()
+children["downloader"].start()
 children["metadata"].start()
 
 signal.signal(signal.SIGINT, cleanup)

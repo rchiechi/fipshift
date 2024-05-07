@@ -16,11 +16,12 @@ class FipPlaylist(threading.Thread):
     delay = 5
     duration = TSLENGTH
 
-    def __init__(self, _alive, cache_file):
+    def __init__(self, _alive, dlqueue, cache_file):
         threading.Thread.__init__(self)
         self.name = 'FipPlaylist Thread'
         self._alive = _alive
         self.cache_file = cache_file
+        self.dlqueue = dlqueue
         self._history, self.buff = checkcache(self.cache_file)
         self.lock = threading.Lock()
         self.last_update = time.time()
@@ -179,6 +180,7 @@ class FipPlaylist(threading.Thread):
             self.idx = {prefix: [suffix]}
         self.puthistory(_url)
         self.buff.put(_url)
+        self.dlqueue.put(_url[1])
         logger.debug("%s cached %s @ %s:%s", self.name, _url[0], prefix, suffix)
 
     @property

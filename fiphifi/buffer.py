@@ -45,7 +45,7 @@ class Buffer(threading.Thread):
         self.name = 'Buffer Thread'
         self._alive = _alive
         self.urlq = urlq
-        self.tmpdir = get_tmpdir(config['USEROPTS'])
+        self.dldir = os.path.join(get_tmpdir(config['USEROPTS']), 'ts')
         self._timestamp = [[0, time.time()]]
         self.last_timestamp = 0
         self.playlist = Playlist(config)
@@ -73,7 +73,9 @@ class Buffer(threading.Thread):
         success = False
         try:
             _timestamp, _url = self.urlq.get(timeout=self.duration)
-            _ts = os.path.join(self.tmpdir, os.path.basename(_url.split('?')[0]))
+            _ts = os.path.join(self.dldir, os.path.basename(_url.split('?')[0]))
+            if os.path.exists(_ts):
+                success = True
             _retry_start = time.time()
             while not success:
                 if time.time() - _retry_start >= self.duration * BUFFERSIZE:
@@ -163,8 +165,9 @@ class Playlist():
 
     def __init__(self, config):
         self.config = config
-        self.tmpdir = get_tmpdir(config['USEROPTS'])
-        self.playlist = os.path.join(self.tmpdir, 'playlist.txt')
+        tmpdir = get_tmpdir(config['USEROPTS'])
+        self.playlist = os.path.join(tmpdir, 'playlist.txt')
+        self.dldir = os.path.join(tmpdir, 'ts')
         self.tsfiles = ("first.ts", "second.ts")
         self.ffmpeg_proc = None
         self.tsqueue = queue.SimpleQueue()
@@ -183,7 +186,7 @@ class Playlist():
         logger.info("Created %s", self.playlist)
 
     def _update(self, _src, _i):
-        _ts = os.path.join(self.tmpdir, self.tsfiles[_i])
+        _ts = os.path.join(self.dldir, self.tsfiles[_i])
         try:
             if os.path.getsize(_src) == 0:
                 logger.warning("Refusing to write empty file %s.", _src)
