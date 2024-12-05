@@ -5,13 +5,12 @@ import json
 import datetime as dt
 from fiphifi.util import parsets, checkcache
 from fiphifi.constants import FIPBASEURL, FIPLIST, STRPTIME, BUFFERSIZE, TSLENGTH
+from fiphifi.M3U8Handler import M3U8Handler
 import requests
 
-logger = logging.getLogger(__package__+'.playlist')
-
+logger = logging.getLogger(__package__ + '.playlist')
 
 class FipPlaylist(threading.Thread):
-
     offset = -4
     delay = 5
     duration = TSLENGTH
@@ -25,51 +24,63 @@ class FipPlaylist(threading.Thread):
         self._history, self.buff = checkcache(self.cache_file)
         self.lock = threading.Lock()
         self.last_update = time.time()
-        self.idx = {0:0}
+        
+        # Initialize the M3U8 handler
+        self.m3u8_handler = M3U8Handler(FIPBASEURL, self.buff)
+        # Load cached history into handler
+        for url_data in self._history:
+            self.m3u8_handler.ingest_url(url_data)
 
     def run(self):
         logger.info('Starting %s', self.name)
         if not self.alive:
             logger.warn("%s called without alive set.", self.name)
+            
         self.checkhistory()
         retries = 0
         fip_error = False
-        #  Fip reports timestamps in GMT
-        #  which is five hours in the future during EST
-        #  and four hours during EDT
+        
+        # Calculate timezone offset
         self.offset = time.gmtime().tm_hour - dt.datetime.now().hour
         logger.info(f'Using offset of -{self.offset} hours in playlist')
+        
         while self.alive:
             try:
                 req = requests.get(FIPLIST, timeout=self.delay)
-                self.parselist(req.text)
-                retries = 0
+                if req.ok:
+                    # Use M3U8Handler to parse playlist
+                    if self.m3u8_handler.parse_playlist(req.text):
+                        retries = 0
+                        self.last_update = time.time()
+                        # Sync our history with handler's history
+                        self._history = self.m3u8_handler.history
+                        # Write to cache periodically
+                        self.writecache()
+                        # Prune old segments
+                        self.m3u8_handler.prune_history(self.buff.qsize() + BUFFERSIZE)
+                    else:
+                        logger.warning("Failed to parse playlist")
+                        
             except requests.exceptions.ConnectionError as error:
                 fip_error = True
-                logger.warning("%s: A ConnectionError has occured: %s", self.name, error)
+                logger.warning("%s: A ConnectionError has occurred: %s", self.name, error)
             except (requests.exceptions.ReadTimeout, requests.exceptions.Timeout):
                 fip_error = True
-                logger.warning("%s requst timed out", self.name)
+                logger.warning("%s request timed out", self.name)
             finally:
-                self.writecache()
                 if fip_error:
                     retries += 1
                     fip_error = False
                     if retries > 9:
                         logger.error("%s Maximum retries reached, dying.", self.name)
-                        self.alive.clear()
+                        self._alive.clear()
                     else:
                         logger.warning("%s error, retrying (%s)", self.name, retries)
                         continue
                 time.sleep(self.delay)
-            if len(self._history) > self.buff.qsize():
-                self.prunehistory(self.buff.qsize() - BUFFERSIZE)
+                
         logger.info('%s wrote %s urls to cache', self.name, self.writecache())
         logger.warning('%s ended (alive: %s)', self.name, self.alive)
-
-    def puthistory(self, _url):
-        with self.lock:
-            self._history.append(_url)
 
     def writecache(self):
         with self.lock:
@@ -78,111 +89,15 @@ class FipPlaylist(threading.Thread):
         logger.info("%s cache: %0.0f min", self.name, len(self._history) * TSLENGTH / 60)
         return len(self._history)
 
-    def gethistory(self):
-        with self.lock:
-            return self._history[:]
-
-    def prunehistory(self, until):
-        if until <= 0:
-            return
-        logger.debug("%s pruning history %s -> %s.", self.name, len(self._history), until)
-        logger.info("%s cache: %0.0f min", self.name, len(self._history) * TSLENGTH / 60)
-        with self.lock:
-            self._history = self._history[-until:]
-        logger.info("%s cache: %0.0f min", self.name, len(self._history) * TSLENGTH / 60)
-
     def checkhistory(self):
+        """Initialize sequence tracking from cached history"""
         logger.info('Loaded %s entries from cache.', self.qsize)
-        prefix, suffix = 0, 0
+        # Let M3U8Handler process the history
         with self.lock:
-            for _url in self._history:
-                prefix, suffix = parsets(_url[1])
-                if prefix in self.idx:
-                    self.idx[prefix].append(suffix)
-                else:
-                    self.idx = {prefix: [suffix]}
-        if 0 not in (prefix, suffix):
-            logger.info("Bootstrapping index at %s:%s", prefix, suffix)
+            for url_data in self._history:
+                self.m3u8_handler.ingest_url(url_data)
 
-    def parselist(self, _m3u):
-        if not _m3u:
-            logger.warning("%s: empty playlist.", self.name)
-            self.delay = 0.5
-            return
-        _timestamp = 0
-        for _l in _m3u.split('\n'):
-            if not _l:
-                continue
-            if '#EXT-X-PROGRAM-DATE-TIME' in _l:
-                _dt = ':'.join(_l.strip().split(':')[1:])
-                try:
-                    _dt = dt.datetime.strptime(_dt, STRPTIME) - dt.timedelta(hours=self.offset)
-                    _timestamp = _dt.timestamp()
-                except ValueError:
-                    _timestamp = 0
-            if '#EXT-X-TARGETDURATION' in _l:
-                try:
-                    self.duration = int(_l.strip().split(':')[-1])
-                except (IndexError, ValueError):
-                    logger.warning("Error finding duration from %s", _l.strip())
-            if _l[0] == '#':
-                continue
-            self.ingest_url([_timestamp, f'{FIPBASEURL}{_l.strip()}'])
-        if not _timestamp:
-            logger.warning("%s did not parse the playlist", self.name)
-        self.last_update = time.time()
-        self.delay = 20
-
-    def ingest_url(self, _url):
-        prefix, suffix = parsets(_url[1])
-        if 0 in (prefix, suffix):
-            logger.warning('Malformed url: %s', _url[1])
-            return
-        if _url in self._history:
-            logger.debug("%s m3u overlap %s:%s ", self.name, prefix, suffix)
-            return
-        if prefix in self.idx:
-            _last_suffix = self.idx[prefix][-1]
-            if suffix > _last_suffix:
-                self.idx[prefix].append(suffix)
-                if suffix - _last_suffix > 1:
-                    logger.warning("%s skipped a file %s: %s -> %s", self.name, prefix, _last_suffix, suffix)
-            elif suffix < _last_suffix:
-                logger.debug("%s backwads url order %s: %s -> %s", self.name, prefix, _last_suffix, suffix)
-                return
-            elif suffix == _last_suffix:
-                logger.debug("%s same url twice in a row %s: %s ", self.name, prefix, suffix)
-                return
-            else:
-                logger.debug("%s file out of order for %s: %s -> %s", self.name, prefix, _last_suffix, suffix)
-            # elif suffix - _last_suffix > 1:
-            #     logger.info("%s guessing at missing ts. Last: %s Now: %s", self.name, _last_suffix, suffix)
-            #     _suffix = suffix - (suffix - _last_suffix) + 1
-            #     _prefix = prefix
-            #     _i = 1
-            #     while suffix > _suffix:
-            #         if len(self.idx[_prefix]) >= 25:
-            #             _prefix += 1
-            #         self.idx[_prefix].append(_suffix)
-            #         _new_timestamp = _url[0] - (TSLENGTH * _i)
-            #         _new_url = _url[1].replace(str(prefix),
-            #                                    str(_prefix)).replace(str(suffix),
-            #                                                          str(_suffix))
-            #         logger.info("%s guessed: %s @ %s", self.name, _new_timestamp, _new_url)
-            #         self._cache_url([_new_timestamp, _new_url])
-            #         _suffix += 1
-            #         _i += 1
-            # else:
-            #     logger.debug("%s resetting prefix: %s", self.name, prefix)
-            #     self.idx = {prefix: [suffix]}
-        else:
-            logger.debug("%s incrementing prefix: %s", self.name, prefix)
-            self.idx = {prefix: [suffix]}
-        self.puthistory(_url)
-        self.buff.put(_url)
-        self.dlqueue.put(_url[1])
-        logger.debug("%s cached %s @ %s:%s", self.name, _url[0], prefix, suffix)
-
+    # Keep existing property methods
     @property
     def alive(self):
         return self._alive.isSet()
@@ -193,7 +108,7 @@ class FipPlaylist(threading.Thread):
 
     @property
     def history(self):
-        return self.gethistory()
+        return self._history[:]  # Return a copy of the history list
 
     @property
     def urlq(self):
@@ -202,6 +117,8 @@ class FipPlaylist(threading.Thread):
     @urlq.setter
     def urlq(self, _queue):
         self.buff = _queue
+        # Update M3U8Handler's queue reference
+        self.m3u8_handler.urlq = _queue
 
     @property
     def qsize(self):
