@@ -25,13 +25,13 @@ class FipPlaylist(threading.Thread):
         self.lock = threading.Lock()
         self.last_update = time.time()
         
-        # Populate dlqueue with cached items
-        for url_data in self._history:
-            self.dlqueue.put(url_data)
-            
-        self.m3u8_handler = M3U8Handler(FIPBASEURL, self.dlqueue)  # Use dlqueue for new segments
-        for url_data in self._history:
-            self.m3u8_handler.ingest_url(url_data)
+        # Initialize handlers and queues
+        self.m3u8_handler = M3U8Handler(FIPBASEURL, self.dlqueue)
+        
+        # Load cache into both queues
+        for timestamp, url in self._history:
+            self.dlqueue.put(url)
+            self.buff.put([timestamp, url])
 
     def run(self):
         logger.info('Starting %s', self.name)
