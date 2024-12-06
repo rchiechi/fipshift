@@ -20,6 +20,7 @@ class Buffer(threading.Thread):
         self.dldir = os.path.join(get_tmpdir(config['USEROPTS']), 'ts')
         self._timestamp = [[0, time.time()]]
         self.last_timestamp = 0
+        self.sent_files = set()
         
         # Initialize Icecast client
         self.icecast = IcecastClient(
@@ -29,15 +30,15 @@ class Buffer(threading.Thread):
             username=config['USEROPTS']['USER'],
             password=config['USEROPTS']['PASSWORD']
         )
-        self.icecast.start()
         
-        # Keep track of files we've sent
-        self.sent_files = set()
-        
+        # Start the connection
+        if not self.icecast.start():
+            raise ConnectionError("Failed to initialize Icecast connection")
+            
     def run(self):
         logger.info('Starting Buffer')
         try:
-            while self.alive and self.icecast.alive:
+            while self.alive and self.icecast.is_connected:
                 if not self.process_next_segment():
                     time.sleep(0.5)
                 self.cleanup_sent_files()
@@ -104,7 +105,6 @@ class Buffer(threading.Thread):
         # Stop Icecast client
         if self.icecast:
             self.icecast.stop()
-            self.icecast.join(timeout=5)
             
         # Final cleanup of any remaining files
         for ts_file in self.sent_files:
@@ -115,10 +115,9 @@ class Buffer(threading.Thread):
             except OSError as e:
                 logger.warning(f"Failed to clean up {ts_file}: {e}")
                 
-        self.sent_files.clear()
-        
     @property
     def timestamp(self):
+        """Get timestamp for current segment"""
         _timestamp = self.last_timestamp
         for _i, _item in enumerate(self._timestamp):
             if _item[0] == self.current_segment:
@@ -127,7 +126,7 @@ class Buffer(threading.Thread):
                 self._timestamp = self._timestamp[_i:]
                 break
         return _timestamp
-    
+        
     @property
     def current_segment(self):
         """Get currently playing segment number"""
@@ -147,7 +146,7 @@ class Buffer(threading.Thread):
     def tslength(self):
         return self.duration
         
-    @tslength.setter
+    @tslength.setter 
     def tslength(self, _duration):
         if _duration > 0:
             self.duration = _duration
