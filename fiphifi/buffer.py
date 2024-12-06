@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 from fiphifi.util import parsets, get_tmpdir
 from fiphifi.icecast import IcecastClient
 from fiphifi.AACStreamer import AACStreamer
-from fiphifi.constantser import AACRE
+from fiphifi.constants import AACRE
 
 logger = logging.getLogger(__package__+'.buffer')
 

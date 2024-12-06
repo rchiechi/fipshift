@@ -1,105 +1,60 @@
-import bitstring
+import struct
 
 class TSParser:
-    # TS packet is 188 bytes
     TS_PACKET_SIZE = 188
-    # AAC ADTS frame header is 7 bytes
     ADTS_HEADER_SIZE = 7
 
     def __init__(self):
-        self.pid = None  # Program ID for AAC stream
+        self.pid = None
         self.aac_data = bytearray()
 
     def parse_ts_file(self, data):
-        """Parse TS file and extract AAC frames"""
-        position = 0
-        while position + self.TS_PACKET_SIZE <= len(data):
-            packet = data[position:position + self.TS_PACKET_SIZE]
-            self._parse_packet(packet)
-            position += self.TS_PACKET_SIZE
+        for i in range(0, len(data), self.TS_PACKET_SIZE):
+            packet = data[i:i + self.TS_PACKET_SIZE]
+            if len(packet) == self.TS_PACKET_SIZE:
+                self._parse_packet(packet)
         return self.aac_data
 
     def _parse_packet(self, packet):
-        bits = bitstring.BitString(packet)
-        
-        # TS packet header
-        sync_byte = bits.read('uint:8')
-        if sync_byte != 0x47:  # TS sync byte
+        # Check sync byte
+        if packet[0] != 0x47:
             return
 
-        # Parse transport error, payload start, priority
-        flags = bits.read('uint:3')
-        payload_start = bool(flags & 0x4)
+        # Parse PID (13 bits from bytes 1-2)
+        pid = ((packet[1] & 0x1F) << 8) | packet[2]
         
-        # Get PID
-        pid = bits.read('uint:13')
         if self.pid is None:
-            # Look for audio stream PID in PMT
-            if self._is_pmt_packet(bits):
-                self.pid = self._find_audio_pid(bits)
+            if self._is_pmt_packet(packet):
+                self.pid = self._find_audio_pid(packet)
             return
 
         if pid != self.pid:
             return
 
-        # Parse adaptation field control
-        adaptation = bits.read('uint:2')
-        scrambling = bits.read('uint:2')
+        # Get adaptation field control
+        adaptation = (packet[3] & 0x30) >> 4
         
-        if scrambling != 0:
-            return
+        # Calculate payload start
+        payload_start = 4
+        if adaptation & 0x2:  # Has adaptation field
+            adaptation_length = packet[4]
+            payload_start += adaptation_length + 1
 
-        # Skip adaptation field if present
-        if adaptation & 0x2:
-            adaptation_length = bits.read('uint:8')
-            bits.pos += adaptation_length * 8
+        # Extract payload
+        self.aac_data.extend(packet[payload_start:])
 
-        # Extract PES packet
-        if payload_start:
-            self._parse_pes_packet(bits)
-        else:
-            # Continue previous PES packet
-            remaining = bits.length - bits.pos
-            self.aac_data.extend(bits.read(f'bytes:{remaining//8}'))
+    def _is_pmt_packet(self, packet):
+        if len(packet) < 5:
+            return False
+        return packet[4] == 0x02
 
-    def _parse_pes_packet(self, bits):
-        # PES packet header
-        if bits.read('bytes:3') != b'\x00\x00\x01':
-            return
-
-        stream_id = bits.read('uint:8')
-        packet_length = bits.read('uint:16')
-        
-        # Optional PES header
-        bits.pos += 2  # Skip flags
-        header_length = bits.read('uint:8')
-        bits.pos += header_length * 8
-
-        # Extract AAC data
-        remaining = bits.length - bits.pos
-        self.aac_data.extend(bits.read(f'bytes:{remaining//8}'))
-
-    def _is_pmt_packet(self, bits):
-        """Check if packet contains Program Map Table"""
-        table_id = bits.peek('uint:8')
-        return table_id == 0x02
-
-    def _find_audio_pid(self, bits):
-        """Extract AAC stream PID from PMT"""
-        # Skip to program info length
-        bits.pos += 12
-        program_info_length = bits.read('uint:12')
-        bits.pos += program_info_length * 8
-
-        while bits.pos < bits.length - 32:
-            stream_type = bits.read('uint:8')
-            if stream_type == 0x0F:  # AAC ADTS
-                elem_pid = bits.read('uint:13')
-                return elem_pid
-            # Skip ES info
-            bits.pos += 4  # Reserved bits
-            es_info_length = bits.read('uint:12')
-            bits.pos += es_info_length * 8
+    def _find_audio_pid(self, packet):
+        pos = 5
+        while pos < len(packet) - 5:
+            if packet[pos] == 0x0F:  # AAC ADTS
+                pid = ((packet[pos + 1] & 0x1F) << 8) | packet[pos + 2]
+                return pid
+            pos += 5
         return None
 
 class AACStreamer:
