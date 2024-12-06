@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Tuple
 from urllib.parse import urljoin
 
-logger = logging.getLogger(__package__ + '.playlist')
+logger = logging.getLogger(__package__ + '.m3u8handler')
 
 class M3U8Handler:
     """Handles FIP HLS playlist parsing and segment tracking"""
