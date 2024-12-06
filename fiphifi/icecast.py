@@ -135,15 +135,27 @@ class IcecastClient:
             
         # Try to unmount the source
         self.unmount_source()
-
+    
     def send_data(self, data):
-        """Send data to Icecast server"""
+        """Send AAC data in real-time"""
         if not self.is_connected:
             return False
-            
+        
+        # AAC frame size is 1024 samples
+        # At 48kHz, one frame = 1024/48000 ≈ 21.33ms
+        FRAME_TIME = 0.02133
+        FRAME_SIZE = 1024  # Samples per AAC frame
+        
         try:
             with self._lock:
-                self.socket.send(data)
+                # Send data frame by frame with timing control
+                pos = 0
+                while pos < len(data):
+                    frame = data[pos:pos + FRAME_SIZE]
+                    if frame:
+                        self.socket.send(frame)
+                        time.sleep(FRAME_TIME)
+                    pos += FRAME_SIZE
             return True
         except socket.error as e:
             logger.error(f"Send failed: {str(e)}")
