@@ -6,12 +6,9 @@ import queue
 from fiphifi.buffer import Buffer
 from fiphifi.constants import TSLENGTH
 
-
 logger = logging.getLogger(__package__+'.sender')
 
-
 class AACStream(threading.Thread):
-
     playing = False
     session = None
     buffer = None
@@ -30,24 +27,30 @@ class AACStream(threading.Thread):
         logger.info('Starting %s', self.name)
         if not self.alive:
             logger.warn("%s called without alive set.", self.name)
+            
         buffer_alive = threading.Event()
         buffer_alive.set()
         self.buffer = Buffer(buffer_alive,
-                             self.urlq,
-                             config=self.config)
+                           self.urlq,
+                           config=self.config)
         self.buffer.start()
-        offset_tolerace = int(0.1 * self.delay) or 16
-        logger.debug('Setting offset tolerance to %ss', offset_tolerace)
+        
+        # Calculate acceptable time drift
+        offset_tolerance = int(0.1 * self.delay) or 16
+        logger.debug('Setting offset tolerance to %ss', offset_tolerance)
+        
         while self.alive:
             if not self.buffer.is_alive() and self.alive:
                 logger.warning('Buffer died, trying to restart.')
+                buffer_alive.set()
                 self.buffer = Buffer(buffer_alive,
-                                     self.urlq,
-                                     config=self.config)
+                                   self.urlq,
+                                   config=self.config)
                 self.buffer.start()
-            if offset_tolerace < self.delta < 100000:  # Offset throws huge numbers when timestamp returns 0
+                
+            if offset_tolerance < self.delta < 100000:  # Offset throws huge numbers when timestamp returns 0
                 logger.info('Offset: %0.0f / Delay: %0.0f / Tolerance: %0.0f / Diff: %0.0f',
-                            self.offset, self.delay, offset_tolerace, self.delta - offset_tolerace)
+                          self.offset, self.delay, offset_tolerance, self.delta - offset_tolerance)
                 skipped = 1
                 try:
                     _timestamp, _ = self.urlq.get(timeout=5)
@@ -56,14 +59,17 @@ class AACStream(threading.Thread):
                         skipped += 1
                 except queue.Empty:
                     pass
-                logger.info("Sskipped %s urls to keep delay.", skipped)
+                logger.info("Skipped %s urls to keep delay.", skipped)
                 logger.debug('Offset: %0.0f / Delay: %0.0f', self.offset, self.delay)
+                
             time.sleep(self.duration)
+            
         logger.warning('%s dying (alive: %s)', self.name, self.alive)
         buffer_alive.clear()
         self._cleanup()
 
     def _cleanup(self):
+        """Clean up resources"""
         self.playing = False
         if self.buffer is not None:
             self.buffer.join(30)
