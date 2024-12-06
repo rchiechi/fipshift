@@ -8,7 +8,8 @@ from typing import Optional, Tuple
 from urllib.parse import urlparse
 from fiphifi.util import parsets, get_tmpdir
 from fiphifi.icecast import IcecastClient
-from fiphifi.constants import AACRE
+from fiphifi.AACStreamer import AACStreamer
+from fiphifi.constantser import AACRE
 
 logger = logging.getLogger(__package__+'.buffer')
 
@@ -36,7 +37,7 @@ class Buffer(threading.Thread):
             username=config['USEROPTS']['USER'],
             password=config['USEROPTS']['PASSWORD']
         )
-        
+        self.aacstreamer = AACStreamer(self.icecast)
         # Start the connection
         if not self.icecast.start():
             raise ConnectionError("Failed to initialize Icecast connection")
@@ -97,16 +98,14 @@ class Buffer(threading.Thread):
                 
             # Read and send the file
             try:
-                with open(_ts, 'rb') as fh:
-                    data = fh.read()
-                    if self.icecast.send_data(data):
-                        # Only add to sent_files if successfully sent
-                        self.sent_files.add(_ts)
-                        parsed = parsets(_ts)
-                        if parsed[1] != 0:  # Only add valid timestamps
-                            self._timestamp.append([parsed[1], _timestamp])
-                        logger.debug(f"Successfully sent {os.path.basename(_ts)}")
-                        return True
+                if self.aacstreamer.stream_file(_ts):
+                    # Only add to sent_files if successfully sent
+                    self.sent_files.add(_ts)
+                    parsed = parsets(_ts)
+                    if parsed[1] != 0:  # Only add valid timestamps
+                        self._timestamp.append([parsed[1], _timestamp])
+                    logger.debug(f"Successfully sent {os.path.basename(_ts)}")
+                    return True
             except IOError as e:
                 logger.error(f"Error reading file {_ts}: {e}")
                 return False
