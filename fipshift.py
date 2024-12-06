@@ -50,14 +50,24 @@ def vampstream(_c):
                 for chunk in response.iter_content(chunk_size=chunk_size):
                     if chunk:
                         if not client.send_data(chunk):
-                            break
+                            return  # Exit if send fails
             except Exception as e:
                 logger.error(f"Vamp stream error: {e}")
                 time.sleep(1)
+                if not client.is_connected:
+                    return  # Exit if connection is lost
                 
     thread = threading.Thread(target=stream_worker, daemon=True)
     thread.start()
     return client, thread
+
+def cleanup_vampstream(vamp_client, vamp_thread):
+    """Properly cleanup vamp stream"""
+    if vamp_client:
+        vamp_client.stop()  # This will now properly unmount
+        time.sleep(2)  # Give server time to clean up
+    if vamp_thread:
+        vamp_thread.join(timeout=1)
 
 def cleanup(*args):
     global CLEAN
@@ -156,6 +166,9 @@ signal.signal(signal.SIGINT, cleanup)
 logger.info('Starting vamp stream.')
 
 vamp_client, vamp_thread = vampstream(config['USEROPTS'])
+
+
+
 try:
     epoch = children["playlist"].history[0][0]
     logger.info("Restarting from cached history")
@@ -166,7 +179,9 @@ time.sleep(5)
 try:
     if not vamp_client.is_connected:
         logger.error("Failed to start stream, probably another process still running.")
+        cleanup_vampstream(vamp_client, vamp_thread)
         cleanup()
+    
         
     _runtime = time.time() - epoch
     while _runtime < opts.delay:
@@ -196,8 +211,7 @@ try:
         
 except KeyboardInterrupt:
     logger.info("Killing threads")
-    vamp_client.stop()
-    vamp_thread.join(timeout=1)
+    cleanup_vampstream(vamp_client, vamp_thread)
     ALIVE.clear()
     for child in children:
         if children[child].is_alive():
@@ -206,8 +220,7 @@ except KeyboardInterrupt:
     cleantmpdir(TMPDIR)
     sys.exit()
 finally:
-    vamp_client.stop()
-    vamp_thread.join(timeout=1)
+    cleanup_vampstream(vamp_client, vamp_thread)
 
 children["sender"].start()
 logger.info("Started %s", children["sender"].name)

@@ -1,8 +1,10 @@
+# icecast.py
 import socket
 import base64
 import threading
 import logging
 import time
+import requests
 
 logger = logging.getLogger(__package__+'.icecast')
 
@@ -11,14 +13,44 @@ class IcecastClient:
         self.host = host
         self.port = port
         self.mount = f"/{mount.lstrip('/')}"
+        self.username = username
+        self.password = password
         self.auth = base64.b64encode(f"{username}:{password}".encode()).decode()
         self.socket = None
         self._connected = False
         self._lock = threading.Lock()
         
+    def unmount_source(self):
+        """Force unmount the source from Icecast"""
+        try:
+            # First try using admin API
+            url = f"http://{self.host}:{self.port}/admin/killsource"
+            params = {'mount': self.mount}
+            response = requests.get(
+                url,
+                params=params,
+                auth=(self.username, self.password),
+                timeout=5
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"Successfully unmounted {self.mount}")
+                time.sleep(1)  # Give server time to clean up
+                return True
+            else:
+                logger.warning(f"Failed to unmount source: {response.status_code} {response.text}")
+                
+        except Exception as e:
+            logger.warning(f"Error during unmount attempt: {e}")
+            
+        return False
+        
     def start(self):
         """Initialize connection to Icecast server"""
         logger.info(f"Attempting to connect to Icecast server at {self.host}:{self.port}{self.mount}")
+        
+        # Try to unmount any existing source first
+        self.unmount_source()
         
         try:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -35,11 +67,11 @@ class IcecastClient:
                 f"Host: {self.host}:{self.port}\r\n",
                 f"Authorization: Basic {self.auth}\r\n",
                 "User-Agent: PyIcecast/1.0\r\n",
-                "Content-Type: audio/aacp\r\n",  # Changed to audio/aacp
+                "Content-Type: audio/aacp\r\n",
                 "ice-name: FipShift\r\n",
                 "ice-public: 1\r\n", 
                 "ice-description: Time-shifted FIP stream\r\n",
-                "ice-audio-info: bitrate=256;samplerate=48000;channels=2\r\n",  # Added more details
+                "ice-audio-info: bitrate=256;samplerate=48000;channels=2\r\n",
                 "ice-genre: Eclectic\r\n",
                 "Expect: 100-continue\r\n",
                 "\r\n"
@@ -63,7 +95,6 @@ class IcecastClient:
                 response_str = response.decode('utf-8', errors='replace')
                 logger.debug(f"Received response:\n{response_str}")
                 
-                # Accept both 200 OK and 100 Continue as success
                 if any(x in response_str for x in ["HTTP/1.1 200", "HTTP/1.0 200", "HTTP/1.1 100 Continue"]):
                     self._connected = True
                     logger.info("Successfully connected to Icecast server")
@@ -90,23 +121,6 @@ class IcecastClient:
                 self.socket.close()
                 self.socket = None
 
-    def send_data(self, data):
-        """Send data to Icecast server"""
-        if not self.is_connected:
-            return False
-            
-        try:
-            with self._lock:
-                self.socket.send(data)
-            return True
-        except socket.error as e:
-            logger.error(f"Send failed: {str(e)}")
-            self._connected = False
-            if self.socket:
-                self.socket.close()
-                self.socket = None
-            return False
-            
     def stop(self):
         """Close connection to Icecast server"""
         self._connected = False
@@ -119,6 +133,5 @@ class IcecastClient:
             self.socket = None
             logger.info("Disconnected from Icecast server")
             
-    @property
-    def is_connected(self):
-        return self._connected and self.socket is not None
+        # Try to unmount the source
+        self.unmount_source()
