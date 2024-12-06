@@ -135,3 +135,24 @@ class IcecastClient:
             
         # Try to unmount the source
         self.unmount_source()
+
+    def send_data(self, data):
+        """Send data to Icecast server"""
+        if not self.is_connected:
+            return False
+            
+        try:
+            with self._lock:
+                self.socket.send(data)
+            return True
+        except socket.error as e:
+            logger.error(f"Send failed: {str(e)}")
+            self._connected = False
+            if self.socket:
+                self.socket.close()
+                self.socket = None
+            return False
+    
+    @property
+    def is_connected(self):
+        return self._connected and self.socket is not None

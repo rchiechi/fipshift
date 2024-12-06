@@ -117,7 +117,13 @@ class M3U8Handler:
             
         # Store and queue the URL
         self._history.append(url_data)
-        self.urlq.put(url_data)
+        try:
+            self.urlq.put(url_data)
+            logger.debug(f"Successfully queued URL {url} with timestamp {timestamp}")
+        except Exception as e:
+            logger.error(f"Failed to queue URL {url}: {e}")
+            return False
+            
         logger.debug(f"Cached local timestamp {timestamp} ({datetime.fromtimestamp(timestamp)}) @ {prefix}:{suffix}")
         return True
         

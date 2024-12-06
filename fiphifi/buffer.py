@@ -56,6 +56,20 @@ class Buffer(threading.Thread):
                 return os.path.join(self.dldir, filename)
         raise ValueError(f"Invalid TS URL format: {url}")
 
+    def run(self):
+        logger.info('Starting Buffer')
+        try:
+            while self.alive and self.icecast.is_connected:
+                if not self.process_next_segment():
+                    time.sleep(0.5)
+                self.cleanup_sent_files()
+                    
+        except Exception as msg:
+            logger.error("%s died %s", self.name, str(msg))
+        finally:
+            self.cleanup()
+            logger.warning('%s ending.', self.name)
+
     def process_next_segment(self) -> bool:
         """Process the next segment from the queue"""
         try:
@@ -148,3 +162,41 @@ class Buffer(threading.Thread):
                 logger.warning(f"Failed to clean up {ts_file}: {e}")
                 
         self.sent_files.clear()
+
+    @property
+    def timestamp(self):
+        """Get timestamp for current segment"""
+        _timestamp = self.last_timestamp
+        for _i, _item in enumerate(self._timestamp):
+            if _item[0] == self.current_segment:
+                _timestamp = _item[1]
+                self.last_timestamp = _timestamp
+                self._timestamp = self._timestamp[_i:]
+                break
+        return _timestamp
+        
+    @property
+    def current_segment(self):
+        """Get currently playing segment number"""
+        if self._timestamp:
+            return self._timestamp[-1][0]
+        return 0
+        
+    @property
+    def alive(self):
+        return self._alive.isSet()
+        
+    @property
+    def initialized(self):
+        return self.icecast.is_connected
+        
+    @property
+    def tslength(self):
+        return self.duration
+        
+    @tslength.setter 
+    def tslength(self, _duration):
+        if _duration > 0:
+            self.duration = _duration
+        else:
+            logger.error("%s not setting tslength < 0", self.name)
