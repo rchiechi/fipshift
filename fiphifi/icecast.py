@@ -10,7 +10,7 @@ class IcecastClient:
     def __init__(self, host, port, mount, username, password):
         self.host = host
         self.port = port
-        self.mount = mount
+        self.mount = f"/{mount.lstrip('/')}"
         self.auth = base64.b64encode(f"{username}:{password}".encode()).decode()
         self.socket = None
         self._connected = False
@@ -21,36 +21,31 @@ class IcecastClient:
         logger.info(f"Attempting to connect to Icecast server at {self.host}:{self.port}{self.mount}")
         
         try:
-            # Create socket with timeout
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.settimeout(10)  # 10 second timeout
+            self.socket.settimeout(10)
             
-            # Attempt connection
             try:
                 self.socket.connect((self.host, self.port))
             except socket.error as e:
                 logger.error(f"Socket connection failed: {str(e)}")
                 return False
             
-            # Prepare headers
             headers = [
-                f"PUT {self.mount} HTTP/1.1",
-                f"Host: {self.host}:{self.port}",
-                f"Authorization: Basic {self.auth}",
-                "User-Agent: PyIcecast/1.0",
-                "Content-Type: audio/aac",
-                "ice-name: FipShift",
-                "ice-public: 1", 
-                "ice-description: Time-shifted FIP stream",
-                "ice-audio-info: bitrate=256",
-                "ice-genre: Eclectic",
-                "Expect: 100-continue",
-                "",  # Empty line required by HTTP
-                ""   # Second empty line to complete headers
+                f"PUT {self.mount} HTTP/1.1\r\n",
+                f"Host: {self.host}:{self.port}\r\n",
+                f"Authorization: Basic {self.auth}\r\n",
+                "User-Agent: PyIcecast/1.0\r\n",
+                "Content-Type: audio/aacp\r\n",  # Changed to audio/aacp
+                "ice-name: FipShift\r\n",
+                "ice-public: 1\r\n", 
+                "ice-description: Time-shifted FIP stream\r\n",
+                "ice-audio-info: bitrate=256;samplerate=48000;channels=2\r\n",  # Added more details
+                "ice-genre: Eclectic\r\n",
+                "Expect: 100-continue\r\n",
+                "\r\n"
             ]
             
-            # Send request
-            request = "\r\n".join(headers).encode()
+            request = "".join(headers).encode()
             logger.debug(f"Sending headers:\n{request.decode()}")
             
             try:
@@ -59,7 +54,6 @@ class IcecastClient:
                 logger.error(f"Failed to send headers: {str(e)}")
                 return False
             
-            # Wait for response
             try:
                 response = self.socket.recv(1024)
                 if not response:
@@ -69,8 +63,8 @@ class IcecastClient:
                 response_str = response.decode('utf-8', errors='replace')
                 logger.debug(f"Received response:\n{response_str}")
                 
-                # Check for success response
-                if "HTTP/1.1 200" in response_str or "HTTP/1.0 200" in response_str:
+                # Accept both 200 OK and 100 Continue as success
+                if any(x in response_str for x in ["HTTP/1.1 200", "HTTP/1.0 200", "HTTP/1.1 100 Continue"]):
                     self._connected = True
                     logger.info("Successfully connected to Icecast server")
                     return True
@@ -95,10 +89,10 @@ class IcecastClient:
             if not self._connected and self.socket:
                 self.socket.close()
                 self.socket = None
-                
+
     def send_data(self, data):
         """Send data to Icecast server"""
-        if not self._connected or not self.socket:
+        if not self.is_connected:
             return False
             
         try:
