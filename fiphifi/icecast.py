@@ -19,6 +19,7 @@ class IcecastClient:
         self.socket = None
         self._connected = False
         self._lock = threading.Lock()
+        self._duration = 4.0  # Default duration
         
     def unmount_source(self):
         """Force unmount the source from Icecast"""
@@ -121,7 +122,7 @@ class IcecastClient:
                 self.socket.close()
                 self.socket = None
 
-    def stop(self):
+    def stop(self, unmount=True):
         """Close connection to Icecast server"""
         self._connected = False
         if self.socket:
@@ -132,30 +133,30 @@ class IcecastClient:
                 pass
             self.socket = None
             logger.info("Disconnected from Icecast server")
-            
-        # Try to unmount the source
-        self.unmount_source()
+        if unmount:
+            # Try to unmount the source
+            self.unmount_source()
     
+    @property
+    def duration(self):
+        return self._duration
+        
+    @duration.setter
+    def duration(self, value):
+        if value > 0:
+            self._duration = float(value)
+            
     def send_data(self, data):
-        """Send AAC data in real-time"""
         if not self.is_connected:
             return False
-        
-        # AAC frame size is 1024 samples
-        # At 48kHz, one frame = 1024/48000 ≈ 21.33ms
-        FRAME_TIME = 0.02133
-        FRAME_SIZE = 1024  # Samples per AAC frame
-        
+
         try:
             with self._lock:
-                # Send data frame by frame with timing control
-                pos = 0
-                while pos < len(data):
-                    frame = data[pos:pos + FRAME_SIZE]
-                    if frame:
-                        self.socket.send(frame)
-                        time.sleep(FRAME_TIME)
-                    pos += FRAME_SIZE
+                start_time = time.time()
+                self.socket.send(data)
+                elapsed = time.time() - start_time
+                if elapsed < self.duration:
+                    time.sleep(self.duration - elapsed)
             return True
         except socket.error as e:
             logger.error(f"Send failed: {str(e)}")

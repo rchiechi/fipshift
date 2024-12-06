@@ -2,6 +2,7 @@ import re
 
 FIPBASEURL = 'https://stream.radiofrance.fr'
 FIPLIST = 'https://stream.radiofrance.fr/fip/fip_hifi.m3u8?id=radiofrance'
+VAMPURL = 'https://icecast.radiofrance.fr/fip-hifi.aac?id=radiofrance'
 #METAURL = 'https://www.radiofrance.fr/fip/api/live/webradios/fip'
 METAURL = 'https://www.radiofrance.fr/fip/api/live?'
 AACRE = re.compile(fr'^{FIPBASEURL}/.*(fip_.*\.ts).*$')

@@ -17,7 +17,7 @@ from fiphifi.sender import AACStream
 from fiphifi.downloader import Downloader
 from fiphifi.options import parseopts
 from fiphifi.metadata import FIPMetadata, send_metadata
-from fiphifi.constants import TSLENGTH
+from fiphifi.constants import TSLENGTH, VAMPURL
 from fiphifi.icecast import IcecastClient  # New import
 
 def create_icecast_client(_c):
@@ -29,6 +29,7 @@ def create_icecast_client(_c):
         username=_c['USER'],
         password=_c['PASSWORD']
     )
+    client.duration = 0.1
     client.start()
     return client
 
@@ -44,7 +45,7 @@ def vampstream(_c):
         while True:
             try:
                 response = requests.get(
-                    'https://icecast.radiofrance.fr/fip-hifi.aac?id=radiofrance',
+                    VAMPURL,
                     stream=True
                 )
                 for chunk in response.iter_content(chunk_size=chunk_size):
@@ -185,7 +186,7 @@ try:
         # Check vamp stream health
         if not vamp_client.is_connected:
             logger.warning('Restarting vamp stream.')
-            vamp_client.stop()
+            vamp_client.stop(False)
             vamp_thread.join(timeout=1)
             vamp_client, vamp_thread = vampstream(config['USEROPTS'])
             
