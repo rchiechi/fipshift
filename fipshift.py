@@ -6,9 +6,9 @@ import sys
 import threading
 import logging
 import time
+import subprocess
 import signal
 import queue
-import subprocess
 from argparse import ArgumentTypeError
 from fiphifi.util import get_tmpdir, cleantmpdir
 from fiphifi.logging import FipFormatter
@@ -18,56 +18,21 @@ from fiphifi.downloader import Downloader
 from fiphifi.options import parseopts
 from fiphifi.metadata import FIPMetadata, send_metadata
 from fiphifi.constants import TSLENGTH
-from fiphifi.icecast import IcecastClient  # New import
 
-def create_icecast_client(_c):
-    """Create and initialize icecast client"""
-    client = IcecastClient(
-        host=_c['HOST'],
-        port=int(_c['PORT']),
-        mount=_c['MOUNT'],
-        username=_c['USER'],
-        password=_c['PASSWORD']
-    )
-    client.start()
-    return client
-
-def vampstream(_c):
-    """Create realtime stream during buffer period"""
-    client = create_icecast_client(_c)
-    
-    # Set up direct streaming from FIP's AAC stream
-    def stream_worker():
-        import requests
-        chunk_size = 8192
-        
-        while True:
-            try:
-                response = requests.get(
-                    'https://icecast.radiofrance.fr/fip-hifi.aac?id=radiofrance',
-                    stream=True
-                )
-                for chunk in response.iter_content(chunk_size=chunk_size):
-                    if chunk:
-                        if not client.send_data(chunk):
-                            return  # Exit if send fails
-            except Exception as e:
-                logger.error(f"Vamp stream error: {e}")
-                time.sleep(1)
-                if not client.is_connected:
-                    return  # Exit if connection is lost
-                
-    thread = threading.Thread(target=stream_worker, daemon=True)
-    thread.start()
-    return client, thread
-
-def cleanup_vampstream(vamp_client, vamp_thread):
-    """Properly cleanup vamp stream"""
-    if vamp_client:
-        vamp_client.stop()  # This will now properly unmount
-        time.sleep(2)  # Give server time to clean up
-    if vamp_thread:
-        vamp_thread.join(timeout=1)
+def vampstream(FFMPEG, _c):
+    _ffmpegcmd = [FFMPEG,
+                  '-loglevel', 'fatal',
+                  '-nostdin',
+                  '-re',
+                  '-i', 'https://icecast.radiofrance.fr/fip-hifi.aac?id=radiofrance',
+                  '-content_type', 'audio/aac',
+                  '-ice_name', 'FipShift',
+                  '-ice_description', 'Time-shifted FIP stream',
+                  '-ice_genre', 'Eclectic',
+                  '-c:a', 'copy',
+                  '-f', 'adts',
+                  f"icecast://{_c['USER']}:{_c['PASSWORD']}@{_c['HOST']}:{_c['PORT']}/{_c['MOUNT']}"]
+    return subprocess.Popen(_ffmpegcmd)
 
 def cleanup(*args):
     global CLEAN
@@ -129,20 +94,20 @@ logging.debug("Logging to %s", _logfile)
 
 ABSPATH = os.path.join(os.path.dirname(os.path.realpath(__file__)))
 
+
 if opts.ffmpeg:
     FFMPEG = opts.ffmpeg
 elif os.path.exists(config['USEROPTS']['FFMPEG']):
     FFMPEG = config['USEROPTS']['FFMPEG']
 else:
-    # We still check for ffmpeg for backward compatibility
     p = subprocess.run(['which', 'ffmpeg'], capture_output=True)
     if p.returncode == 0:
         FFMPEG = p.stdout.strip()
     else:
-        logger.warning("ffmpeg not found, using native streaming")
-        FFMPEG = None
+        logger.error("I could not locate the ffmpeg binary in the PATH.")
+        sys.exit(1)
 
-logger.info('Starting buffer threads.')
+logger.info("Starting buffer threads.")
 
 CLEAN = False
 CACHE = os.path.join(TMPDIR, 'fipshift.cache')
@@ -165,24 +130,17 @@ signal.signal(signal.SIGINT, cleanup)
 
 logger.info('Starting vamp stream.')
 
-vamp_client, vamp_thread = vampstream(config['USEROPTS'])
-
-
-
+ffmpeg_proc = vampstream(FFMPEG, _c)
 try:
     epoch = children["playlist"].history[0][0]
     logger.info("Restarting from cached history")
 except IndexError:
     epoch = time.time()
 time.sleep(5)
-
 try:
-    if not vamp_client.is_connected:
-        logger.error("Failed to start stream, probably another process still running.")
-        cleanup_vampstream(vamp_client, vamp_thread)
+    if ffmpeg_proc.poll() is not None:
+        logger.error("Failed to start ffmpeg, probably another process still running.")
         cleanup()
-    
-        
     _runtime = time.time() - epoch
     while _runtime < opts.delay:
         _remains = (opts.delay - _runtime) / 60 or 1
@@ -195,23 +153,17 @@ try:
                         (children["playlist"].qsize * TSLENGTH / opts.delay)*100,
                         _remains, 'mins' if _remains > 1.9 else 'min')
         time.sleep(60)
-        
-        # Check vamp stream health
-        if not vamp_client.is_connected:
+        if ffmpeg_proc.poll() is not None:
             logger.warning('Restarting vamp stream.')
-            vamp_client.stop()
-            vamp_thread.join(timeout=1)
-            vamp_client, vamp_thread = vampstream(config['USEROPTS'])
-            
-        send_metadata(f"{config['USEROPTS']['HOST']}:{config['USEROPTS']['PORT']}",
-                      config['USEROPTS']['MOUNT'],
+            ffmpeg_proc = vampstream(FFMPEG, _c)
+        send_metadata(f"{_c['HOST']}:{_c['PORT']}",
+                      _c['MOUNT'],
                       f"Realtime Stream: T-{_remains:0.0f} minutes",
-                      (config['USEROPTS']['USER'], config['USEROPTS']['PASSWORD']))
+                      (_c['USER'], _c['PASSWORD']))
         _runtime = time.time() - epoch
-        
 except KeyboardInterrupt:
     logger.info("Killing threads")
-    cleanup_vampstream(vamp_client, vamp_thread)
+    ffmpeg_proc.terminate()
     ALIVE.clear()
     for child in children:
         if children[child].is_alive():
@@ -220,7 +172,10 @@ except KeyboardInterrupt:
     cleantmpdir(TMPDIR)
     sys.exit()
 finally:
-    cleanup_vampstream(vamp_client, vamp_thread)
+    ffmpeg_proc.terminate()
+    time.sleep(1)
+    if ffmpeg_proc.returncode is None:
+        ffmpeg_proc.kill()
 
 children["sender"].start()
 logger.info("Started %s", children["sender"].name)
